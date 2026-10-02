@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: 1.16.4
       - name: Upgrade npm
