@@ -189,30 +189,55 @@ function renderResult(
 ): string {
   if (!result) return "";
 
+  const degraded = statuses.filter(
+    (status) => status.state === "error" || status.state === "unavailable"
+  );
   const providerRows = statuses
-    .map((status) => `
-      <div class="row">
-        <span>${escapeHtml(capitalize(status.provider))}</span>
-        <span class="muted">${escapeHtml(status.state)}</span>
-      </div>
-    `)
+    .map((status) => {
+      const reviews = status.reviewCandidates?.length ?? 0;
+      const reviewSuffix = reviews > 0 ? ` · ${reviews} review` : "";
+      return `
+        <div class="row">
+          <span>${escapeHtml(capitalize(status.provider))}</span>
+          <span class="muted">${escapeHtml(providerStateLabel(status.state) + reviewSuffix)}</span>
+        </div>
+      `;
+    })
     .join("");
 
-  const best = result.bestOffer
-    ? `<div class="delta">Best market price: ${escapeHtml(
-        formatMoney(result.bestOffer.landedPrice.amount, result.bestOffer.landedPrice.currency)
-      )}</div>`
+  const bestOffer = result.bestOffer;
+  const best = bestOffer
+    ? `
+      <div class="delta">
+        Best available market price: ${escapeHtml(
+          formatMoney(bestOffer.landedPrice.amount, bestOffer.landedPrice.currency)
+        )}
+      </div>
+      <div class="muted source-meta">
+        ${escapeHtml(capitalize(bestOffer.provider))}
+        ${bestOffer.merchant ? ` · ${escapeHtml(bestOffer.merchant)}` : ""}
+        ${formatFreshness(bestOffer.fetchedAt, result.generatedAt)
+          ? ` · ${escapeHtml(formatFreshness(bestOffer.fetchedAt, result.generatedAt)!)}`
+          : ""}
+      </div>
+    `
     : result.offers.length > 0
       ? '<div class="warn">Offers were found, but mandatory shipping is unavailable, so no complete landed-price comparison is shown.</div>'
       : statuses.some((status) => status.state !== "unconfigured")
         ? '<div class="warn">No complete comparable market offer was found.</div>'
         : '<div class="warn">Price providers are not configured yet.</div>';
 
-  const delta = result.delta
-    ? `<div class="muted">eBay vs market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
+  const partialWarning = degraded.length > 0
+    ? `<div class="warn">Some price sources are currently unavailable (${escapeHtml(
+        degraded.map((status) => capitalize(status.provider)).join(", ")
+      )}). Results are based only on the sources that responded.</div>`
     : "";
 
-  return `${best}${delta}<div class="providers">${providerRows}</div>`;
+  const delta = result.delta
+    ? `<div class="muted">eBay vs available market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
+    : "";
+
+  return `${best}${delta}${partialWarning}<div class="providers">${providerRows}</div>`;
 }
 
 function privacyControlMarkup(options: PriceLensUiOptions): string {
@@ -269,6 +294,7 @@ function baseStyles(): string {
       .providers { margin-top:12px; display:grid; gap:6px; }
       .row { display:flex; justify-content:space-between; gap:12px; }
       .delta { margin-top:10px; font-weight:650; }
+      .source-meta { margin-top:3px; }
       .consent-title { margin-top:12px; font-size:16px; font-weight:700; }
       .consent-copy { margin-top:8px; }
       .actions { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
@@ -313,6 +339,41 @@ function formatMoney(amount: number, currency: string): string {
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function providerStateLabel(state: ProviderStatus["state"]): string {
+  switch (state) {
+    case "ok":
+      return "available";
+    case "unconfigured":
+      return "not configured";
+    case "unavailable":
+      return "unavailable";
+    case "no_match":
+      return "no match";
+    case "error":
+      return "temporarily unavailable";
+  }
+}
+
+export function formatFreshness(
+  fetchedAt: string,
+  generatedAt: string
+): string | undefined {
+  const fetched = Date.parse(fetchedAt);
+  const generated = Date.parse(generatedAt);
+  if (!Number.isFinite(fetched) || !Number.isFinite(generated)) return undefined;
+
+  const ageMs = Math.max(0, generated - fetched);
+  const minutes = Math.floor(ageMs / 60_000);
+  if (minutes < 1) return "fetched just now";
+  if (minutes < 60) return `fetched ${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `fetched ${hours} h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `fetched ${days} d ago`;
 }
 
 function escapeHtml(value: string): string {
