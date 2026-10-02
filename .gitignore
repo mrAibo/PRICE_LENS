@@ -6,3 +6,13 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+
+# Terraform local state and credentials-bearing/operator-specific inputs.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+**/backend.tf
+.terraform.tfstate.lock.info
