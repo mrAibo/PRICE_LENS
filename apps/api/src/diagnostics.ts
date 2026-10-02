@@ -92,6 +92,7 @@ export function createAggregatingDiagnosticSink(
   let offerCount = 0;
   let warningCount = 0;
   let enrichmentFallbackCount = 0;
+  const warningCodes = new Map<WarningCode, number>();
   const rejectionReasons = new Map<RequestRejectedDiagnostic["reason"], number>();
   const providerMetrics = new Map<
     PriceProviderId,
@@ -114,6 +115,7 @@ export function createAggregatingDiagnosticSink(
       rejectionReasons: Object.fromEntries(rejectionReasons),
       offerCount,
       warningCount,
+      warningCodes: Object.fromEntries(warningCodes),
       enrichmentFallbackCount,
       providers: [...providerMetrics.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
@@ -152,6 +154,9 @@ export function createAggregatingDiagnosticSink(
       compareCompleted += 1;
       offerCount += event.offerCount;
       warningCount += event.warningCount;
+      for (const code of event.warningCodes) {
+        warningCodes.set(code, (warningCodes.get(code) ?? 0) + 1);
+      }
       if (event.enrichmentFallback) enrichmentFallbackCount += 1;
 
       for (const provider of event.providers) {
