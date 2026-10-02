@@ -240,9 +240,11 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] eBay inbound URL host/item-id trust checks
 - [x] Amazon Germany marketplace/detail-URL allowlist
 - [x] extension production API origin requires HTTPS
-- [ ] backend production HTTPS/ingress deployment configuration
+- [x] production deployment topology selected: Cloud Run + external load balancer + Cloud Armor
+- [x] production API container + readiness/graceful shutdown contract
+- [ ] provision production HTTPS ingress/custom API hostname
 - [ ] extend outbound allowlists to future providers
-- [ ] structured secret management
+- [ ] provision structured secret management/rotation
 - [ ] privacy review before any telemetry
 
 ### Reliability/observability
@@ -263,10 +265,12 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 
 ### Distribution
 
-- [ ] production API deployment model
+- [x] production API deployment model selected (Cloud Run, europe-west3)
+- [x] production API Docker image verified in CI
 - [x] extension build-time API-origin configuration
 - [x] generated extension artifact verification in CI
-- [ ] backend production environment/configuration strategy
+- [x] backend production runtime/environment contract
+- [ ] actual Cloud Run/load-balancer/Cloud Armor resource provisioning
 - [x] Chrome packaging workflow + CI ZIP smoke test
 - [ ] Firefox compatibility evaluation
 - [ ] dependency-license inventory for release
