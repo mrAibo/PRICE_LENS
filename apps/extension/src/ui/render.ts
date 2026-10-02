@@ -13,6 +13,57 @@ export function mountPriceLens(
   document: Document,
   listing: EcommerceListing
 ): PriceLensView {
+  const shadow = mountHost(document);
+  render(shadow, listing, "loading");
+
+  return {
+    renderComparison(result) {
+      render(shadow, listing, "result", result);
+    },
+    renderError(message) {
+      render(shadow, listing, "error", undefined, message);
+    }
+  };
+}
+
+export function mountUnsupportedPriceLens(
+  document: Document,
+  message: string
+): void {
+  const shadow = mountHost(document);
+  shadow.innerHTML = `
+    <style>
+      :host { all: initial; }
+      .card {
+        box-sizing: border-box;
+        margin: 16px 0;
+        padding: 16px;
+        border: 1px solid #d7d9dc;
+        border-radius: 12px;
+        background: #fff;
+        color: #191919;
+        font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        max-width: 420px;
+      }
+      .head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .brand { font-weight:750; font-size:16px; }
+      .badge { border-radius:999px; padding:3px 8px; background:#f1f3f5; font-size:12px; }
+      .warn { margin-top:10px; color:#8a4b00; }
+      .muted { margin-top:6px; color:#5c5f62; }
+    </style>
+    <div class="card">
+      <div class="head">
+        <div class="brand">PriceLens</div>
+        <div class="badge">Unsupported</div>
+      </div>
+      <div class="warn">${escapeHtml(message)}</div>
+      <div class="muted">No market lookup was sent for this page state.</div>
+    </div>
+  `;
+}
+
+function mountHost(document: Document): ShadowRoot {
   document.getElementById("price-lens-root")?.remove();
 
   const host = document.createElement("section");
@@ -28,16 +79,7 @@ export function mountPriceLens(
     document.body.appendChild(host);
   }
 
-  render(shadow, listing, "loading");
-
-  return {
-    renderComparison(result) {
-      render(shadow, listing, "result", result);
-    },
-    renderError(message) {
-      render(shadow, listing, "error", undefined, message);
-    }
-  };
+  return shadow;
 }
 
 function findMountPoint(document: Document): Element {
