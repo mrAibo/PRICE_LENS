@@ -28,6 +28,7 @@ export interface PriceLensApiOptions {
   requestIdFactory?: () => string;
   diagnostics?: PriceLensDiagnosticSink;
   now?: () => number;
+  maxConcurrentComparisons?: number;
 }
 
 export function createPriceLensServer(
@@ -35,6 +36,10 @@ export function createPriceLensServer(
 ): Server {
   const providers = options.providers ?? [];
   const now = options.now ?? Date.now;
+  const maxConcurrentComparisons =
+    options.maxConcurrentComparisons ?? Number.POSITIVE_INFINITY;
+  validateConcurrencyLimit(maxConcurrentComparisons, "maxConcurrentComparisons");
+  let activeComparisons = 0;
 
   return createServer(async (request, response) => {
     const startedAt = now();
@@ -53,81 +58,104 @@ export function createPriceLensServer(
     }
 
     if (request.method === "POST" && request.url === "/v1/compare") {
-      try {
-        const payload = await readJsonBody(request);
-        if (!isComparisonRequest(payload)) {
-          sendJson(response, 400, {
-            error: "invalid_request",
-            message: "Expected a valid eBay listing payload.",
-            requestId
-          });
-          safeEmitDiagnostic(options.diagnostics, {
-            type: "request_rejected",
-            requestId,
-            route: "/v1/compare",
-            status: 400,
-            reason: "invalid_request",
-            durationMs: elapsedMs(startedAt, now)
-          });
-          return;
-        }
-
-        let listing = payload.listing;
-        let enrichmentFallback = false;
-        if (options.enrichListing) {
-          try {
-            listing = await options.enrichListing(listing);
-          } catch {
-            enrichmentFallback = true;
-            listing = {
-              ...listing,
-              extractionWarnings: [
-                ...listing.extractionWarnings,
-                ENRICHMENT_FALLBACK_WARNING
-              ]
-            };
-          }
-        }
-
-        const result = await compareWithProviders(listing, providers, {
-          requestId
-        });
-        sendJson(response, 200, result);
-        safeEmitDiagnostic(options.diagnostics, {
-          type: "compare_completed",
-          requestId,
-          route: "/v1/compare",
-          status: 200,
-          durationMs: elapsedMs(startedAt, now),
-          offerCount: result.offers.length,
-          warningCount: result.warnings.length,
-          enrichmentFallback,
-          providers: result.providerStatus.map((status) => ({
-            provider: status.provider,
-            state: status.state,
-            ...(status.latencyMs !== undefined
-              ? {latencyMs: status.latencyMs}
-              : {}),
-            reviewCandidateCount: status.reviewCandidates?.length ?? 0
-          }))
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Invalid request";
-        const status: 400 | 413 = message.includes("too large") ? 413 : 400;
-        const reason = status === 413 ? "payload_too_large" : "invalid_json";
-        sendJson(response, status, {
-          error: reason,
-          message,
+      if (activeComparisons >= maxConcurrentComparisons) {
+        response.setHeader("retry-after", "1");
+        sendJson(response, 503, {
+          error: "server_busy",
+          message: "PriceLens is processing the maximum number of comparisons.",
           requestId
         });
         safeEmitDiagnostic(options.diagnostics, {
           type: "request_rejected",
           requestId,
           route: "/v1/compare",
-          status,
-          reason,
+          status: 503,
+          reason: "server_busy",
           durationMs: elapsedMs(startedAt, now)
         });
+        return;
+      }
+
+      activeComparisons += 1;
+      try {
+        try {
+          const payload = await readJsonBody(request);
+          if (!isComparisonRequest(payload)) {
+            sendJson(response, 400, {
+              error: "invalid_request",
+              message: "Expected a valid eBay listing payload.",
+              requestId
+            });
+            safeEmitDiagnostic(options.diagnostics, {
+              type: "request_rejected",
+              requestId,
+              route: "/v1/compare",
+              status: 400,
+              reason: "invalid_request",
+              durationMs: elapsedMs(startedAt, now)
+            });
+            return;
+          }
+
+          let listing = payload.listing;
+          let enrichmentFallback = false;
+          if (options.enrichListing) {
+            try {
+              listing = await options.enrichListing(listing);
+            } catch {
+              enrichmentFallback = true;
+              listing = {
+                ...listing,
+                extractionWarnings: [
+                  ...listing.extractionWarnings,
+                  ENRICHMENT_FALLBACK_WARNING
+                ]
+              };
+            }
+          }
+
+          const result = await compareWithProviders(listing, providers, {
+            requestId
+          });
+          sendJson(response, 200, result);
+          safeEmitDiagnostic(options.diagnostics, {
+            type: "compare_completed",
+            requestId,
+            route: "/v1/compare",
+            status: 200,
+            durationMs: elapsedMs(startedAt, now),
+            offerCount: result.offers.length,
+            warningCount: result.warnings.length,
+            enrichmentFallback,
+            providers: result.providerStatus.map((status) => ({
+              provider: status.provider,
+              state: status.state,
+              ...(status.latencyMs !== undefined
+                ? {latencyMs: status.latencyMs}
+                : {}),
+              reviewCandidateCount: status.reviewCandidates?.length ?? 0
+            }))
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Invalid request";
+          const status: 400 | 413 = message.includes("too large") ? 413 : 400;
+          const reason = status === 413 ? "payload_too_large" : "invalid_json";
+          sendJson(response, status, {
+            error: reason,
+            message,
+            requestId
+          });
+          safeEmitDiagnostic(options.diagnostics, {
+            type: "request_rejected",
+            requestId,
+            route: "/v1/compare",
+            status,
+            reason,
+            durationMs: elapsedMs(startedAt, now)
+          });
+        }
+      } finally {
+        activeComparisons -= 1;
       }
       return;
     }
@@ -146,6 +174,15 @@ export function createPriceLensServer(
       durationMs: elapsedMs(startedAt, now)
     });
   });
+}
+
+function validateConcurrencyLimit(value: number, name: string): void {
+  if (
+    value !== Number.POSITIVE_INFINITY &&
+    (!Number.isInteger(value) || value < 1)
+  ) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
 }
 
 function elapsedMs(startedAt: number, now: () => number): number {
