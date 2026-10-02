@@ -39,7 +39,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Terraform format
-        run: terraform fmt -check -recursive infra/gcp
+        run: terraform fmt -check -diff -recursive infra/gcp
       - name: Terraform init
         run: terraform -chdir=infra/gcp init -backend=false -input=false
       - name: Terraform validate
