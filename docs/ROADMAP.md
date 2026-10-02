@@ -248,9 +248,10 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] provider status model
 - [x] in-flight eBay/Amazon request coalescing
 - [x] stable HTTP/result request correlation id
-- [ ] structured request correlation logging
+- [x] privacy-minimized structured request correlation logging
 - [ ] cache hit/miss metrics
-- [ ] provider latency metrics
+- [x] per-request provider latency diagnostics
+- [ ] aggregate provider latency metrics
 - [ ] match-decision diagnostics
 - [ ] structured warning taxonomy
 
