@@ -48,6 +48,33 @@ export interface EcommerceListing {
 
 export type PriceProviderId = "idealo" | "geizhals" | "amazon" | "fixture";
 export type MatchMethod = "gtin" | "mpn" | "model" | "fuzzy" | "manual" | "unknown";
+export type MatchDecision = "auto_match" | "review" | "reject";
+
+export type MatchReasonCode =
+  | "condition_mismatch"
+  | "brand_mismatch"
+  | "identifier_conflict"
+  | "mpn_conflict"
+  | "storage_mismatch"
+  | "ram_mismatch"
+  | "screen_size_mismatch"
+  | "pack_count_mismatch"
+  | "edition_mismatch"
+  | "model_qualifier_mismatch"
+  | "bundle_mismatch"
+  | "model_generation_mismatch"
+  | "exact_trade_identifier"
+  | "exact_brand_mpn"
+  | "normalized_identifier"
+  | "composite_auto"
+  | "composite_review"
+  | "below_review_threshold";
+
+export interface ProviderMatchDiagnostics {
+  candidateCount: number;
+  decisionCounts: Record<MatchDecision, number>;
+  reasonCounts: Partial<Record<MatchReasonCode, number>>;
+}
 
 export interface MarketOffer {
   provider: PriceProviderId;
@@ -82,6 +109,7 @@ export interface ProviderStatus {
   message?: string;
   latencyMs?: number;
   reviewCandidates?: ProviderReviewCandidate[];
+  matchDiagnostics?: ProviderMatchDiagnostics;
 }
 
 export interface ComparisonDelta {
