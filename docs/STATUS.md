@@ -19,6 +19,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] npm-workspaces monorepo
 - [x] TypeScript/Node.js 22 baseline
 - [x] CI for typecheck, tests and build
+- [x] Terraform 1.16.4 fmt/init/validate gate for production GCP IaC
+- [x] Google provider 8.2.0 production infrastructure schema baseline
 - [x] MIT project license
 - [x] third-party notices and open-source reuse policy
 - [x] pinned vendored MIT `product-matcher` snapshot
@@ -103,6 +105,10 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] deployment readiness endpoint (`GET /ready`)
 - [x] bounded graceful SIGTERM/SIGINT shutdown
 - [x] CI builds and smoke-runs the production API container
+- [x] two-phase GCP Terraform baseline: APIs/Artifact Registry/service account/Secret Manager bootstrap
+- [x] native Terraform Cloud Run + serverless NEG + EXTERNAL_MANAGED HTTPS LB resources
+- [x] Cloud Armor 64 KiB declared-body guard + per-IP throttle in preview by default
+- [x] pinned Secret Manager version injection; no provider secret values accepted by Terraform
 
 ### Provider/access research
 
@@ -229,7 +235,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — provision the selected Cloud Run + load-balancer + Cloud Armor topology, establish the final HTTPS API origin and Secret Manager bindings, fill publisher/contact/log-retention/provider-attribution fields in the privacy policy, then run the Chrome package workflow.
+9. Issue #33 — Terraform definitions are ready; apply Phase A in the selected GCP project, add approved secret versions/image/domain, apply Phase B, tune Cloud Armor preview traffic, then package Chrome against the verified HTTPS origin.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification

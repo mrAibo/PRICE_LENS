@@ -243,9 +243,11 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] extension production API origin requires HTTPS
 - [x] production deployment topology selected: Cloud Run + external load balancer + Cloud Armor
 - [x] production API container + readiness/graceful shutdown contract
-- [ ] provision production HTTPS ingress/custom API hostname
+- [x] validated Terraform definitions for Cloud Run + HTTPS LB + Cloud Armor
+- [x] Secret Manager container/IAM/pinned-version injection + rotation procedure in IaC
+- [ ] apply production HTTPS ingress/custom API hostname in the selected GCP project
 - [ ] extend outbound allowlists to future providers
-- [ ] provision structured secret management/rotation
+- [ ] add approved live secret versions and validate the rotation process
 - [x] explicit first-use comparison consent + local revoke control
 - [x] Chrome privacy/store disclosure baseline
 - [ ] final publisher/legal/privacy review before public release
@@ -270,10 +272,12 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 
 - [x] production API deployment model selected (Cloud Run, europe-west3)
 - [x] production API Docker image verified in CI
+- [x] GCP Terraform IaC validated in CI (provider 8.2.0)
+- [x] two-phase bootstrap/runtime infrastructure workflow documented
 - [x] extension build-time API-origin configuration
 - [x] generated extension artifact verification in CI
 - [x] backend production runtime/environment contract
-- [ ] actual Cloud Run/load-balancer/Cloud Armor resource provisioning
+- [ ] actual Terraform apply: Cloud Run/load-balancer/Cloud Armor/Secret Manager resources
 - [x] Chrome packaging workflow + CI ZIP smoke test
 - [ ] Firefox compatibility evaluation
 - [ ] dependency-license inventory for release

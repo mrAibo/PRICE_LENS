@@ -1,0 +1,8 @@
+terraform {
+  backend "gcs" {
+    # Create the state bucket separately, then copy this file to backend.tf and
+    # set the approved bucket/prefix before terraform init -migrate-state.
+    bucket = "replace-with-price-lens-terraform-state-bucket"
+    prefix = "price-lens/prod"
+  }
+}
