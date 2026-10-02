@@ -6,7 +6,7 @@ Overall status: **active implementation / early MVP**
 
 Primary integration branch: `bootstrap/price-lens-mvp`
 
-Current merged checkpoint: `9daecba4d14938840b4b78022333ae6ca48d30cb` (PR #9)
+Current merged checkpoint: `28eba7075c705b38f9ead4d1a4ab4811a02a3fd1` (PR #16)
 
 Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay vertical slice** (draft, target `main`)
 
@@ -35,6 +35,9 @@ Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay 
 - [x] listing fingerprint deduplication
 - [x] stale async response protection
 - [x] extraction/lifecycle unit tests
+- [x] ambiguous multi-offer JSON-LD protection (PR #15)
+- [x] explicit storage/RAM/screen-size/pack-count extraction from item specifics
+- [x] structured variant fields participate in lifecycle fingerprinting
 
 ### Core/API
 
@@ -48,6 +51,7 @@ Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay 
 - [x] exact GTIN/EAN/UPC match path
 - [x] exact brand + MPN match path
 - [x] hard condition/brand/identifier mismatch guards
+- [x] hard storage/RAM/screen-size/pack-count mismatch guards
 - [x] `product-matcher` composite scoring integration
 - [x] `GET /health`
 - [x] `POST /v1/compare`
@@ -72,18 +76,21 @@ Still required:
 - [ ] larger labelled eBay.de fixture corpus
 - [ ] explicit extraction accuracy report
 - [ ] coverage for representative shipping layouts
-- [ ] coverage for variant/item-specific layouts
+- [x] initial coverage for variant/item-specific layouts
+- [ ] broaden variant/item-specific fixture coverage across categories
 - [ ] explicit unsupported-state behavior for pages that cannot be normalized safely
 
 ### Phase 2 — matcher/comparison gate
 
 Still required:
 
-- [ ] hard mismatch fixtures for storage/capacity
-- [ ] RAM mismatch fixtures
+- [x] hard mismatch fixtures for storage/capacity
+- [x] RAM mismatch fixtures
+- [x] pack-count mismatch fixtures
+- [x] screen-size mismatch fixtures
 - [ ] console/product edition mismatch fixtures
-- [ ] pack-count/bundle mismatch fixtures
-- [ ] model suffix / screen-size mismatch fixtures
+- [ ] materially different bundle/accessory mismatch fixtures
+- [ ] model-suffix mismatch fixtures beyond explicit screen-size data
 - [ ] labelled calibration set for `0.90/0.70` thresholds
 - [ ] review-candidate visibility/debug tooling
 
@@ -134,6 +141,9 @@ Still required:
 
 - PR #7 — extension lifecycle hardening — merged into `bootstrap/price-lens-mvp`
 - PR #8 — provider access research — merged into `bootstrap/price-lens-mvp`
+- PR #9 — project checkpoint + local fixture provider — merged into `bootstrap/price-lens-mvp`
+- PR #15 — ambiguous multi-variant JSON-LD safety — merged into `bootstrap/price-lens-mvp`
+- PR #16 — structured variant safety guards — merged into `bootstrap/price-lens-mvp`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
