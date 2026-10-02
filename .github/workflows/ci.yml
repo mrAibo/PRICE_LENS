@@ -49,3 +49,29 @@ jobs:
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "manifest.json"
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "background.js"
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "content.js"
+      - name: Build production API container
+        run: docker build --tag price-lens-api:ci .
+      - name: Smoke-test production API container
+        run: |
+          container_id="$(docker run --detach --publish 127.0.0.1:18787:8080 price-lens-api:ci)"
+          cleanup() {
+            docker rm --force "$container_id" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18787/ready >/tmp/price-lens-ready.json; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            docker logs "$container_id"
+            exit 1
+          fi
+
+          grep -Fq '"status":"ready"' /tmp/price-lens-ready.json
+          curl --fail --silent --show-error http://127.0.0.1:18787/health | grep -Fq '"status":"ok"'

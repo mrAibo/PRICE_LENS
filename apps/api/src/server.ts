@@ -7,6 +7,7 @@ import {
   createJsonLineDiagnosticSink
 } from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
+import {installGracefulShutdown} from "./shutdown.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -51,6 +52,8 @@ const server = createPriceLensServer({
   },
   maxConcurrentComparisons
 });
+
+installGracefulShutdown(server, {timeoutMs: 9_000});
 
 server.listen(port, host, () => {
   const notes = [

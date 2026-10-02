@@ -1,6 +1,6 @@
 # PriceLens Deployment Baseline
 
-Status: **configuration implemented / public deployment not yet approved**
+Status: **Cloud Run container baseline implemented / public deployment not yet approved**
 
 Updated: **2026-10-02**
 
@@ -76,20 +76,144 @@ could turn the background service worker into a generic cross-origin request bri
 The API origin is therefore fixed during packaging together with the matching manifest
 permission.
 
-## Backend process
+## Backend process and container
 
-The API process currently uses:
+Local development keeps:
 
 ```text
 HOST=127.0.0.1
 PORT=8787
 ```
 
+The production container sets:
+
+```text
+HOST=0.0.0.0
+PORT=8080
+NODE_ENV=production
+```
+
+This matches the Cloud Run container contract: the ingress container listens on
+`0.0.0.0` and accepts the platform-supplied `PORT`.
+
+Build and run locally:
+
+```bash
+docker build -t price-lens-api .
+docker run --rm -p 8080:8080 price-lens-api
+curl --fail http://127.0.0.1:8080/ready
+curl --fail http://127.0.0.1:8080/health
+```
+
+The image is multi-stage, runs as the unprivileged `node` user, and contains only the
+API plus runtime dependencies. CI builds and starts this exact image and checks both
+health endpoints.
+
+The process handles `SIGTERM`/ `SIGINT` by stopping new connections, closing idle
+keep-alives and allowing active requests up to 9 seconds to complete before a forced
+shutdown. This is intentionally below Cloud Run's 10-second termination window.
+
 Provider credentials remain process/server secrets.
 
-For a future production deployment, the Node process should remain behind a TLS
-terminating reverse proxy or managed ingress. The backend application itself should not
-be used as the Internet-facing TLS terminator.
+## Selected production platform
+
+The initial production target is **Google Cloud Run in `europe-west3` (Frankfurt)**.
+
+Why this baseline fits PriceLens:
+
+- the API is stateless and request-driven;
+- scale-to-zero keeps the pre-launch cost surface small;
+- Cloud Run supplies the runtime `PORT` and managed service lifecycle;
+- Secret Manager can inject backend-only provider credentials;
+- an external Application Load Balancer with a serverless NEG can front the service;
+- Cloud Armor can apply rate limiting before requests consume provider quota;
+- Cloud Run ingress can be restricted to `internal-and-cloud-load-balancing`, preventing
+  normal Internet clients from bypassing the load balancer through the default service URL.
+
+The selected public topology is:
+
+```text
+Chrome extension
+      |
+      v
+HTTPS custom API hostname
+      |
+External Application Load Balancer
+      |
+Cloud Armor
+      |
+serverless NEG
+      |
+Cloud Run: price-lens-api
+      |
+approved provider APIs
+```
+
+The application container remains portable; Cloud Run-specific controls stay outside the
+Node.js runtime.
+
+### Cloud Run service baseline
+
+Example variables:
+
+```bash
+PROJECT_ID=<gcp-project>
+REGION=europe-west3
+REPOSITORY=price-lens
+SERVICE=price-lens-api
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:<git-sha>"
+```
+
+Build/push with your approved Artifact Registry / Cloud Build path, then deploy:
+
+```bash
+gcloud run deploy "$SERVICE" \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
+  --image="$IMAGE" \
+  --port=8080 \
+  --execution-environment=gen2 \
+  --allow-unauthenticated \
+  --ingress=internal-and-cloud-load-balancing \
+  --cpu=1 \
+  --memory=512Mi \
+  --concurrency=16 \
+  --min=0 \
+  --set-env-vars="PRICE_LENS_MAX_CONCURRENT_COMPARISONS=16,PRICE_LENS_PROVIDER_MAX_CONCURRENCY=4,PRICE_LENS_JSON_LOGS=1"
+```
+
+Use Secret Manager bindings rather than literal command-line values for provider
+credentials. Provider switches remain disabled until their access issues are approved.
+
+Configure an HTTP startup probe against:
+
+```text
+/ready
+```
+
+and an HTTP liveness probe against:
+
+```text
+/health
+```
+
+Neither endpoint performs live provider calls, so a transient third-party outage does
+not cause a healthy PriceLens instance to restart.
+
+### Load balancer and abuse protection
+
+Public traffic must enter through an external Application Load Balancer backed by a
+serverless NEG. Keep Cloud Run ingress at `internal-and-cloud-load-balancing` so the
+`run.app` endpoint cannot be used to bypass the edge policy.
+
+Attach a Cloud Armor security policy to the load-balancer backend. Start rate-limit
+thresholds in preview/observed mode and tune them from measured traffic before
+enforcement. A production rule must return `429` when the chosen per-client budget is
+exceeded.
+
+The application-level comparison/provider concurrency limits remain a second independent
+safety layer; Cloud Armor is not a replacement for those limits, and those limits are
+not a replacement for the edge policy.
 
 ## Public exposure gate
 
@@ -101,7 +225,7 @@ Before Internet exposure, the deployment must add and validate:
 - TLS at the ingress/reverse proxy;
 - request/body limits at the edge as well as in the app;
 - abuse/rate limiting that protects provider quotas;
-- health/readiness behavior appropriate to the hosting platform;
+- HTTP startup/readiness via `/ready` and liveness via `/health`;
 - structured secret injection/rotation;
 - retention policy for operational logs;
 - privacy/store disclosures if public distribution proceeds.
@@ -204,8 +328,10 @@ deployment gates are approved.
 
 ## Remaining work
 
-- choose the production hosting/ingress platform;
-- implement/verify edge abuse protection;
-- define secret-management/rotation;
-- run the package workflow against the final production API origin;
-- perform privacy/store review and store-submission readiness checks.
+- create the production GCP project/Artifact Registry/Cloud Run service;
+- create the external Application Load Balancer + serverless NEG;
+- attach and tune Cloud Armor rate limiting from observed traffic before enforcement;
+- create Secret Manager entries and document rotation owners/cadence;
+- bind the final custom HTTPS API hostname;
+- run the package workflow against that final production API origin;
+- perform privacy/store review and provider-attribution/store-submission readiness checks.

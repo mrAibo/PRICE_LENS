@@ -57,6 +57,14 @@ export function createPriceLensServer(
       return;
     }
 
+    if (request.method === "GET" && request.url === "/ready") {
+      sendJson(response, 200, {
+        status: "ready",
+        service: "price-lens-api"
+      });
+      return;
+    }
+
     if (request.method === "POST" && request.url === "/v1/compare") {
       if (activeComparisons >= maxConcurrentComparisons) {
         request.resume();
