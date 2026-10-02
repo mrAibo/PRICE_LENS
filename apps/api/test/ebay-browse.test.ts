@@ -124,7 +124,32 @@ describe("eBay Browse enrichment", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it("caches both token and legacy-item lookup", async () => {
+  it("does not cache eBay product data between sequential requests by default", async () => {
+    const itemResponse = {
+      brand: "Sony",
+      localizedAspects: [{name: "EAN", value: "4548736162657"}]
+    };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "cached-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse(itemResponse))
+      .mockResolvedValueOnce(jsonResponse(itemResponse));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    await enricher.enrich(baseListing);
+    await enricher.enrich(baseListing);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("caches legacy-item data only when an explicit TTL is configured", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -140,6 +165,7 @@ describe("eBay Browse enrichment", () => {
     const enricher = new EbayBrowseEnricher({
       clientId: "id",
       clientSecret: "secret",
+      cacheTtlMs: 60_000,
       fetchImpl
     });
 
@@ -277,6 +303,17 @@ describe("eBay Browse environment configuration", () => {
         EBAY_BROWSE_ENABLED: "1"
       })
     ).toThrow("EBAY_CLIENT_ID");
+  });
+
+  it("rejects invalid product-data cache TTL configuration", () => {
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_BROWSE_CACHE_TTL_MS: "-1"
+      })
+    ).toThrow("EBAY_BROWSE_CACHE_TTL_MS");
   });
 
   it("accepts an explicit production configuration", () => {
