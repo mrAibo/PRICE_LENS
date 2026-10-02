@@ -91,7 +91,7 @@ Delivered:
 - [x] provider timeout/error isolation
 - [x] opt-in fixture provider for complete local end-to-end validation
 
-Still required:
+Delivered safety/calibration:
 
 - [x] hard mismatch rules/fixtures for storage capacity
 - [x] RAM mismatches
@@ -166,17 +166,19 @@ Deliver one complete production-quality provider before enabling all three.
 
 Requirements:
 
-- [ ] credentials/configuration
-- [ ] timeout policy
-- [ ] retry policy where permitted
-- [ ] cache/freshness policy
-- [ ] normalized offers
-- [ ] match confidence
-- [ ] attribution/deep links
-- [ ] provider status reporting
-- [ ] fixture/contract tests
-- [ ] disable/fallback behavior
-- [ ] local and CI-safe testing without live credentials
+- [ ] approved live credentials/access
+- [x] backend-only environment configuration
+- [x] timeout policy
+- [x] controlled auth refresh/error behavior
+- [ ] live-approved cache/freshness policy
+- [x] normalized Amazon offer scaffold
+- [x] match confidence/reason through shared matcher
+- [ ] live attribution/display policy validation
+- [x] provider status reporting
+- [x] fixture/contract tests
+- [x] disable/fallback behavior
+- [x] local and CI-safe testing without live credentials
+- [ ] one provider with complete mandatory-shipping semantics and live validation
 
 Exit gate: one real provider satisfies its contract and can fail independently without breaking PriceLens.
 
