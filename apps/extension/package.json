@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify-artifact": "node verify-artifact.mjs"
   }
 }
