@@ -166,7 +166,10 @@ export function listingFingerprint(listing: EcommerceListing): string {
         storageGb: identity.variant?.storageGb ?? null,
         ramGb: identity.variant?.ramGb ?? null,
         screenSizeInches: identity.variant?.screenSizeInches ?? null,
-        packCount: identity.variant?.packCount ?? null
+        packCount: identity.variant?.packCount ?? null,
+        edition: identity.variant?.edition ?? null,
+        modelQualifier: identity.variant?.modelQualifier ?? null,
+        bundleIncluded: identity.variant?.bundleIncluded ?? null
       }
     }
   });
