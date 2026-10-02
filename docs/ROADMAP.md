@@ -196,7 +196,7 @@ Deliverables:
 - [x] best landed price
 - [x] source freshness indicators
 - [x] UI states for unavailable providers
-- [ ] richer uncertainty presentation for review-only candidates
+- [x] richer uncertainty presentation for review-only candidates
 - [x] provider caches default disabled pending approved rules
 - [ ] provider-specific approved cache TTL rules
 
