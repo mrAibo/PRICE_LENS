@@ -325,45 +325,108 @@ resource "google_compute_security_policy" "api" {
   depends_on = [google_project_service.required]
 }
 
-module "api_lb" {
+resource "google_compute_global_address" "api" {
   count = var.deploy_runtime ? 1 : 0
 
-  source  = "GoogleCloudPlatform/lb-http/google//modules/serverless_negs"
-  version = "12.0.0"
+  project      = var.project_id
+  name         = "${var.name_prefix}-api"
+  address_type = "EXTERNAL"
+  ip_version   = "IPV4"
+}
+
+resource "google_compute_backend_service" "api" {
+  count = var.deploy_runtime ? 1 : 0
 
   project               = var.project_id
   name                  = "${var.name_prefix}-api"
+  protocol              = "HTTP"
   load_balancing_scheme = "EXTERNAL_MANAGED"
+  timeout_sec           = 30
+  enable_cdn            = false
+  security_policy       = google_compute_security_policy.api[0].self_link
 
-  ssl                             = true
-  managed_ssl_certificate_domains = [var.api_domain]
-  https_redirect                  = true
-  create_address                  = true
-  random_certificate_suffix       = true
-  labels                          = local.common_labels
+  backend {
+    group = google_compute_region_network_endpoint_group.api[0].id
+  }
 
-  backends = {
-    default = {
-      protocol        = "HTTP"
-      enable_cdn      = false
-      security_policy = google_compute_security_policy.api[0].self_link
-
-      log_config = {
-        enable      = true
-        sample_rate = var.lb_log_sample_rate
-      }
-
-      groups = [
-        {
-          group = google_compute_region_network_endpoint_group.api[0].id
-        }
-      ]
-
-      iap_config = {
-        enable = false
-      }
-    }
+  log_config {
+    enable      = true
+    sample_rate = var.lb_log_sample_rate
   }
 
   depends_on = [google_project_service.required]
+}
+
+resource "google_compute_url_map" "api" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project         = var.project_id
+  name            = "${var.name_prefix}-api"
+  default_service = google_compute_backend_service.api[0].id
+}
+
+resource "google_compute_managed_ssl_certificate" "api" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project = var.project_id
+  name    = "${var.name_prefix}-api"
+
+  managed {
+    domains = [var.api_domain]
+  }
+}
+
+resource "google_compute_target_https_proxy" "api" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project          = var.project_id
+  name             = "${var.name_prefix}-api"
+  url_map          = google_compute_url_map.api[0].id
+  ssl_certificates = [google_compute_managed_ssl_certificate.api[0].id]
+}
+
+resource "google_compute_global_forwarding_rule" "api_https" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project               = var.project_id
+  name                  = "${var.name_prefix}-api-https"
+  target                = google_compute_target_https_proxy.api[0].id
+  ip_address            = google_compute_global_address.api[0].address
+  port_range            = "443"
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  network_tier          = "PREMIUM"
+}
+
+resource "google_compute_url_map" "http_redirect" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project = var.project_id
+  name    = "${var.name_prefix}-api-http-redirect"
+
+  default_url_redirect {
+    https_redirect = true
+    strip_query    = false
+  }
+}
+
+resource "google_compute_target_http_proxy" "http_redirect" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project = var.project_id
+  name    = "${var.name_prefix}-api-http-redirect"
+  url_map = google_compute_url_map.http_redirect[0].id
+}
+
+resource "google_compute_global_forwarding_rule" "api_http" {
+  count = var.deploy_runtime ? 1 : 0
+
+  project               = var.project_id
+  name                  = "${var.name_prefix}-api-http"
+  target                = google_compute_target_http_proxy.http_redirect[0].id
+  ip_address            = google_compute_global_address.api[0].address
+  port_range            = "80"
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  network_tier          = "PREMIUM"
 }
