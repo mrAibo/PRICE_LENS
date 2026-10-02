@@ -16,9 +16,9 @@ locals {
   )
 
   literal_env = {
-    PRICE_LENS_FIXTURE_PROVIDER          = "0"
-    PRICE_LENS_JSON_LOGS                 = "1"
-    PRICE_LENS_METRICS_EVERY             = tostring(var.metrics_every)
+    PRICE_LENS_FIXTURE_PROVIDER           = "0"
+    PRICE_LENS_JSON_LOGS                  = "1"
+    PRICE_LENS_METRICS_EVERY              = tostring(var.metrics_every)
     PRICE_LENS_MAX_CONCURRENT_COMPARISONS = tostring(var.max_concurrent_comparisons)
     PRICE_LENS_PROVIDER_MAX_CONCURRENCY   = tostring(var.provider_max_concurrency)
 
@@ -146,11 +146,11 @@ resource "google_cloud_run_v2_service" "api" {
   location = var.region
   labels   = local.common_labels
 
-  ingress                = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  invoker_iam_disabled   = true
-  deletion_protection    = var.deletion_protection
-  default_uri_disabled   = var.disable_default_run_url
-  launch_stage           = var.disable_default_run_url ? "BETA" : null
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  invoker_iam_disabled = true
+  deletion_protection  = var.deletion_protection
+  default_uri_disabled = var.disable_default_run_url
+  launch_stage         = var.disable_default_run_url ? "BETA" : null
 
   template {
     service_account                  = google_service_account.api.email
