@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `a4c7b5081d9e1ad9a9eab2f151a8db9bc107f37e` (through PR #24)
+Current implementation checkpoint: `a99775c9a6b8a27ea0d8eb6551f6cd6d4af15296` (through PR #25)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -77,6 +77,9 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] in-flight eBay Browse legacy-item lookup + OAuth coalescing
 - [x] in-flight Amazon SearchItems + OAuth coalescing with caller-local cancellation
 - [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
+- [x] deep inbound eBay payload validation at the API trust boundary
+- [x] eBay item URL host/id consistency checks
+- [x] Amazon Germany marketplace/detail-URL allowlist
 
 ### Provider/access research
 
@@ -179,6 +182,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #21 — eBay Browse enrichment scaffold — merged into `main`
 - PR #22 — Amazon Creators provider scaffold — merged into `main`
 - PR #24 — provider single-flight + request correlation — merged into `main`
+- PR #25 — API/provider URL trust-boundary hardening — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -188,7 +192,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
-6. Continue security hardening at the inbound/outbound URL trust boundary.
+6. Add structured request/provider diagnostics without logging secrets or browser cookies.
+7. Continue security hardening as new provider adapters are added.
 
 ## Local verification
 
