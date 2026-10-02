@@ -59,6 +59,7 @@ export function createPriceLensServer(
 
     if (request.method === "POST" && request.url === "/v1/compare") {
       if (activeComparisons >= maxConcurrentComparisons) {
+        request.resume();
         response.setHeader("retry-after", "1");
         sendJson(response, 503, {
           error: "server_busy",
