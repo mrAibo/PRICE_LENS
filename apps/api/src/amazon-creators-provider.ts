@@ -63,7 +63,9 @@ export class AmazonCreatorsProvider implements PriceProvider {
       "Amazon credential version"
     );
     this.partnerTag = requireValue(options.partnerTag, "Amazon partner tag");
-    this.marketplace = options.marketplace ?? "www.amazon.de";
+    this.marketplace = normalizeAmazonMarketplace(
+      options.marketplace ?? "www.amazon.de"
+    );
     this.timeoutMs = options.timeoutMs ?? 5000;
     this.cacheTtlMs = options.cacheTtlMs ?? 10 * 60 * 1000;
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -125,7 +127,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
     }
 
     const payload = await readJsonRecord(response, "Amazon Creators API");
-    const candidates = parseSearchItems(payload, this.now());
+    const candidates = parseSearchItems(payload, this.now(), this.marketplace);
     this.searchCache.set(cacheKey, {
       candidates,
       expiresAt: this.now() + this.cacheTtlMs
@@ -325,7 +327,8 @@ function waitForSignal<T>(
 
 function parseSearchItems(
   payload: JsonRecord,
-  now: number
+  now: number,
+  marketplace: string
 ): ProviderCandidate[] {
   const searchResult = readRecord(payload.searchResult);
   const items = Array.isArray(searchResult?.items) ? searchResult.items : [];
@@ -340,7 +343,14 @@ function parseSearchItems(
     const url = readString(item.detailPageURL);
     const itemInfo = readRecord(item.itemInfo);
     const title = readDisplayValue(readRecord(itemInfo?.title));
-    if (!asin || !url || !title || !url.startsWith("https://")) continue;
+    if (
+      !asin ||
+      !url ||
+      !title ||
+      !isTrustedAmazonDetailUrl(url, marketplace)
+    ) {
+      continue;
+    }
 
     const identity = parseIdentity(itemInfo);
     const offersV2 = readRecord(item.offersV2);
@@ -446,6 +456,48 @@ function mapCondition(
       return "refurbished";
     default:
       return "unknown";
+  }
+}
+
+function normalizeAmazonMarketplace(value: string): string {
+  const hostname = requireValue(value, "Amazon marketplace").toLowerCase();
+  if (
+    hostname.includes("://") ||
+    hostname.includes("/") ||
+    hostname.includes("?") ||
+    hostname.includes("#") ||
+    (
+      hostname !== "amazon.de" &&
+      !hostname.endsWith(".amazon.de")
+    )
+  ) {
+    throw new Error(
+      "Amazon marketplace must be an amazon.de hostname such as www.amazon.de."
+    );
+  }
+  return hostname;
+}
+
+function isTrustedAmazonDetailUrl(
+  value: string,
+  marketplace: string
+): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+
+    const hostname = url.hostname.toLowerCase();
+    const marketplaceHostname = normalizeAmazonMarketplace(marketplace);
+    const rootDomain = marketplaceHostname === "amazon.de"
+      ? "amazon.de"
+      : marketplaceHostname.split(".").slice(-2).join(".");
+
+    return (
+      rootDomain === "amazon.de" &&
+      (hostname === "amazon.de" || hostname.endsWith(".amazon.de"))
+    );
+  } catch {
+    return false;
   }
 }
 
