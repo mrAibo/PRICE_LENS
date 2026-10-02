@@ -279,7 +279,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] backend production runtime/environment contract
 - [ ] actual Terraform apply: Cloud Run/load-balancer/Cloud Armor/Secret Manager resources
 - [x] Chrome packaging workflow + CI ZIP smoke test
-- [ ] Firefox compatibility evaluation
+- [x] Firefox desktop compatibility evaluation + browser-specific build/package baseline
+- [ ] Firefox live desktop smoke test + AMO signing validation
 - [x] committed npm lockfile + CI-enforced dependency-license inventory for release
 - [x] privacy-policy technical draft + Chrome Web Store release checklist
 - [ ] publish final privacy policy URL and complete Developer Dashboard disclosures
