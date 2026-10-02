@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/server.js",
   "dependencies": {
-    "@price-lens/contracts": "*",
-    "@price-lens/core": "*"
+    "@price-lens/contracts": "0.1.0",
+    "@price-lens/core": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

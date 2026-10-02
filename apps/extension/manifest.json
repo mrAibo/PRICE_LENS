@@ -3,6 +3,9 @@
   "name": "PriceLens",
   "version": "0.1.0",
   "description": "Market price context for eBay listings.",
+  "host_permissions": [
+    "http://127.0.0.1:8787/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

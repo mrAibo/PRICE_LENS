@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@price-lens/contracts": "*",
+    "@price-lens/contracts": "0.1.0",
     "product-matcher": "1.0.0"
   },
   "scripts": {

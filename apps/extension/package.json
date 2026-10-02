@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@price-lens/contracts": "*",
-    "@price-lens/core": "*"
+    "@price-lens/contracts": "0.1.0"
   },
   "scripts": {
     "build": "node build.mjs",
