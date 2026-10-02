@@ -169,10 +169,43 @@ Local verification after a build:
 npm run verify-artifact -w @price-lens/extension
 ```
 
+## Chrome package workflow
+
+Chrome packaging is automated without embedding a runtime-configurable endpoint.
+
+For every normal CI run, the production-origin smoke build is zipped and the archive
+layout is checked so that `manifest.json`, `background.js`, and `content.js` are at
+the ZIP root.
+
+For an actual candidate package, run the GitHub Actions workflow:
+
+```text
+Package Chrome Extension
+```
+
+It requires one manual input:
+
+```text
+api_origin=https://<deployed-price-lens-api>
+```
+
+The workflow:
+
+1. requires the release input to use HTTPS;
+2. builds the Manifest V3 extension with that exact origin;
+3. runs the generated-artifact verifier;
+4. creates `price-lens-chrome.zip` with `manifest.json` at the archive root;
+5. validates the ZIP layout;
+6. uploads the ZIP as a short-lived GitHub Actions artifact.
+
+The workflow packages a candidate artifact only. Store submission remains blocked until
+the deployed API origin, privacy/store disclosures, provider access and operational
+deployment gates are approved.
+
 ## Remaining work
 
 - choose the production hosting/ingress platform;
 - implement/verify edge abuse protection;
 - define secret-management/rotation;
-- add Chrome release packaging;
-- perform privacy/store review.
+- run the package workflow against the final production API origin;
+- perform privacy/store review and store-submission readiness checks.
