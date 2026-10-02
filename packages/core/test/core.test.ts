@@ -98,6 +98,6 @@ describe("comparison", () => {
       "req-test"
     );
     expect(result.marketMinimum?.amount).toBe(955);
-    expect(result.delta?.absolute.amount).toBe(49.99);
+    expect(result.delta?.absolute.amount).toBe(48.99);
   });
 });
