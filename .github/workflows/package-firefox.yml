@@ -1,0 +1,69 @@
+name: Package Firefox Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_origin:
+        description: HTTPS PriceLens API origin embedded in the Firefox extension
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PRICE_LENS_API_ORIGIN: ${{ inputs.api_origin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Upgrade npm
+        run: npm install --global npm@11
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify dependency licenses
+        run: npm run licenses:check
+
+      - name: Require production HTTPS origin
+        shell: bash
+        run: |
+          case "$PRICE_LENS_API_ORIGIN" in
+            https://*) ;;
+            *)
+              echo "api_origin must use HTTPS for a release package." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Build Firefox extension
+        run: npm run build:firefox -w @price-lens/extension
+
+      - name: Verify Firefox artifact
+        run: npm run verify-artifact:firefox -w @price-lens/extension
+
+      - name: Package Firefox ZIP
+        run: |
+          rm -f apps/extension/price-lens-firefox.zip
+          (cd apps/extension/dist-firefox && zip -X -q -r ../price-lens-firefox.zip .)
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "manifest.json"
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "background.js"
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "content.js"
+
+      - name: Upload Firefox package
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-lens-firefox-${{ github.sha }}
+          path: apps/extension/price-lens-firefox.zip
+          if-no-files-found: error
+          retention-days: 14
