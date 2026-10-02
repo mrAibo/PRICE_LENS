@@ -6,7 +6,7 @@ Overall status: **active implementation / early MVP**
 
 Primary integration branch: `bootstrap/price-lens-mvp`
 
-Current merged checkpoint: `28eba7075c705b38f9ead4d1a4ab4811a02a3fd1` (PR #16)
+Current merged checkpoint: `466b28a77fd1610912e19b4dc387565ae3c3fc8b` (PR #18)
 
 Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay vertical slice** (draft, target `main`)
 
@@ -35,6 +35,9 @@ Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay 
 - [x] listing fingerprint deduplication
 - [x] stale async response protection
 - [x] extraction/lifecycle unit tests
+- [x] labelled synthetic extraction corpus: 9 fixtures / 77 scalar labels (PR #17)
+- [x] extraction evidence baseline in `docs/EXTRACTION_EVIDENCE.md`
+- [x] explicit user-visible unsupported extraction state with zero provider/API lookup (PR #18)
 - [x] ambiguous multi-offer JSON-LD protection (PR #15)
 - [x] explicit storage/RAM/screen-size/pack-count extraction from item specifics
 - [x] structured variant fields participate in lifecycle fingerprinting
@@ -73,12 +76,14 @@ Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay 
 
 Still required:
 
-- [ ] larger labelled eBay.de fixture corpus
-- [ ] explicit extraction accuracy report
+- [x] initial labelled synthetic eBay.de fixture corpus
+- [x] initial regression-evidence report (synthetic corpus)
+- [ ] representative anonymized real-layout fixture corpus
+- [ ] empirical field-level extraction accuracy report over representative layouts
 - [ ] coverage for representative shipping layouts
 - [x] initial coverage for variant/item-specific layouts
 - [ ] broaden variant/item-specific fixture coverage across categories
-- [ ] explicit unsupported-state behavior for pages that cannot be normalized safely
+- [x] explicit unsupported-state behavior for pages that cannot be normalized safely
 
 ### Phase 2 — matcher/comparison gate
 
@@ -144,6 +149,8 @@ Still required:
 - PR #9 — project checkpoint + local fixture provider — merged into `bootstrap/price-lens-mvp`
 - PR #15 — ambiguous multi-variant JSON-LD safety — merged into `bootstrap/price-lens-mvp`
 - PR #16 — structured variant safety guards — merged into `bootstrap/price-lens-mvp`
+- PR #17 — labelled eBay extraction corpus — merged into `bootstrap/price-lens-mvp`
+- PR #18 — explicit unsupported extraction UI/state — merged into `bootstrap/price-lens-mvp`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
