@@ -49,7 +49,7 @@ export class EbayBrowseEnricher {
     this.environment = options.environment ?? "sandbox";
     this.marketplaceId = options.marketplaceId ?? "EBAY_DE";
     this.timeoutMs = options.timeoutMs ?? 4000;
-    this.cacheTtlMs = options.cacheTtlMs ?? 10 * 60 * 1000;
+    this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "eBay Browse");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
   }
@@ -86,6 +86,9 @@ export class EbayBrowseEnricher {
     if (cached && cached.expiresAt > this.now()) {
       return cached.value;
     }
+    if (cached) {
+      this.itemCache.delete(legacyItemId);
+    }
 
     const active = this.itemInFlight.get(legacyItemId);
     if (active) return active;
@@ -109,10 +112,12 @@ export class EbayBrowseEnricher {
     }
 
     if (response.status === 404) {
-      this.itemCache.set(legacyItemId, {
-        expiresAt: this.now() + Math.min(this.cacheTtlMs, 60_000),
-        value: null
-      });
+      if (this.cacheTtlMs > 0) {
+        this.itemCache.set(legacyItemId, {
+          expiresAt: this.now() + Math.min(this.cacheTtlMs, 60_000),
+          value: null
+        });
+      }
       return null;
     }
 
@@ -125,10 +130,12 @@ export class EbayBrowseEnricher {
     }
 
     const payload = await readJsonRecord(response, "eBay Browse API");
-    this.itemCache.set(legacyItemId, {
-      expiresAt: this.now() + this.cacheTtlMs,
-      value: payload
-    });
+    if (this.cacheTtlMs > 0) {
+      this.itemCache.set(legacyItemId, {
+        expiresAt: this.now() + this.cacheTtlMs,
+        value: payload
+      });
+    }
     return payload;
   }
 
@@ -272,7 +279,11 @@ export function createEbayBrowseEnricherFromEnv(
     clientId,
     clientSecret,
     environment: (rawEnvironment as EbayApiEnvironment | undefined) ?? "sandbox",
-    marketplaceId: env.EBAY_MARKETPLACE_ID?.trim() || "EBAY_DE"
+    marketplaceId: env.EBAY_MARKETPLACE_ID?.trim() || "EBAY_DE",
+    cacheTtlMs: parseCacheTtlEnv(
+      env.EBAY_BROWSE_CACHE_TTL_MS,
+      "EBAY_BROWSE_CACHE_TTL_MS"
+    )
   });
 }
 
@@ -497,6 +508,25 @@ async function readJsonRecord(
     throw new Error(`${source} returned an invalid JSON object.`);
   }
   return record;
+}
+
+function parseCacheTtlEnv(
+  raw: string | undefined,
+  name: string
+): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${name} must be a non-negative integer number of milliseconds.`);
+  }
+
+  return validateCacheTtl(Number(raw.trim()), name);
+}
+
+function validateCacheTtl(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} cache TTL must be a non-negative safe integer.`);
+  }
+  return value;
 }
 
 function requireNonEmpty(value: string, name: string): string {
