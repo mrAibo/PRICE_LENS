@@ -127,6 +127,178 @@ describe("PriceLens matching guard", () => {
     }
   );
 
+  it.each([
+    ["edition", {edition: "Digital Edition"}, {edition: "Disc Edition"}, "Edition mismatch"],
+    ["model qualifier", {modelQualifier: "CFI-2016A"}, {modelQualifier: "CFI-2016B"}, "Model qualifier mismatch"],
+    ["bundle state", {bundleIncluded: false}, {bundleIncluded: true}, "Bundle-state mismatch"]
+  ])(
+    "rejects an explicit %s conflict before an exact identifier match",
+    (_label, sourceVariant, candidateVariant, expectedReason) => {
+      const source = {
+        ...listing,
+        identity: {
+          ...listing.identity,
+          variant: sourceVariant
+        }
+      };
+
+      const result = evaluateProviderCandidate(
+        source,
+        candidate({
+          identity: {
+            ...candidate().identity,
+            variant: candidateVariant
+          }
+        })
+      );
+
+      expect(result.decision).toBe("reject");
+      expect(result.reason).toContain(expectedReason);
+    }
+  );
+
+  it("rejects conflicting explicit edition signals in titles", () => {
+    const source = {
+      ...listing,
+      title: "Sony PlayStation 5 Digital Edition",
+      identity: {
+        ...listing.identity,
+        model: "PlayStation 5"
+      }
+    };
+
+    const result = evaluateProviderCandidate(
+      source,
+      candidate({
+        productTitle: "Sony PlayStation 5 Disc Edition",
+        identity: {
+          ...candidate().identity,
+          model: "PlayStation 5"
+        }
+      })
+    );
+
+    expect(result.decision).toBe("reject");
+    expect(result.reason).toContain("Edition mismatch from titles");
+  });
+
+  it("rejects explicit standalone-versus-kit bundle signals", () => {
+    const source = {
+      ...listing,
+      title: "Canon EOS R6 Body Only",
+      identity: {
+        ...listing.identity,
+        brand: "Canon",
+        model: "EOS R6"
+      }
+    };
+
+    const result = evaluateProviderCandidate(
+      source,
+      candidate({
+        productTitle: "Canon EOS R6 24-105 Kit",
+        identity: {
+          ...candidate().identity,
+          brand: "Canon",
+          model: "EOS R6"
+        }
+      })
+    );
+
+    expect(result.decision).toBe("reject");
+    expect(result.reason).toContain("Bundle mismatch from titles");
+  });
+
+  it.each([
+    ["known qualifier", "iPhone 16 Pro", "iPhone 16 Pro Max", "Model qualifier mismatch"],
+    ["numeric generation", "WH-1000XM6", "WH-1000XM5", "Model generation mismatch"]
+  ])(
+    "rejects a %s model conflict before an exact identifier match",
+    (_label, sourceModel, candidateModel, expectedReason) => {
+      const source = {
+        ...listing,
+        identity: {
+          ...listing.identity,
+          model: sourceModel
+        }
+      };
+
+      const result = evaluateProviderCandidate(
+        source,
+        candidate({
+          identity: {
+            ...candidate().identity,
+            model: candidateModel
+          }
+        })
+      );
+
+      expect(result.decision).toBe("reject");
+      expect(result.reason).toContain(expectedReason);
+    }
+  );
+
+  it("uses matching structured specs to make the 0.90 auto threshold reachable", () => {
+    const source: EcommerceListing = {
+      ...listing,
+      title: "ExampleTech Pro 15",
+      identity: {
+        brand: "ExampleTech",
+        model: "Pro 15",
+        variant: {
+          storageGb: 1000,
+          ramGb: 16,
+          screenSizeInches: 15.6
+        }
+      }
+    };
+
+    const result = evaluateProviderCandidate(
+      source,
+      candidate({
+        productTitle: "ExampleTech Pro 15",
+        identity: {
+          brand: "ExampleTech",
+          model: "Pro 15",
+          variant: {
+            storageGb: 1000,
+            ramGb: 16,
+            screenSizeInches: 15.6
+          }
+        }
+      })
+    );
+
+    expect(result.decision).toBe("auto_match");
+    expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    expect(result.method).toBe("fuzzy");
+  });
+
+  it("keeps an otherwise identical unstructured match at the 0.70 review boundary", () => {
+    const source: EcommerceListing = {
+      ...listing,
+      title: "ExampleTech Pro 15",
+      identity: {
+        brand: "ExampleTech",
+        model: "Pro 15"
+      }
+    };
+
+    const result = evaluateProviderCandidate(
+      source,
+      candidate({
+        productTitle: "ExampleTech Pro 15",
+        identity: {
+          brand: "ExampleTech",
+          model: "Pro 15"
+        }
+      })
+    );
+
+    expect(result.decision).toBe("review");
+    expect(result.confidence).toBeCloseTo(0.7, 5);
+  });
+
   it("does not reject when variant data is missing on one side", () => {
     const source = {
       ...listing,
@@ -202,6 +374,51 @@ describe("provider orchestration", () => {
     expect(result.offers[0]?.landedPrice.amount).toBe(333.99);
     expect(result.bestOffer?.provider).toBe("idealo");
     expect(result.providerStatus[0]?.state).toBe("ok");
+  });
+
+  it("exposes bounded review-candidate diagnostics", async () => {
+    const source: EcommerceListing = {
+      ...listing,
+      title: "ExampleTech Pro 15",
+      identity: {
+        brand: "ExampleTech",
+        model: "Pro 15"
+      }
+    };
+
+    const reviewCandidate = candidate({
+      providerProductId: "review-example",
+      productTitle: "ExampleTech Pro 15",
+      identity: {
+        brand: "ExampleTech",
+        model: "Pro 15"
+      }
+    });
+
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [reviewCandidate];
+      }
+    };
+
+    const result = await compareWithProviders(source, [provider], {
+      requestId: "req-review-diagnostics"
+    });
+
+    expect(result.offers).toHaveLength(0);
+    expect(result.providerStatus[0]).toMatchObject({
+      provider: "idealo",
+      state: "no_match",
+      reviewCandidates: [
+        {
+          providerProductId: "review-example",
+          productTitle: "ExampleTech Pro 15",
+          confidence: 0.7,
+          matchMethod: "fuzzy"
+        }
+      ]
+    });
   });
 
   it("isolates provider failures", async () => {
