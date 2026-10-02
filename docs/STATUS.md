@@ -51,6 +51,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] structured variant fields participate in lifecycle fingerprinting
 - [x] build-time extension API origin with HTTPS-only production policy (PR #29)
 - [x] generated extension artifact verification for dev + production-origin builds
+- [x] Chrome ZIP smoke packaging in CI
+- [x] manual HTTPS production-origin Chrome package workflow
 
 ### Core/API
 
@@ -209,7 +211,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Add Chrome packaging after the generated artifact verification gate is established.
+9. Run the Chrome package workflow only after a real production API origin exists.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
