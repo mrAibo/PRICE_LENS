@@ -163,3 +163,6 @@ function createRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `pl-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+
+export * from "./matching.js";
+export * from "./providers.js";
