@@ -10,6 +10,7 @@
     "test": "npm run build -w @price-lens/contracts && npm run build -w @price-lens/core && npm run test -w @price-lens/core && npm run test -w @price-lens/extension"
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^22.10.0",
     "chrome-types": "^0.1.327",
     "esbuild": "^0.28.0",
