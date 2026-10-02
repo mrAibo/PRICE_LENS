@@ -4,9 +4,11 @@ import {
   normalizeApiOrigin
 } from "./build-config.mjs";
 
+const firefox = process.argv.includes("--firefox");
+const browser = firefox ? "firefox" : "chrome";
 const expectedOrigin = normalizeApiOrigin(process.env.PRICE_LENS_API_ORIGIN);
 const expectedHostPermission = hostPermissionForOrigin(expectedOrigin);
-const distDir = new URL("./dist/", import.meta.url);
+const distDir = new URL(firefox ? "./dist-firefox/" : "./dist/", import.meta.url);
 
 const requiredFiles = ["manifest.json", "background.js", "content.js"];
 for (const file of requiredFiles) {
@@ -17,10 +19,44 @@ const manifestPath = new URL("manifest.json", distDir);
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
 assert(manifest.manifest_version === 3, "manifest_version must be 3.");
-assert(
-  manifest.background?.service_worker === "background.js",
-  "background.service_worker must be background.js."
-);
+if (firefox) {
+  assert(
+    Array.isArray(manifest.background?.scripts) &&
+      manifest.background.scripts.length === 1 &&
+      manifest.background.scripts[0] === "background.js",
+    "Firefox background.scripts must contain only background.js."
+  );
+  assert(
+    manifest.background?.service_worker === undefined,
+    "Firefox artifact must not require background.service_worker."
+  );
+  assert(
+    manifest.browser_specific_settings?.gecko?.id === "price-lens@mraibo.github",
+    "Firefox artifact must contain the stable Gecko extension ID."
+  );
+  assert(
+    manifest.browser_specific_settings?.gecko?.strict_min_version === "140.0",
+    "Firefox artifact must require Firefox 140 or later."
+  );
+  const dataPermissions =
+    manifest.browser_specific_settings?.gecko?.data_collection_permissions?.required;
+  assert(
+    Array.isArray(dataPermissions) &&
+      dataPermissions.length === 2 &&
+      dataPermissions.includes("browsingActivity") &&
+      dataPermissions.includes("websiteContent"),
+    "Firefox artifact must declare browsingActivity and websiteContent data collection."
+  );
+} else {
+  assert(
+    manifest.background?.service_worker === "background.js",
+    "Chrome background.service_worker must be background.js."
+  );
+  assert(
+    manifest.background?.scripts === undefined,
+    "Chrome artifact must not include background.scripts."
+  );
+}
 
 const permissions = manifest.permissions;
 assert(
@@ -87,7 +123,7 @@ for (const forbidden of [
 }
 
 process.stdout.write(
-  `Verified PriceLens extension artifact for ${expectedOrigin}\n`
+  `Verified PriceLens ${browser} extension artifact for ${expectedOrigin}\n`
 );
 
 async function assertRegularFile(url, label) {

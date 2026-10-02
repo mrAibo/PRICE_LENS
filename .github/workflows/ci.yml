@@ -61,6 +61,19 @@ jobs:
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "manifest.json"
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "background.js"
           unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "content.js"
+      - name: Verify Firefox production artifact
+        env:
+          PRICE_LENS_API_ORIGIN: https://api.pricelens.invalid
+        run: |
+          npm run build:firefox -w @price-lens/extension
+          npm run verify-artifact:firefox -w @price-lens/extension
+      - name: Smoke-package Firefox ZIP
+        run: |
+          rm -f apps/extension/price-lens-firefox.zip
+          (cd apps/extension/dist-firefox && zip -X -q -r ../price-lens-firefox.zip .)
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "manifest.json"
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "background.js"
+          unzip -Z1 apps/extension/price-lens-firefox.zip | grep -Fxq "content.js"
       - name: Build production API container
         run: docker build --tag price-lens-api:ci .
       - name: Smoke-test production API container

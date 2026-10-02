@@ -61,6 +61,9 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] local consent revocation control
 - [x] release artifact enforces minimal `storage` permission only
 - [x] behavior-derived privacy baseline and Chrome Web Store release checklist
+- [x] Firefox-specific MV3 build/verify/package baseline
+- [x] callback-compatible storage/runtime adapters for Chrome + Firefox
+- [x] Firefox Gecko ID + built-in data-collection manifest declaration
 
 ### Core/API
 
@@ -289,3 +292,4 @@ Canonical documents:
 - [Amazon Creators provider](AMAZON_CREATORS_PROVIDER.md)
 - [Observability](OBSERVABILITY.md)
 - [Open-source reuse](OPEN_SOURCE_REUSE.md)
+- [Firefox compatibility](FIREFOX_COMPATIBILITY.md)
