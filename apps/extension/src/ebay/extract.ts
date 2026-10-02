@@ -2,7 +2,8 @@ import type {
   EcommerceListing,
   ListingCondition,
   Money,
-  ProductIdentity
+  ProductIdentity,
+  WarningCode
 } from "@price-lens/contracts";
 import {
   detectCurrency,
@@ -26,6 +27,7 @@ export function extractEbayListing(
 
   const evidence: string[] = ["url:itemId"];
   const warnings: string[] = [];
+  const warningCodes: WarningCode[] = [];
   const product = findProductJsonLd(document);
 
   const title =
@@ -53,6 +55,7 @@ export function extractEbayListing(
 
   if (!identity.gtin && !identity.ean && !identity.upc && !identity.mpn) {
     warnings.push("No strong product identifier was found on the page.");
+    warningCodes.push("extraction_no_strong_identifier");
   }
 
   return {
@@ -66,7 +69,8 @@ export function extractEbayListing(
     identity,
     imageUrl,
     extractionEvidence: evidence,
-    extractionWarnings: warnings
+    extractionWarnings: warnings,
+    extractionWarningCodes: warningCodes
   };
 }
 
