@@ -27,6 +27,7 @@ See:
 - [Preliminary technical design](docs/TECHNICAL_DESIGN.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Current project status](docs/STATUS.md)
+- [Deployment](docs/DEPLOYMENT.md)
 - [eBay extraction evidence](docs/EXTRACTION_EVIDENCE.md)
 - [eBay extraction failure modes](docs/EBAY_EXTRACTION_FAILURE_MODES.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
