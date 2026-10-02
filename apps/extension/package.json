@@ -1,0 +1,15 @@
+{
+  "name": "@price-lens/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@price-lens/contracts": "*",
+    "@price-lens/core": "*"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,15 @@
+import type {ComparisonResult, EcommerceListing} from "@price-lens/contracts";
+
+export interface CompareMessage {
+  type: "PRICE_LENS_COMPARE";
+  listing: EcommerceListing;
+}
+
+export type PriceLensMessage = CompareMessage;
+export type CompareResponse = ComparisonResult;
+
+export function isCompareMessage(value: unknown): value is CompareMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Partial<CompareMessage>;
+  return message.type === "PRICE_LENS_COMPARE" && !!message.listing;
+}

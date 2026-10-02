@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "PriceLens",
+  "version": "0.1.0",
+  "description": "Market price context for eBay listings.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.ebay.de/itm/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
