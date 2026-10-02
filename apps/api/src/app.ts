@@ -1,3 +1,4 @@
+import {randomUUID} from "node:crypto";
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from "node:http";
 import type {ComparisonRequest, EcommerceListing} from "@price-lens/contracts";
 import {
@@ -11,6 +12,7 @@ export interface PriceLensApiOptions {
   providers?: PriceProvider[];
   enrichListing?: (listing: EcommerceListing) => Promise<EcommerceListing>;
   enrichmentStatus?: Record<string, string>;
+  requestIdFactory?: () => string;
 }
 
 export function createPriceLensServer(
@@ -19,7 +21,9 @@ export function createPriceLensServer(
   const providers = options.providers ?? [];
 
   return createServer(async (request, response) => {
+    const requestId = options.requestIdFactory?.() ?? randomUUID();
     setJsonHeaders(response);
+    response.setHeader("x-price-lens-request-id", requestId);
 
     if (request.method === "GET" && request.url === "/health") {
       sendJson(response, 200, {
@@ -37,7 +41,8 @@ export function createPriceLensServer(
         if (!isComparisonRequest(payload)) {
           sendJson(response, 400, {
             error: "invalid_request",
-            message: "Expected a valid eBay listing payload."
+            message: "Expected a valid eBay listing payload.",
+            requestId
           });
           return;
         }
@@ -57,14 +62,17 @@ export function createPriceLensServer(
           }
         }
 
-        const result = await compareWithProviders(listing, providers);
+        const result = await compareWithProviders(listing, providers, {
+          requestId
+        });
         sendJson(response, 200, result);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid request";
         const status = message.includes("too large") ? 413 : 400;
         sendJson(response, status, {
           error: status === 413 ? "payload_too_large" : "invalid_json",
-          message
+          message,
+          requestId
         });
       }
       return;
@@ -72,7 +80,8 @@ export function createPriceLensServer(
 
     sendJson(response, 404, {
       error: "not_found",
-      message: "Route not found"
+      message: "Route not found",
+      requestId
     });
   });
 }
