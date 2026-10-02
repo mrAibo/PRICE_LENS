@@ -195,7 +195,8 @@ Deliverables:
 - [ ] best landed price
 - [ ] source freshness indicators
 - [ ] UI states for unavailable/uncertain providers
-- [ ] provider-specific cache rules
+- [x] provider caches default disabled pending approved rules
+- [ ] provider-specific approved cache TTL rules
 
 Exit gate: partial outages and rate limits degrade gracefully and never produce a misleading best-price claim.
 
