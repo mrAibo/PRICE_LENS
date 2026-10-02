@@ -35,6 +35,36 @@ export interface PriceProvider {
   search(input: ProviderSearchInput): Promise<ProviderCandidate[]>;
 }
 
+export function limitProviderConcurrency(
+  provider: PriceProvider,
+  maxConcurrent: number
+): PriceProvider {
+  if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1) {
+    throw new Error("maxConcurrent must be a positive integer.");
+  }
+
+  let active = 0;
+
+  return {
+    id: provider.id,
+
+    async search(input) {
+      if (active >= maxConcurrent) {
+        throw new Error(
+          `${provider.id} provider concurrency limit reached (${maxConcurrent}).`
+        );
+      }
+
+      active += 1;
+      try {
+        return await provider.search(input);
+      } finally {
+        active -= 1;
+      }
+    }
+  };
+}
+
 export interface ProviderOrchestratorOptions {
   timeoutMs?: number;
   requestId?: string;

@@ -107,6 +107,73 @@ describe("PriceLens HTTP API", () => {
     );
   });
 
+  it("returns 503 when the comparison concurrency budget is exhausted", async () => {
+    let releaseEnrichment!: () => void;
+    let markEnrichmentStarted!: () => void;
+    const enrichmentStarted = new Promise<void>((resolve) => {
+      markEnrichmentStarted = resolve;
+    });
+    const enrichmentPending = new Promise<void>((resolve) => {
+      releaseEnrichment = resolve;
+    });
+    const diagnostics: unknown[] = [];
+
+    const server = createPriceLensServer({
+      maxConcurrentComparisons: 1,
+      enrichListing: async (value) => {
+        markEnrichmentStarted();
+        await enrichmentPending;
+        return value;
+      },
+      diagnostics: (event) => diagnostics.push(event)
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const first = fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+    await enrichmentStarted;
+
+    const overloaded = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(overloaded.status).toBe(503);
+    expect(overloaded.headers.get("retry-after")).toBe("1");
+    await expect(overloaded.json()).resolves.toMatchObject({
+      error: "server_busy"
+    });
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "request_rejected",
+          status: 503,
+          reason: "server_busy"
+        })
+      ])
+    );
+
+    releaseEnrichment();
+    expect((await first).status).toBe(200);
+  });
+
+  it.each([0, -1, 1.5])(
+    "rejects invalid comparison concurrency limit %s",
+    (limit) => {
+      expect(() =>
+        createPriceLensServer({maxConcurrentComparisons: limit})
+      ).toThrow("maxConcurrentComparisons must be a positive integer");
+    }
+  );
+
   it("routes comparisons through the provider orchestrator", async () => {
     const provider: PriceProvider = {
       id: "idealo",

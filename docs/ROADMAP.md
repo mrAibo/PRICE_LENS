@@ -189,7 +189,8 @@ Status: **not started**
 Deliverables:
 
 - [ ] Idealo + Geizhals + Amazon where access permits
-- [ ] provider concurrency limits
+- [x] provider concurrency limits
+- [x] API comparison overload limit
 - [x] request coalescing
 - [ ] partial-result behavior
 - [ ] best landed price
@@ -248,6 +249,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 
 - [x] provider timeout isolation
 - [x] provider status model
+- [x] bounded comparison concurrency with explicit overload rejection
+- [x] independent provider concurrency caps
 - [x] in-flight eBay/Amazon request coalescing
 - [x] stable HTTP/result request correlation id
 - [x] privacy-minimized structured request correlation logging

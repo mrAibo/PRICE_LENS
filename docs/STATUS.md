@@ -87,6 +87,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] deep inbound eBay payload validation at the API trust boundary
 - [x] eBay item URL host/id consistency checks
 - [x] Amazon Germany marketplace/detail-URL allowlist
+- [x] bounded API comparison concurrency with overload `503`
+- [x] independent hard concurrency caps for each configured price provider
 
 ### Provider/access research
 
@@ -194,6 +196,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #27 — compliance-safe provider cache defaults — merged into `main`
 - PR #28 — executable eBay extraction failure-mode contract — merged into `main`
 - PR #29 — build-time extension API origin configuration — merged into `main`
+- PR #30 — generated extension artifact verification — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -207,6 +210,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
 9. Add Chrome packaging after the generated artifact verification gate is established.
+10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
 

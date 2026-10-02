@@ -101,7 +101,6 @@ Before Internet exposure, the deployment must add and validate:
 - TLS at the ingress/reverse proxy;
 - request/body limits at the edge as well as in the app;
 - abuse/rate limiting that protects provider quotas;
-- bounded backend/provider concurrency;
 - health/readiness behavior appropriate to the hosting platform;
 - structured secret injection/rotation;
 - retention policy for operational logs;
@@ -109,6 +108,25 @@ Before Internet exposure, the deployment must add and validate:
 
 An API token embedded in a browser extension must not be treated as a secret or as
 sufficient abuse protection.
+
+## Concurrency protection
+
+The API process applies two independent hard limits in the production entry point:
+
+```text
+PRICE_LENS_MAX_CONCURRENT_COMPARISONS=16
+PRICE_LENS_PROVIDER_MAX_CONCURRENCY=4
+```
+
+Behavior:
+
+- when the comparison limit is full, new `POST /v1/compare` requests are drained and rejected immediately with HTTP `503` plus `Retry-After: 1`;
+- configured price providers are wrapped independently and reject work when their own active-call limit is reached;
+- no unbounded in-process wait queue is introduced;
+- existing single-flight/coalescing still deduplicates identical in-flight provider work before these limits become relevant;
+- provider concurrency failures remain isolated inside `providerStatus` rather than crashing unrelated providers.
+
+These defaults are process-level safeguards, not a substitute for edge rate limiting or provider-specific commercial quota controls.
 
 ## CORS and extension requests
 
@@ -155,7 +173,6 @@ npm run verify-artifact -w @price-lens/extension
 
 - choose the production hosting/ingress platform;
 - implement/verify edge abuse protection;
-- implement bounded server/provider concurrency;
 - define secret-management/rotation;
 - add Chrome release packaging;
 - perform privacy/store review.
