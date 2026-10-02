@@ -1,8 +1,10 @@
 # PriceLens — Preliminary Technical Design
 
-Status: **draft / implementation bootstrap**
+Status: **active preliminary design / implementation**
 
 Date: 2026-10-02
+
+Implementation-level decisions, configuration and delivery gates are tracked in [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md). Current progress and remaining work are tracked in [STATUS.md](STATUS.md).
 
 ## 1. Product goal
 
