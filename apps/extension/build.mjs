@@ -5,7 +5,9 @@ import {
   normalizeApiOrigin
 } from "./build-config.mjs";
 
-const outdir = "dist";
+const firefox = process.argv.includes("--firefox");
+const browser = firefox ? "firefox" : "chrome";
+const outdir = firefox ? "dist-firefox" : "dist";
 const apiOrigin = normalizeApiOrigin(process.env.PRICE_LENS_API_ORIGIN);
 
 await rm(outdir, {recursive: true, force: true});
@@ -20,7 +22,7 @@ await build({
   outdir,
   format: "iife",
   platform: "browser",
-  target: ["chrome120"],
+  target: [firefox ? "firefox140" : "chrome120"],
   sourcemap: true,
   logLevel: "info",
   define: {
@@ -31,6 +33,21 @@ await build({
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
 manifest.host_permissions = [hostPermissionForOrigin(apiOrigin)];
 
+if (firefox) {
+  manifest.background = {
+    scripts: ["background.js"]
+  };
+  manifest.browser_specific_settings = {
+    gecko: {
+      id: "price-lens@mraibo.github",
+      strict_min_version: "140.0",
+      data_collection_permissions: {
+        required: ["browsingActivity", "websiteContent"]
+      }
+    }
+  };
+}
+
 await writeFile(
   `${outdir}/manifest.json`,
   JSON.stringify(manifest, null, 2) + "\n",
@@ -38,5 +55,5 @@ await writeFile(
 );
 
 process.stdout.write(
-  `PriceLens extension API origin: ${apiOrigin}\n`
+  `PriceLens ${browser} extension API origin: ${apiOrigin}\n`
 );
