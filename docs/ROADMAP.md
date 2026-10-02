@@ -190,7 +190,7 @@ Deliverables:
 
 - [ ] Idealo + Geizhals + Amazon where access permits
 - [ ] provider concurrency limits
-- [ ] request coalescing
+- [x] request coalescing
 - [ ] partial-result behavior
 - [ ] best landed price
 - [ ] source freshness indicators
@@ -244,7 +244,9 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 
 - [x] provider timeout isolation
 - [x] provider status model
-- [ ] request correlation logging
+- [x] in-flight eBay/Amazon request coalescing
+- [x] stable HTTP/result request correlation id
+- [ ] structured request correlation logging
 - [ ] cache hit/miss metrics
 - [ ] provider latency metrics
 - [ ] match-decision diagnostics
