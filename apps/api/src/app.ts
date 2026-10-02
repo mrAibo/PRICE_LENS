@@ -9,6 +9,8 @@ const MAX_BODY_BYTES = 64 * 1024;
 
 export interface PriceLensApiOptions {
   providers?: PriceProvider[];
+  enrichListing?: (listing: EcommerceListing) => Promise<EcommerceListing>;
+  enrichmentStatus?: Record<string, string>;
 }
 
 export function createPriceLensServer(
@@ -23,7 +25,8 @@ export function createPriceLensServer(
       sendJson(response, 200, {
         status: "ok",
         service: "price-lens-api",
-        providers: providerConfiguration(providers)
+        providers: providerConfiguration(providers),
+        enrichment: options.enrichmentStatus ?? {ebay: "unconfigured"}
       });
       return;
     }
@@ -39,7 +42,22 @@ export function createPriceLensServer(
           return;
         }
 
-        const result = await compareWithProviders(payload.listing, providers);
+        let listing = payload.listing;
+        if (options.enrichListing) {
+          try {
+            listing = await options.enrichListing(listing);
+          } catch {
+            listing = {
+              ...listing,
+              extractionWarnings: [
+                ...listing.extractionWarnings,
+                "eBay API enrichment is currently unavailable; page extraction was used."
+              ]
+            };
+          }
+        }
+
+        const result = await compareWithProviders(listing, providers);
         sendJson(response, 200, result);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid request";
