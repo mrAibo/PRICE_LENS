@@ -12,6 +12,13 @@ export type ListingCondition =
   | "open_box"
   | "unknown";
 
+export interface ProductVariant {
+  storageGb?: number;
+  ramGb?: number;
+  screenSizeInches?: number;
+  packCount?: number;
+}
+
 export interface ProductIdentity {
   brand?: string;
   model?: string;
@@ -19,6 +26,7 @@ export interface ProductIdentity {
   gtin?: string;
   ean?: string;
   upc?: string;
+  variant?: ProductVariant;
 }
 
 export interface EcommerceListing {
