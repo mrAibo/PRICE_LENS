@@ -47,6 +47,17 @@ async function startServer(providers: PriceProvider[] = []): Promise<string> {
 }
 
 describe("PriceLens HTTP API", () => {
+  it("reports deployment readiness without probing external providers", async () => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/ready`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: "ready",
+      service: "price-lens-api"
+    });
+  });
+
   it("reports provider configuration", async () => {
     const baseUrl = await startServer();
     const response = await fetch(`${baseUrl}/health`);
