@@ -12,8 +12,9 @@ enrichment. The browser extension never receives eBay developer credentials.
 - `EBAY_DE` marketplace header by default
 - `get_item_by_legacy_id` lookup for the numeric item id extracted from the eBay URL
 - `fieldgroups=PRODUCT`
-- token cache with an expiry safety window
-- item enrichment cache
+- OAuth token cache with an expiry safety window
+- in-flight lookup coalescing
+- optional item enrichment cache, disabled by default until live caching rules are approved
 - one token refresh/retry after HTTP 401
 - explicit HTTP 429 handling
 - request timeout
@@ -32,6 +33,7 @@ EBAY_ENVIRONMENT=sandbox
 EBAY_MARKETPLACE_ID=EBAY_DE
 EBAY_CLIENT_ID=<Sandbox App ID / Client ID>
 EBAY_CLIENT_SECRET=<Sandbox Cert ID / Client Secret>
+EBAY_BROWSE_CACHE_TTL_MS=0
 ```
 
 For Production, change only the environment and credentials:
@@ -42,6 +44,20 @@ EBAY_ENVIRONMENT=production
 
 Never put the Client Secret in the extension, repository, browser storage, screenshots,
 issues, or chat logs.
+
+## Cache safety
+
+OAuth application tokens are cached until their expiry safety window because they are
+authentication material, not product/price data.
+
+Browse item responses are **not cached between sequential requests by default**.
+`EBAY_BROWSE_CACHE_TTL_MS=0` is the safe default while eBay's live freshness and
+retention rules for the approved PriceLens application are still pending.
+
+Concurrent requests for the same item are still coalesced into one in-flight lookup.
+After the provider rules are confirmed, a non-negative TTL in milliseconds may be set
+explicitly. Invalid or negative TTL values fail configuration rather than silently
+enabling a cache.
 
 ## Runtime behavior
 
