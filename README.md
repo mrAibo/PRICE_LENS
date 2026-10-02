@@ -30,6 +30,10 @@ See:
 - [eBay extraction evidence](docs/EXTRACTION_EVIDENCE.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
 - [Provider access research](docs/PROVIDER_ACCESS.md)
+- [Provider onboarding steps](docs/PROVIDER_ONBOARDING.md)
+- [Matcher calibration](docs/MATCHER_CALIBRATION.md)
+- [eBay Browse enrichment](docs/EBAY_BROWSE_ENRICHMENT.md)
+- [Amazon Creators provider](docs/AMAZON_CREATORS_PROVIDER.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## MVP principle
@@ -73,9 +77,9 @@ The repository is an npm-workspaces monorepo. The tested early-MVP baseline is n
 
 ## External providers
 
-Live Idealo, Geizhals and Amazon adapters are intentionally access-gated. The project documents the preferred official publisher/affiliate paths before production integration, while development continues against stable provider contracts and fixtures.
+Live provider activation is access-gated. The eBay Browse enrichment client and Amazon Creators provider scaffold are implemented server-side with mock contract tests; Idealo and Geizhals remain intentionally documentation-gated until their publisher teams supply the permitted machine-readable contract.
 
-See [Provider access research](docs/PROVIDER_ACCESS.md).
+See [Provider access research](docs/PROVIDER_ACCESS.md) and [provider onboarding steps](docs/PROVIDER_ONBOARDING.md).
 
 ## License
 
