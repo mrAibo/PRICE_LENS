@@ -131,7 +131,10 @@ The page lifecycle layer must:
 - re-extract after effective page/listing changes
 - fingerprint normalized listings to avoid duplicate requests
 - ignore stale asynchronous responses
-- remove stale UI when the page transitions to another listing
+- render an explicit unsupported state when an item page cannot be normalized safely
+- send no comparison/API request for an unsupported extraction state
+- automatically replace the unsupported state when later DOM data becomes safely extractable
+- remove stale UI when navigation leaves an item page
 
 ## 5. Extension-to-API contract
 
@@ -345,7 +348,8 @@ Never log secrets, auth headers or browser cookies.
 
 ### DOM fixtures
 
-- representative eBay.de item layouts
+- labelled synthetic regression corpus (currently 9 fixtures / 77 scalar labels)
+- representative anonymized eBay.de item layouts
 - structured-data presence/absence
 - shipping variants
 - condition variants
