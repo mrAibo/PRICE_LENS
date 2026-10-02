@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `37b69a3d496140900c668a342b7f7e9f010cac46` (through PR #26)
+Current implementation checkpoint: `cb2ce59ddb7f82ccb377286b3038ebfa411ee3fc` (through PR #27)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -78,6 +78,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] in-flight Amazon SearchItems + OAuth coalescing with caller-local cancellation
 - [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
 - [x] opt-in privacy-minimized JSON diagnostics with provider latency/state aggregation
+- [x] provider product/price caches disabled by default until approved freshness rules are known
+- [x] explicit TTL-only provider caching with configuration validation
 - [x] deep inbound eBay payload validation at the API trust boundary
 - [x] eBay item URL host/id consistency checks
 - [x] Amazon Germany marketplace/detail-URL allowlist
@@ -185,6 +187,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #24 — provider single-flight + request correlation — merged into `main`
 - PR #25 — API/provider URL trust-boundary hardening — merged into `main`
 - PR #26 — privacy-minimized structured diagnostics — merged into `main`
+- PR #27 — compliance-safe provider cache defaults — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -195,7 +198,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
 6. Document and close the remaining internal Phase 1 selector/structured-data failure-mode work.
-7. Keep provider product-data caches compliance-safe until live freshness rules are approved.
+7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
 
 ## Local verification
