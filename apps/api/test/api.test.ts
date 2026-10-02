@@ -4,6 +4,7 @@ import {afterEach, describe, expect, it} from "vitest";
 import type {EcommerceListing} from "@price-lens/contracts";
 import type {PriceProvider} from "@price-lens/core";
 import {createPriceLensServer} from "../src/app.js";
+import {createFixtureProvider} from "../src/fixture-provider.js";
 
 const servers: ReturnType<typeof createPriceLensServer>[] = [];
 
@@ -102,6 +103,47 @@ describe("PriceLens HTTP API", () => {
         expect.objectContaining({provider: "idealo", state: "ok"}),
         expect.objectContaining({provider: "geizhals", state: "unconfigured"}),
         expect.objectContaining({provider: "amazon", state: "unconfigured"})
+      ])
+    );
+  });
+
+  it("can run a complete local comparison with the explicit fixture provider", async () => {
+    const baseUrl = await startServer([createFixtureProvider({discountRatio: 0.1})]);
+
+    const healthResponse = await fetch(`${baseUrl}/health`);
+    await expect(healthResponse.json()).resolves.toMatchObject({
+      providers: {
+        fixture: "configured"
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+
+    expect(result.bestOffer).toMatchObject({
+      provider: "fixture",
+      merchant: "PriceLens Fixture Shop",
+      landedPrice: {
+        amount: 314.1,
+        currency: "EUR"
+      },
+      confidence: 1
+    });
+    expect(result.delta).toMatchObject({
+      absolute: {
+        amount: 34.9,
+        currency: "EUR"
+      }
+    });
+    expect(result.providerStatus).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({provider: "fixture", state: "ok"})
       ])
     );
   });
