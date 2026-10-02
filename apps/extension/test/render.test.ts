@@ -5,6 +5,7 @@ import type {
   EcommerceListing
 } from "@price-lens/contracts";
 import {
+  formatFreshness,
   mountPriceLens,
   mountUnsupportedPriceLens
 } from "../src/ui/render.js";
@@ -85,6 +86,98 @@ describe("PriceLens unsupported UI", () => {
       ?.shadowRoot?.textContent ?? "";
     expect(text).toContain("mandatory shipping is unavailable");
     expect(text).not.toContain("Price providers are not configured yet");
+  });
+
+  it("labels partial provider outages and the best price as available-only", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "partial-result",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "amazon",
+          providerProductId: "B0EXAMPLE02",
+          productTitle: "Example Product",
+          merchant: "Amazon.de",
+          url: "https://www.amazon.de/dp/B0EXAMPLE02",
+          condition: "new",
+          itemPrice: {amount: 189, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 189, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-02T11:55:00Z"
+        }
+      ],
+      bestOffer: {
+        provider: "amazon",
+        providerProductId: "B0EXAMPLE02",
+        productTitle: "Example Product",
+        merchant: "Amazon.de",
+        url: "https://www.amazon.de/dp/B0EXAMPLE02",
+        condition: "new",
+        itemPrice: {amount: 189, currency: "EUR"},
+        shipping: {amount: 0, currency: "EUR"},
+        landedPrice: {amount: 189, currency: "EUR"},
+        landedPriceComplete: true,
+        confidence: 1,
+        matchMethod: "gtin",
+        matchReason: "Exact EAN match.",
+        fetchedAt: "2026-10-02T11:55:00Z"
+      },
+      marketMinimum: {amount: 189, currency: "EUR"},
+      delta: {
+        absolute: {amount: 10, currency: "EUR"},
+        percentage: 5.29
+      },
+      providerStatus: [
+        {provider: "amazon", state: "ok"},
+        {provider: "idealo", state: "error"},
+        {provider: "geizhals", state: "unavailable"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-02T12:00:00Z"
+    };
+
+    view.renderComparison(result);
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+    expect(text).toContain("Best available market price");
+    expect(text).toContain("Amazon.de");
+    expect(text).toContain("fetched 5 min ago");
+    expect(text).toContain("Some price sources are currently unavailable");
+    expect(text).toContain("Idealo, Geizhals");
+    expect(text).toContain("eBay vs available market");
+    expect(text).toContain("temporarily unavailable");
+  });
+
+  it("formats offer freshness against the comparison generation time", () => {
+    expect(
+      formatFreshness(
+        "2026-10-02T11:59:45Z",
+        "2026-10-02T12:00:00Z"
+      )
+    ).toBe("fetched just now");
+    expect(
+      formatFreshness(
+        "2026-10-02T10:00:00Z",
+        "2026-10-02T12:00:00Z"
+      )
+    ).toBe("fetched 2 h ago");
+    expect(
+      formatFreshness(
+        "2026-09-30T12:00:00Z",
+        "2026-10-02T12:00:00Z"
+      )
+    ).toBe("fetched 2 d ago");
+    expect(formatFreshness("invalid", "2026-10-02T12:00:00Z")).toBeUndefined();
   });
 
   it("is replaced by the normal card when extraction later succeeds", () => {
