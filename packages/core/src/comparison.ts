@@ -5,7 +5,8 @@ import type {
   MarketOffer,
   Money,
   PriceProviderId,
-  ProviderStatus
+  ProviderStatus,
+  WarningCode
 } from "@price-lens/contracts";
 
 export interface LandedPriceResult {
@@ -105,8 +106,21 @@ export function createComparisonResult(
   const ebay = calculateLandedPrice(listing.price, listing.shipping);
   const bestOffer = selectBestOffer(offers);
   const warnings = [...listing.extractionWarnings];
+  const warningCodes = new Set<WarningCode>(
+    listing.extractionWarningCodes ?? []
+  );
 
-  if (!ebay.complete) warnings.push("eBay shipping is unknown; landed price is incomplete.");
+  if (!ebay.complete) {
+    warnings.push("eBay shipping is unknown; landed price is incomplete.");
+    warningCodes.add("ebay_shipping_unknown");
+  }
+
+  if (offers.some((offer) => !offer.landedPriceComplete)) {
+    warnings.push(
+      "One or more market offers have unknown mandatory shipping; their landed prices are incomplete."
+    );
+    warningCodes.add("market_shipping_incomplete");
+  }
 
   if (!bestOffer) {
     return {
@@ -117,6 +131,7 @@ export function createComparisonResult(
       offers,
       providerStatus,
       warnings,
+      warningCodes: [...warningCodes],
       generatedAt: new Date().toISOString()
     };
   }
@@ -134,6 +149,7 @@ export function createComparisonResult(
     delta,
     providerStatus,
     warnings,
+    warningCodes: [...warningCodes],
     generatedAt: new Date().toISOString()
   };
 }
