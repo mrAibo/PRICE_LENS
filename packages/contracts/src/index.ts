@@ -17,6 +17,9 @@ export interface ProductVariant {
   ramGb?: number;
   screenSizeInches?: number;
   packCount?: number;
+  edition?: string;
+  modelQualifier?: string;
+  bundleIncluded?: boolean;
 }
 
 export interface ProductIdentity {
@@ -65,11 +68,20 @@ export interface MarketOffer {
 
 export type ProviderState = "ok" | "unconfigured" | "unavailable" | "no_match" | "error";
 
+export interface ProviderReviewCandidate {
+  providerProductId?: string;
+  productTitle: string;
+  confidence: number;
+  matchMethod: MatchMethod;
+  reason: string;
+}
+
 export interface ProviderStatus {
   provider: PriceProviderId;
   state: ProviderState;
   message?: string;
   latencyMs?: number;
+  reviewCandidates?: ProviderReviewCandidate[];
 }
 
 export interface ComparisonDelta {
