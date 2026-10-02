@@ -1,6 +1,6 @@
 # PriceLens Deployment Baseline
 
-Status: **Cloud Run container baseline implemented / public deployment not yet approved**
+Status: **Cloud Run container + validated Terraform IaC baseline implemented / public resources not yet provisioned**
 
 Updated: **2026-10-02**
 
@@ -151,6 +151,44 @@ approved provider APIs
 
 The application container remains portable; Cloud Run-specific controls stay outside the
 Node.js runtime.
+
+## Terraform infrastructure baseline
+
+The production topology now has a validated Terraform definition in
+[`infra/gcp/`](../infra/gcp/README.md).
+
+The IaC is deliberately split into two phases:
+
+1. **bootstrap** (`deploy_runtime=false`) enables required APIs and creates Artifact
+   Registry, the dedicated runtime service account, and empty Secret Manager containers;
+2. **runtime** (`deploy_runtime=true`) creates Cloud Run, the serverless NEG, Cloud
+   Armor, the global external managed HTTP(S) load balancer, managed TLS certificate
+   and HTTP-to-HTTPS redirect after a real image and API hostname exist.
+
+CI pins Terraform 1.16.4 and Google provider 8.2.0 and runs:
+
+```bash
+terraform fmt -check -diff -recursive infra/gcp
+terraform -chdir=infra/gcp init -backend=false -input=false
+terraform -chdir=infra/gcp validate
+```
+
+The load balancer is expressed with native `google_compute_*` resources rather than
+the `lb-http` module. The current module release constrains the Google provider to an
+older major version, while PriceLens validates against the current 8.2.0 provider.
+
+Terraform creates Secret Manager **containers and IAM only**. Credential values are
+added out-of-band. Cloud Run receives only explicitly pinned numeric Secret Manager
+versions; `latest` is rejected by input validation so rotations are deliberate.
+
+The initial Cloud Armor comparison throttle remains in preview until measured traffic
+and provider quotas justify enforcement. A separate edge `Content-Length` rule rejects
+declared comparison bodies over 64 KiB; the Node API keeps its independent body-size
+guard for requests without a usable length header.
+
+Terraform does not manage the authoritative DNS zone. It outputs the global load
+balancer address and required A record so DNS ownership is not guessed by the project.
+
 
 ### Cloud Run service baseline
 
@@ -328,10 +366,15 @@ deployment gates are approved.
 
 ## Remaining work
 
-- create the production GCP project/Artifact Registry/Cloud Run service;
-- create the external Application Load Balancer + serverless NEG;
-- attach and tune Cloud Armor rate limiting from observed traffic before enforcement;
-- create Secret Manager entries and document rotation owners/cadence;
-- bind the final custom HTTPS API hostname;
-- run the package workflow against that final production API origin;
-- perform privacy/store review and provider-attribution/store-submission readiness checks.
+Infrastructure definitions are now versioned and schema-validated, but no live cloud
+resources are claimed as provisioned.
+
+- select/create the production GCP project, billing and remote Terraform-state bucket;
+- apply Terraform Phase A to create Artifact Registry, service account and Secret Manager containers;
+- add approved provider secret **versions** out-of-band and record rotation ownership/cadence;
+- build/push an immutable PriceLens API image;
+- choose the final API hostname and apply Terraform Phase B;
+- publish the returned DNS A record and verify managed TLS;
+- observe Cloud Armor preview logs and tune/enable enforcement from measured traffic/provider quotas;
+- run the Chrome package workflow against the verified final HTTPS API origin;
+- perform final privacy/store review and provider-attribution/store-submission readiness checks.
