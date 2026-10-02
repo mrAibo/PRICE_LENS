@@ -73,7 +73,7 @@ PRICE_LENS_FIXTURE_PROVIDER=1 npm run start -w @price-lens/api
 
 The fixture source is labelled `fixture` / `PriceLens Fixture Shop` and is never represented as Idealo, Geizhals or Amazon data.
 
-Then load `apps/extension/dist` as an unpacked extension in a Chromium-compatible browser. The development extension talks to `http://127.0.0.1:8787`; production API configuration is intentionally deferred until deployment is defined.
+Then load `apps/extension/dist` as an unpacked extension in a Chromium-compatible browser. The development extension talks to `http://127.0.0.1:8787`. The production deployment target is Cloud Run behind an external load balancer and Cloud Armor; the final public HTTPS API origin is intentionally unset until those resources are provisioned.
 
 The repository is an npm-workspaces monorepo. The tested early-MVP baseline is now on `main`; new work should branch from the current `main`.
 
