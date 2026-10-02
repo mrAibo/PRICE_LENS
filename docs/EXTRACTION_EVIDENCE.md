@@ -12,6 +12,8 @@ Location:
 
 - `apps/extension/test/fixtures/ebay-corpus.ts`
 - enforced by `apps/extension/test/fixture-corpus.test.ts`
+- failure-mode contract enforced by `apps/extension/test/extraction-failure-modes.test.ts`
+- documented in `docs/EBAY_EXTRACTION_FAILURE_MODES.md`
 
 Current gate:
 
@@ -103,7 +105,7 @@ Issue #10 remains open until:
 1. representative layout fixtures are added,
 2. field-level metrics are generated from the labelled corpus,
 3. known unsupported layouts produce an explicit user-visible unsupported state,
-4. selector/structured-data failure modes are documented.
+4. selector/structured-data failure modes remain covered by the executable contract.
 
 The synthetic corpus is the foundation for that gate, not the final evidence.
 

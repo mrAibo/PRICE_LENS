@@ -28,6 +28,7 @@ See:
 - [Roadmap](docs/ROADMAP.md)
 - [Current project status](docs/STATUS.md)
 - [eBay extraction evidence](docs/EXTRACTION_EVIDENCE.md)
+- [eBay extraction failure modes](docs/EBAY_EXTRACTION_FAILURE_MODES.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
 - [Provider access research](docs/PROVIDER_ACCESS.md)
 - [Provider onboarding steps](docs/PROVIDER_ONBOARDING.md)
