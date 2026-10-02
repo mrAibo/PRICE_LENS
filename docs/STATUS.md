@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `2d9116fa3129418f0253548283abbbe25adc2085` (through PR #37)
+Current implementation checkpoint: `3d62d96eb9a599552d76f9385d00ebe0d8218030` (through PR #38)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -98,6 +98,7 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] independent hard concurrency caps for each configured price provider
 - [x] partial-provider outage UI with available-source qualification
 - [x] best-offer provider/merchant + fetched-at freshness indicator
+- [x] review-only provider candidates shown as excluded uncertainty with confidence/reason
 - [x] production multi-stage API Docker image, non-root runtime
 - [x] deployment readiness endpoint (`GET /ready`)
 - [x] bounded graceful SIGTERM/SIGINT shutdown
@@ -215,6 +216,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #35 — Cloud Run production container/deployment baseline — merged into `main`
 - PR #36 — Chrome privacy consent + Web Store release baseline — merged into `main`
 - PR #37 — partial-provider result + source freshness UI — merged into `main`
+- PR #38 — review-only match uncertainty UI — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
