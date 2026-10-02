@@ -1,128 +1,209 @@
 # PriceLens Roadmap
 
-This roadmap is evidence-gated. A later phase does not require pretending an earlier external integration is solved.
+Updated: **2026-10-02**
+
+This roadmap is evidence-gated. Later phases do not require pretending an earlier external integration is solved.
+
+## Phase overview
+
+| Phase | Status | Exit gate |
+| --- | --- | --- |
+| 0 — Bootstrap | **complete** | clean checkout typechecks, tests and builds in CI |
+| 1 — eBay extraction vertical slice | **in progress** | measured labelled-fixture accuracy + safe unsupported state |
+| 2 — Matching/comparison engine | **in progress** | zero known labelled hard-mismatch auto-matches |
+| 3 — eBay API enrichment | **blocked on credentials** | enrichment improves coverage without becoming mandatory |
+| 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
+| 5 — First real provider | **not started** | one production-quality provider end to end |
+| 6 — Multi-provider comparison | **not started** | partial failures + concurrency + freshness are production-safe |
+| 7 — eBay search-results augmentation | **deferred** | single-item correctness proven first |
+| 8 — Deal intelligence | **future** | explainable metrics built on trustworthy matching |
 
 ## Phase 0 — Bootstrap
 
-Status: **in progress**
+Status: **complete**
 
-Deliverables:
+Delivered:
 
-- monorepo structure
-- contracts package
-- core price/matching utilities
-- eBay MV3 extension vertical slice
-- API shell
-- tests
-- CI
-- architecture and open-source policy
+- [x] monorepo structure
+- [x] contracts package
+- [x] core price/matching utilities
+- [x] vendored/pinned MIT `product-matcher`
+- [x] eBay MV3 extension vertical slice
+- [x] extension -> backend API boundary
+- [x] API shell
+- [x] provider interface/orchestration
+- [x] tests
+- [x] CI
+- [x] architecture and open-source policy
+- [x] provider access research
+- [x] dynamic extension lifecycle hardening
 
 Exit gate: extension and API build/test from a clean checkout.
 
+Evidence: CI has passed on the bootstrap implementation and feature checkpoints.
+
 ## Phase 1 — eBay extraction vertical slice
 
-Deliverables:
+Status: **in progress**
 
-- structured-data-first extractor
-- robust item-id parsing
-- price/currency/condition mapping
-- brand/model/identifier extraction where available
-- Shadow DOM PriceLens card
-- fixture corpus covering representative eBay.de layouts
+Delivered:
+
+- [x] structured-data-first extractor
+- [x] robust item-id parsing
+- [x] price/currency/condition mapping
+- [x] shipping extraction paths
+- [x] brand/model/identifier extraction where available
+- [x] Shadow DOM PriceLens card
+- [x] page-transition lifecycle handling
+- [x] extraction and lifecycle unit fixtures
+
+Still required:
+
+- [ ] expand fixture corpus across representative eBay.de layouts
+- [ ] label expected identity/price/shipping/condition fields
+- [ ] measure extraction accuracy by field
+- [ ] add explicit unsupported-state result when safe normalization is impossible
+- [ ] document selector/structured-data failure modes
 
 Exit gate: labelled fixture accuracy is measured; extractor failures degrade to an explicit unsupported state.
 
 ## Phase 2 — Matching and comparison engine
 
-Deliverables:
+Status: **in progress**
 
-- integrate `product-matcher`
-- hard mismatch rules for variants/condition
-- candidate confidence/reason model
-- landed-price calculation
-- deterministic comparison result
-- fixture-backed mock providers
+Delivered:
+
+- [x] integrate `product-matcher`
+- [x] exact GTIN/EAN/UPC path
+- [x] exact brand + MPN path
+- [x] condition/brand/strong-identifier contradiction rules
+- [x] candidate confidence/reason model
+- [x] landed-price calculation
+- [x] deterministic comparison result
+- [x] provider timeout/error isolation
+- [x] opt-in fixture provider for complete local end-to-end validation
+
+Still required:
+
+- [ ] hard mismatch rules/fixtures for storage capacity
+- [ ] RAM mismatches
+- [ ] screen/model suffix variants
+- [ ] console/product edition variants
+- [ ] pack-count variants
+- [ ] materially different bundles/accessories
+- [ ] labelled calibration set for automatic/review thresholds
+- [ ] review/debug visibility for non-auto-matched candidates
 
 Exit gate: no known labelled hard-mismatch fixture is auto-matched.
 
 ## Phase 3 — eBay API enrichment
 
+Status: **blocked on eBay developer credentials**
+
 Deliverables:
 
-- server-side eBay API credentials
-- Browse API adapter
-- GTIN/EPID enrichment
-- rate-limit handling and cache
-- fallback when API access is unavailable
+- [ ] server-side eBay API credentials/configuration
+- [ ] Browse API client/adapter
+- [ ] GTIN/EPID/product enrichment
+- [ ] token lifecycle
+- [ ] rate-limit handling
+- [ ] cache
+- [ ] fallback when API access is unavailable
 
 Exit gate: enrichment improves coverage without becoming mandatory for page extraction.
 
 ## Phase 4 — Provider access spikes
 
+Status: **research complete; access/onboarding pending**
+
 Run independent access spikes before production adapters.
 
 ### Idealo
 
-1. Apply/evaluate iPN publisher API access.
-2. Document fields, quotas, attribution and commercial constraints.
-3. If access is unavailable, evaluate a low-volume research adapter separately.
+- [x] identify iPN/publisher API as preferred route
+- [x] separate it from merchant PWS 2.0
+- [ ] apply/evaluate publisher access
+- [ ] document fields, quotas, attribution and commercial constraints
+- [ ] confirm identifier lookup and shipping-price semantics
 
 ### Geizhals
 
-1. Contact/evaluate Publisher Programme data access.
-2. Document attribution, link rules and available product/price fields.
-3. Treat browser scraping only as a replaceable research adapter.
+- [x] identify Publisher Programme as preferred route
+- [ ] confirm API/feed/machine-readable access with Business Development
+- [ ] document identifier lookup
+- [ ] document offer/shipping fields
+- [ ] document refresh/cache rules
+- [ ] document attribution/tracking-link requirements
 
-### Amazon
+### Amazon Germany
 
-1. Evaluate Amazon Associates + Creators API eligibility for the German marketplace.
-2. Confirm current onboarding requirements, permitted product/price fields, identifier lookup and attribution rules.
-3. Keep credentials server-side.
-4. Do not implement new PA-API 5.0 integration; Amazon now directs integrations to Creators API.
+- [x] select Creators API instead of new PA-API 5.0 work
+- [ ] verify Associates/Creators eligibility
+- [ ] complete onboarding
+- [ ] confirm current price/freshness rules
+- [ ] confirm identifier lookup and attribution
+- [ ] configure backend credentials
 
 Exit gate: each enabled production provider has an explicit permitted data-access path.
 
 ## Phase 5 — First real provider
 
+Status: **not started**
+
 Deliver one complete production-quality provider before enabling all three.
 
 Requirements:
 
-- timeout/retry policy
-- cache
-- normalized offers
-- match confidence
-- attribution/deep links
-- provider status reporting
-- fixture/contract tests
+- [ ] credentials/configuration
+- [ ] timeout policy
+- [ ] retry policy where permitted
+- [ ] cache/freshness policy
+- [ ] normalized offers
+- [ ] match confidence
+- [ ] attribution/deep links
+- [ ] provider status reporting
+- [ ] fixture/contract tests
+- [ ] disable/fallback behavior
+- [ ] local and CI-safe testing without live credentials
+
+Exit gate: one real provider satisfies its contract and can fail independently without breaking PriceLens.
 
 ## Phase 6 — Multi-provider comparison
 
+Status: **not started**
+
 Deliverables:
 
-- Idealo + Geizhals + Amazon where access permits
-- provider concurrency limits
-- partial-result behavior
-- best landed price
-- source freshness indicators
-- UI states for unavailable/uncertain providers
+- [ ] Idealo + Geizhals + Amazon where access permits
+- [ ] provider concurrency limits
+- [ ] request coalescing
+- [ ] partial-result behavior
+- [ ] best landed price
+- [ ] source freshness indicators
+- [ ] UI states for unavailable/uncertain providers
+- [ ] provider-specific cache rules
+
+Exit gate: partial outages and rate limits degrade gracefully and never produce a misleading best-price claim.
 
 ## Phase 7 — eBay search-results augmentation
 
-Only after single-item correctness is proven.
+Status: **deferred until single-item gates pass**
 
 Deliverables:
 
-- detect eBay result cards
-- batch/debounce comparisons
-- visible result limit
-- request deduplication
-- cache-aware scrolling
-- no excessive provider traffic
+- [ ] detect eBay result cards
+- [ ] batch/debounce comparisons
+- [ ] visible result limit
+- [ ] request deduplication
+- [ ] cache-aware scrolling
+- [ ] no excessive provider traffic
+- [ ] per-card uncertainty state
 
 ## Phase 8 — Deal intelligence
 
-Potential later features:
+Status: **future**
+
+Potential features:
 
 - market median and spread
 - price history
@@ -132,6 +213,37 @@ Potential later features:
 - optional alerts
 
 A Deal Score must remain explainable and must not hide match uncertainty.
+
+## Cross-cutting work
+
+### Security/privacy
+
+- [x] no provider secrets in extension
+- [x] no arbitrary URL fetch endpoint
+- [x] request validation
+- [ ] production HTTPS/deployment configuration
+- [ ] outbound provider allowlist enforcement
+- [ ] structured secret management
+- [ ] privacy review before any telemetry
+
+### Reliability/observability
+
+- [x] provider timeout isolation
+- [x] provider status model
+- [ ] request correlation logging
+- [ ] cache hit/miss metrics
+- [ ] provider latency metrics
+- [ ] match-decision diagnostics
+- [ ] structured warning taxonomy
+
+### Distribution
+
+- [ ] production API deployment model
+- [ ] environment/configuration strategy
+- [ ] Chrome packaging
+- [ ] Firefox compatibility evaluation
+- [ ] dependency-license inventory for release
+- [ ] privacy policy / store disclosures if public distribution proceeds
 
 ## Deferred / non-goals for early MVP
 
