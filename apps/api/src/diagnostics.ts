@@ -1,6 +1,7 @@
 import type {
   PriceProviderId,
-  ProviderState
+  ProviderState,
+  WarningCode
 } from "@price-lens/contracts";
 
 export interface ProviderDiagnostic {
