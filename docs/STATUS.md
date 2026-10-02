@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `791230c132e24b076fe79dd86cc84ae81ba0303e` (through PR #39)
+Current implementation checkpoint: `93426669c881f10408ea594d32db6e8d3a8925a5` (through PR #40)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -226,6 +226,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #37 — partial-provider result + source freshness UI — merged into `main`
 - PR #38 — review-only match uncertainty UI — merged into `main`
 - PR #39 — validated GCP Terraform production baseline — merged into `main`
+- PR #40 — reproducible npm lockfile + dependency-license release gate — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
