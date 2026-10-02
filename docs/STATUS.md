@@ -6,7 +6,7 @@ Overall status: **active implementation / early MVP**
 
 Primary integration branch: `bootstrap/price-lens-mvp`
 
-Baseline before this checkpoint: `58591f45891a0be44776196020380c7d5efed5fc`
+Current merged checkpoint: `9daecba4d14938840b4b78022333ae6ca48d30cb` (PR #9)
 
 Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay vertical slice** (draft, target `main`)
 
@@ -138,12 +138,13 @@ Still required:
 
 ## Current engineering priorities
 
-1. Keep PR #1 as the umbrella bootstrap review until Phase 0/initial vertical slice is accepted.
-2. Complete the eBay fixture corpus and publish extraction evidence.
-3. Complete hard-variant mismatch tests before broadening fuzzy matching.
+1. Keep PR #1 as the umbrella bootstrap review until the initial vertical slice is accepted.
+2. Issue #10 — complete the eBay fixture corpus and publish extraction evidence.
+3. Issue #11 — complete hard-variant mismatch tests before broadening fuzzy matching.
 4. Use the opt-in fixture provider to validate the browser/API UI path locally.
-5. Obtain official provider access in parallel; do not block correctness work on credentials.
-6. Implement one real provider completely before enabling all providers.
+5. Issue #12 — add eBay Browse API enrichment when credentials are available.
+6. Issue #13 — obtain official Idealo/Geizhals/Amazon access in parallel.
+7. Issue #14 — implement one approved real provider completely before enabling all providers.
 
 ## Local verification
 
