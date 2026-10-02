@@ -84,4 +84,4 @@ When source code is actually copied or substantially adapted:
 5. add an entry to `THIRD_PARTY_NOTICES.md`
 6. note material modifications
 
-Dependencies installed normally through npm are tracked in package metadata; release packaging will additionally generate a dependency-license inventory before public distribution.
+Dependencies installed normally through npm are locked in `package-lock.json`. `scripts/license-inventory.mjs` generates `docs/DEPENDENCY_LICENSES.md`, and CI rejects missing or unreviewed dependency-license expressions before release.

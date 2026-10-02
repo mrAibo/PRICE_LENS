@@ -4,7 +4,7 @@ FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/extension/package.json apps/extension/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
@@ -12,7 +12,7 @@ COPY packages/core/package.json packages/core/package.json
 COPY packages/product-matcher/package.json packages/product-matcher/package.json
 
 RUN npm install --global npm@11 \
- && npm install --ignore-scripts
+ && npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./
 COPY apps/api/tsconfig.json apps/api/tsconfig.json

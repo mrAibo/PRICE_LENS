@@ -1,6 +1,6 @@
 # PriceLens Roadmap
 
-Updated: **2026-10-02**
+Updated: **2026-10-03**
 
 This roadmap is evidence-gated. Later phases do not require pretending an earlier external integration is solved.
 
@@ -280,7 +280,7 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [ ] actual Terraform apply: Cloud Run/load-balancer/Cloud Armor/Secret Manager resources
 - [x] Chrome packaging workflow + CI ZIP smoke test
 - [ ] Firefox compatibility evaluation
-- [ ] dependency-license inventory for release
+- [x] committed npm lockfile + CI-enforced dependency-license inventory for release
 - [x] privacy-policy technical draft + Chrome Web Store release checklist
 - [ ] publish final privacy policy URL and complete Developer Dashboard disclosures
 

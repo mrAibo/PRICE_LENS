@@ -2,7 +2,7 @@
 
 Status: **technical release baseline — submission not yet approved**
 
-Updated: **2026-10-02**
+Updated: **2026-10-03**
 
 This checklist maps the current PriceLens implementation to Chrome Web Store release
 requirements. It is intentionally conservative because the extension handles data from
@@ -202,6 +202,7 @@ api_origin=https://<final-price-lens-api>
 
 Before upload to Chrome Web Store verify:
 
+- [ ] `npm run licenses:check` passes against the committed lockfile;
 - [ ] artifact verifier passes;
 - [ ] manifest is V3;
 - [ ] only `storage` is present in `permissions`;

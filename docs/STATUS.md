@@ -24,6 +24,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] MIT project license
 - [x] third-party notices and open-source reuse policy
 - [x] pinned vendored MIT `product-matcher` snapshot
+- [x] committed npm lockfile; CI and Docker use deterministic `npm ci`
+- [x] generated dependency-license inventory + CI allowlist gate
 
 ### Browser extension
 
@@ -242,7 +244,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 ## Local verification
 
 ```bash
-npm install
+npm ci
+npm run licenses:check
 npm run typecheck
 npm test
 npm run build
