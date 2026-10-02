@@ -245,7 +245,9 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [ ] provision production HTTPS ingress/custom API hostname
 - [ ] extend outbound allowlists to future providers
 - [ ] provision structured secret management/rotation
-- [ ] privacy review before any telemetry
+- [x] explicit first-use comparison consent + local revoke control
+- [x] Chrome privacy/store disclosure baseline
+- [ ] final publisher/legal/privacy review before public release
 
 ### Reliability/observability
 
@@ -274,7 +276,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] Chrome packaging workflow + CI ZIP smoke test
 - [ ] Firefox compatibility evaluation
 - [ ] dependency-license inventory for release
-- [ ] privacy policy / store disclosures if public distribution proceeds
+- [x] privacy-policy technical draft + Chrome Web Store release checklist
+- [ ] publish final privacy policy URL and complete Developer Dashboard disclosures
 
 ## Deferred / non-goals for early MVP
 
