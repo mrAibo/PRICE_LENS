@@ -75,9 +75,10 @@ Run independent access spikes before production adapters.
 
 ### Amazon
 
-1. Establish permitted affiliate/API route.
-2. Confirm product identifier lookup and price fields.
+1. Evaluate Amazon Associates + Creators API eligibility for the German marketplace.
+2. Confirm current onboarding requirements, permitted product/price fields, identifier lookup and attribution rules.
 3. Keep credentials server-side.
+4. Do not implement new PA-API 5.0 integration; Amazon now directs integrations to Creators API.
 
 Exit gate: each enabled production provider has an explicit permitted data-access path.
 

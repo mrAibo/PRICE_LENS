@@ -257,7 +257,7 @@ A browser-backed scraper is a research fallback only. Cloudflare behavior makes 
 
 ### Amazon
 
-Preferred production path: an approved affiliate/Product Advertising API or another permitted data feed. Credentials remain server-side.
+Preferred production path: Amazon **Creators API**, the current supported successor to Product Advertising API 5.0. PriceLens must use the Amazon Associates/Creators onboarding path for the German marketplace and keep credentials server-side. PA-API 5.0 must not be used for new implementation work.
 
 ## 11. Cache
 

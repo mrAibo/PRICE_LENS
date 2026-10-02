@@ -24,6 +24,7 @@ See:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
+- [Provider access research](docs/PROVIDER_ACCESS.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## MVP principle
