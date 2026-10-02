@@ -85,6 +85,16 @@ describe("listing fingerprint", () => {
     expect(listingFingerprint(listing("123456789012", 100)))
       .not.toBe(listingFingerprint(listing("123456789012", 101)));
   });
+
+  it("changes when a structured product variant changes", () => {
+    const first = listing();
+    first.identity.variant = {storageGb: 256, ramGb: 16};
+
+    const second = listing();
+    second.identity.variant = {storageGb: 512, ramGb: 16};
+
+    expect(listingFingerprint(first)).not.toBe(listingFingerprint(second));
+  });
 });
 
 describe("PriceLens content lifecycle", () => {
