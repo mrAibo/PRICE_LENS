@@ -195,7 +195,9 @@ function renderResult(
   const providerRows = statuses
     .map((status) => {
       const reviews = status.reviewCandidates?.length ?? 0;
-      const reviewSuffix = reviews > 0 ? ` · ${reviews} review` : "";
+      const reviewSuffix = reviews > 0
+        ? ` · ${reviews} need${reviews === 1 ? "s" : ""} review`
+        : "";
       return `
         <div class="row">
           <span>${escapeHtml(capitalize(status.provider))}</span>
@@ -237,7 +239,56 @@ function renderResult(
     ? `<div class="muted">eBay vs available market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
     : "";
 
-  return `${best}${delta}${partialWarning}<div class="providers">${providerRows}</div>`;
+  const reviewNotice = renderReviewCandidates(statuses);
+
+  return `${best}${delta}${partialWarning}${reviewNotice}<div class="providers">${providerRows}</div>`;
+}
+
+function renderReviewCandidates(statuses: ProviderStatus[]): string {
+  const groups = statuses
+    .map((status) => ({
+      provider: status.provider,
+      candidates: (status.reviewCandidates ?? [])
+        .slice()
+        .sort((left, right) => right.confidence - left.confidence)
+    }))
+    .filter((group) => group.candidates.length > 0);
+
+  if (groups.length === 0) return "";
+
+  const rows = groups
+    .map((group) => {
+      const best = group.candidates[0]!;
+      const additional = group.candidates.length - 1;
+      const confidence = Math.round(
+        Math.min(1, Math.max(0, best.confidence)) * 100
+      );
+      return `
+        <div class="review-row">
+          <div>
+            <strong>${escapeHtml(capitalize(group.provider))}</strong>:
+            ${escapeHtml(best.productTitle)}
+          </div>
+          <div class="muted">
+            ${confidence}% confidence · ${escapeHtml(best.matchMethod)}
+            ${additional > 0 ? ` · +${additional} more` : ""}
+          </div>
+          <div class="muted review-reason">${escapeHtml(best.reason)}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="review-box">
+      <div class="review-title">Possible matches excluded from price comparison</div>
+      <div class="muted">
+        These candidates did not meet the automatic-match threshold, so their prices
+        are not used for the best-price or eBay-delta calculation.
+      </div>
+      ${rows}
+    </div>
+  `;
 }
 
 function privacyControlMarkup(options: PriceLensUiOptions): string {
@@ -295,6 +346,16 @@ function baseStyles(): string {
       .row { display:flex; justify-content:space-between; gap:12px; }
       .delta { margin-top:10px; font-weight:650; }
       .source-meta { margin-top:3px; }
+      .review-box {
+        margin-top:12px;
+        padding:10px;
+        border:1px solid #e0c36b;
+        border-radius:8px;
+        background:#fffaf0;
+      }
+      .review-title { font-weight:700; color:#6f4d00; }
+      .review-row { margin-top:8px; }
+      .review-reason { margin-top:2px; }
       .consent-title { margin-top:12px; font-size:16px; font-weight:700; }
       .consent-copy { margin-top:8px; }
       .actions { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
