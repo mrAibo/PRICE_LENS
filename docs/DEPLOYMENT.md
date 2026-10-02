@@ -130,6 +130,27 @@ all refer to the same origin.
 
 The build script derives the first two from the same validated value to prevent drift.
 
+CI now verifies the generated artifact twice:
+
+1. the default loopback development build;
+2. a representative HTTPS production build using `https://api.pricelens.invalid`.
+
+The verifier checks:
+
+- Manifest V3;
+- exactly one API host permission matching the selected build origin;
+- no `<all_urls>`;
+- content-script scope remains `https://www.ebay.de/itm/*`;
+- required `background.js` and `content.js` artifacts exist;
+- the expected API origin is present in the background bundle;
+- known backend credential environment-key names are absent from extension JavaScript.
+
+Local verification after a build:
+
+```bash
+npm run verify-artifact -w @price-lens/extension
+```
+
 ## Remaining work
 
 - choose the production hosting/ingress platform;
@@ -137,5 +158,4 @@ The build script derives the first two from the same validated value to prevent 
 - implement bounded server/provider concurrency;
 - define secret-management/rotation;
 - add Chrome release packaging;
-- add release artifact verification in CI;
 - perform privacy/store review.

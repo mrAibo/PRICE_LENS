@@ -49,6 +49,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] independent `reviewed:true` evidence gate for observed fixtures
 - [x] separate synthetic vs observed per-field extraction metrics
 - [x] structured variant fields participate in lifecycle fingerprinting
+- [x] build-time extension API origin with HTTPS-only production policy (PR #29)
+- [x] generated extension artifact verification for dev + production-origin builds
 
 ### Core/API
 
@@ -191,6 +193,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #26 — privacy-minimized structured diagnostics — merged into `main`
 - PR #27 — compliance-safe provider cache defaults — merged into `main`
 - PR #28 — executable eBay extraction failure-mode contract — merged into `main`
+- PR #29 — build-time extension API origin configuration — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -203,6 +206,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
+9. Add Chrome packaging after the generated artifact verification gate is established.
 
 ## Local verification
 
