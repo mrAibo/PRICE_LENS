@@ -62,6 +62,51 @@ describe("PriceLens HTTP API", () => {
     });
   });
 
+  it("reports optional eBay enrichment configuration", async () => {
+    const server = createPriceLensServer({
+      enrichmentStatus: {ebay: "configured"}
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/health`
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      enrichment: {
+        ebay: "configured"
+      }
+    });
+  });
+
+  it("fails open when eBay enrichment is unavailable", async () => {
+    const server = createPriceLensServer({
+      enrichListing: async () => {
+        throw new Error("sandbox unavailable");
+      }
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.listing.identity).toEqual(listing.identity);
+    expect(result.listing.extractionWarnings).toContain(
+      "eBay API enrichment is currently unavailable; page extraction was used."
+    );
+  });
+
   it("routes comparisons through the provider orchestrator", async () => {
     const provider: PriceProvider = {
       id: "idealo",
