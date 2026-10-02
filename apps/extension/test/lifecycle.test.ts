@@ -127,6 +127,86 @@ describe("PriceLens content lifecycle", () => {
     lifecycle.stop();
   });
 
+  it("shows an explicit unsupported state without sending a comparison request", async () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+        <meta property="og:title" content="Ambiguous item">
+      </head><body><main></main></body></html>
+    `, {
+      url: "https://www.ebay.de/itm/123456789012"
+    });
+
+    const sendMessage = vi.fn(async (_message: CompareMessage): Promise<CompareResponse> => ({
+      ok: false,
+      error: "should not be called"
+    }));
+    const mount = vi.fn((): PriceLensView => ({
+      renderComparison: vi.fn(),
+      renderError: vi.fn()
+    }));
+    const mountUnsupported = vi.fn();
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      sendMessage,
+      mount,
+      mountUnsupported
+    });
+
+    await lifecycle.refreshNow();
+
+    expect(mountUnsupported).toHaveBeenCalledTimes(1);
+    expect(mountUnsupported.mock.calls[0]?.[1]).toContain("cannot be compared safely");
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mount).not.toHaveBeenCalled();
+    lifecycle.stop();
+  });
+
+  it("replaces an unsupported state when the listing becomes safely extractable", async () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+        <meta property="og:title" content="Late-loading item">
+      </head><body><main></main></body></html>
+    `, {
+      url: "https://www.ebay.de/itm/123456789012"
+    });
+
+    const sendMessage = vi.fn(async (message: CompareMessage): Promise<CompareResponse> => ({
+      ok: true,
+      result: result(message.listing)
+    }));
+    const renderComparison = vi.fn();
+    const mount = vi.fn((): PriceLensView => ({
+      renderComparison,
+      renderError: vi.fn()
+    }));
+    const mountUnsupported = vi.fn();
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      sendMessage,
+      mount,
+      mountUnsupported
+    });
+
+    expect(mountUnsupported).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    const price = dom.window.document.createElement("div");
+    price.setAttribute("data-testid", "x-price-primary");
+    price.textContent = "EUR 199,00";
+    dom.window.document.body.appendChild(price);
+
+    await lifecycle.refreshNow();
+
+    expect(mount).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(renderComparison).toHaveBeenCalledTimes(1);
+    lifecycle.stop();
+  });
+
   it("refreshes after relevant DOM data changes", async () => {
     const dom = renderPage();
     const sendMessage = vi.fn(async (message: CompareMessage): Promise<CompareResponse> => ({
