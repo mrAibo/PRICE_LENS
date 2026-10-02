@@ -54,6 +54,10 @@ export async function compareWithProviders(
     results.map((result) => [result.status.provider, result.status] as const)
   );
   const allProviderIds: PriceProviderId[] = ["idealo", "geizhals", "amazon"];
+  if (statusByProvider.has("fixture")) {
+    allProviderIds.push("fixture");
+  }
+
   const statuses: ProviderStatus[] = allProviderIds.map((provider) =>
     statusByProvider.get(provider) ?? {
       provider,
