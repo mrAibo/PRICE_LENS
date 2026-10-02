@@ -193,6 +193,56 @@ describe("PriceLens HTTP API", () => {
     );
   });
 
+  it("uses one request id in both the response header and comparison result", async () => {
+    const server = createPriceLensServer({
+      providers: [createFixtureProvider({discountRatio: 0.1})],
+      requestIdFactory: () => "req-correlation-001"
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(response.headers.get("x-price-lens-request-id")).toBe(
+      "req-correlation-001"
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      requestId: "req-correlation-001"
+    });
+  });
+
+  it("correlates validation errors with the response header", async () => {
+    const server = createPriceLensServer({
+      requestIdFactory: () => "req-error-001"
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing: {source: "ebay"}})
+    });
+
+    expect(response.headers.get("x-price-lens-request-id")).toBe(
+      "req-error-001"
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_request",
+      requestId: "req-error-001"
+    });
+  });
+
   it("rejects malformed comparison requests", async () => {
     const baseUrl = await startServer();
     const response = await fetch(`${baseUrl}/v1/compare`, {

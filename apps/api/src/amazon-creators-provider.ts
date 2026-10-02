@@ -1,4 +1,5 @@
 import type {
+  EcommerceListing,
   ListingCondition,
   ProductIdentity,
   ProductVariant
@@ -47,7 +48,9 @@ export class AmazonCreatorsProvider implements PriceProvider {
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
   private tokenCache?: CachedToken;
+  private tokenInFlight?: Promise<string>;
   private readonly searchCache = new Map<string, CachedCandidates>();
+  private readonly searchInFlight = new Map<string, Promise<ProviderCandidate[]>>();
 
   constructor(options: AmazonCreatorsProviderOptions) {
     this.credentialId = requireValue(options.credentialId, "Amazon credential id");
@@ -74,10 +77,37 @@ export class AmazonCreatorsProvider implements PriceProvider {
       return cached.candidates;
     }
 
-    let response = await this.searchItems(input, false);
+    const active = this.searchInFlight.get(cacheKey);
+    if (active) {
+      return waitForSignal(
+        active,
+        input.signal,
+        "Amazon Creators request was aborted."
+      );
+    }
+
+    const pending = this.fetchAndCacheSearch(input.listing, cacheKey).finally(() => {
+      if (this.searchInFlight.get(cacheKey) === pending) {
+        this.searchInFlight.delete(cacheKey);
+      }
+    });
+    this.searchInFlight.set(cacheKey, pending);
+
+    return waitForSignal(
+      pending,
+      input.signal,
+      "Amazon Creators request was aborted."
+    );
+  }
+
+  private async fetchAndCacheSearch(
+    listing: EcommerceListing,
+    cacheKey: string
+  ): Promise<ProviderCandidate[]> {
+    let response = await this.searchItems(listing, false);
     if (response.status === 401) {
       this.tokenCache = undefined;
-      response = await this.searchItems(input, true);
+      response = await this.searchItems(listing, true);
     }
 
     if (response.status === 404) {
@@ -104,11 +134,10 @@ export class AmazonCreatorsProvider implements PriceProvider {
   }
 
   private async searchItems(
-    input: ProviderSearchInput,
+    listing: EcommerceListing,
     forceTokenRefresh: boolean
   ): Promise<Response> {
     const token = await this.getToken(forceTokenRefresh);
-    const listing = input.listing;
     const searchTerms = [
       listing.identity.brand,
       listing.identity.model,
@@ -155,8 +184,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
           accept: "application/json",
           "x-marketplace": this.marketplace
         },
-        body: JSON.stringify(body),
-        signal: input.signal
+        body: JSON.stringify(body)
       }
     );
   }
@@ -170,6 +198,18 @@ export class AmazonCreatorsProvider implements PriceProvider {
       return this.tokenCache.token;
     }
 
+    if (this.tokenInFlight) return this.tokenInFlight;
+
+    const pending = this.mintToken().finally(() => {
+      if (this.tokenInFlight === pending) {
+        this.tokenInFlight = undefined;
+      }
+    });
+    this.tokenInFlight = pending;
+    return pending;
+  }
+
+  private async mintToken(): Promise<string> {
     const response = await this.fetchWithTimeout(
       new URL("/auth/o2/token", tokenBaseUrl(this.credentialVersion)),
       {
@@ -262,6 +302,24 @@ export function createAmazonCreatorsProviderFromEnv(
     credentialVersion,
     partnerTag,
     marketplace: env.AMAZON_MARKETPLACE?.trim() || "www.amazon.de"
+  });
+}
+
+function waitForSignal<T>(
+  promise: Promise<T>,
+  signal: AbortSignal | undefined,
+  abortMessage: string
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(new Error(abortMessage));
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new Error(abortMessage));
+    signal.addEventListener("abort", onAbort, {once: true});
+
+    promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
   });
 }
 

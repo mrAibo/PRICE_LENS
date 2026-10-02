@@ -209,6 +209,68 @@ describe("Amazon Creators provider", () => {
     });
   });
 
+  it("coalesces concurrent identical searches and token minting", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "shared-token", expires_in: 3600})
+      )
+      .mockResolvedValueOnce(jsonResponse(searchResponse()));
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      partnerTag: "price-lens-21",
+      fetchImpl
+    });
+
+    const [first, second] = await Promise.all([
+      provider.search({listing}),
+      provider.search({listing})
+    ]);
+
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let one aborted waiter cancel a shared Amazon search", async () => {
+    let resolveSearch: ((response: Response) => void) | undefined;
+    const searchPending = new Promise<Response>((resolve) => {
+      resolveSearch = resolve;
+    });
+
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "shared-token", expires_in: 3600})
+      )
+      .mockImplementationOnce(() => searchPending);
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      partnerTag: "price-lens-21",
+      fetchImpl
+    });
+
+    const controller = new AbortController();
+    const aborted = provider.search({
+      listing,
+      signal: controller.signal
+    });
+    const surviving = provider.search({listing});
+
+    controller.abort();
+    await expect(aborted).rejects.toThrow("aborted");
+
+    resolveSearch!(jsonResponse(searchResponse()));
+    await expect(surviving).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("caches the access token and identical searches", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()

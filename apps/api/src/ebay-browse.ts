@@ -39,7 +39,9 @@ export class EbayBrowseEnricher {
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
   private readonly itemCache = new Map<string, CachedItem>();
+  private readonly itemInFlight = new Map<string, Promise<JsonRecord | null>>();
   private tokenCache?: CachedToken;
+  private tokenInFlight?: Promise<string>;
 
   constructor(options: EbayBrowseEnricherOptions) {
     this.clientId = requireNonEmpty(options.clientId, "eBay client id");
@@ -85,6 +87,21 @@ export class EbayBrowseEnricher {
       return cached.value;
     }
 
+    const active = this.itemInFlight.get(legacyItemId);
+    if (active) return active;
+
+    const pending = this.fetchAndCacheItem(legacyItemId).finally(() => {
+      if (this.itemInFlight.get(legacyItemId) === pending) {
+        this.itemInFlight.delete(legacyItemId);
+      }
+    });
+    this.itemInFlight.set(legacyItemId, pending);
+    return pending;
+  }
+
+  private async fetchAndCacheItem(
+    legacyItemId: string
+  ): Promise<JsonRecord | null> {
     let response = await this.fetchBrowseItem(legacyItemId, false);
     if (response.status === 401) {
       this.tokenCache = undefined;
@@ -146,6 +163,18 @@ export class EbayBrowseEnricher {
       return this.tokenCache.token;
     }
 
+    if (this.tokenInFlight) return this.tokenInFlight;
+
+    const pending = this.mintApplicationToken().finally(() => {
+      if (this.tokenInFlight === pending) {
+        this.tokenInFlight = undefined;
+      }
+    });
+    this.tokenInFlight = pending;
+    return pending;
+  }
+
+  private async mintApplicationToken(): Promise<string> {
     const credentials = Buffer.from(
       `${this.clientId}:${this.clientSecret}`,
       "utf8"
