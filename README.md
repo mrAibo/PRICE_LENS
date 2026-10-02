@@ -13,9 +13,10 @@ Current scope:
 - eBay.de single-item pages
 - Manifest V3 browser extension
 - normalized listing contract
-- product matching with explicit confidence
+- strict product matching with explicit confidence
 - provider abstraction for Idealo / Geizhals / Amazon
 - backend boundary so credentials never live in the extension
+- extension-to-API comparison flow
 - tests and CI from the first implementation increment
 
 See:
@@ -23,6 +24,7 @@ See:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## MVP principle
 
@@ -35,6 +37,23 @@ Prices are compared as landed prices where possible:
 Condition, variant, capacity, model number and identifiers are part of product identity and must not be silently ignored.
 
 ## Development
+
+Requirements: Node.js 22+.
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+Start the bootstrap API:
+
+```bash
+npm run start -w @price-lens/api
+```
+
+Then load `apps/extension/dist` as an unpacked extension in a Chromium-compatible browser. The bootstrap extension talks to `http://127.0.0.1:8787`; production API configuration is intentionally deferred until deployment is defined.
 
 The repository is an npm-workspaces monorepo. Bootstrap code lives in the `bootstrap/price-lens-mvp` branch until the architecture and first vertical slice pass review.
 

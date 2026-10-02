@@ -5,8 +5,11 @@ export interface CompareMessage {
   listing: EcommerceListing;
 }
 
+export type CompareResponse =
+  | {ok: true; result: ComparisonResult}
+  | {ok: false; error: string};
+
 export type PriceLensMessage = CompareMessage;
-export type CompareResponse = ComparisonResult;
 
 export function isCompareMessage(value: unknown): value is CompareMessage {
   if (!value || typeof value !== "object") return false;

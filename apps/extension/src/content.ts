@@ -1,6 +1,8 @@
-import type {ComparisonResult} from "@price-lens/contracts";
 import {extractEbayListing} from "./ebay/extract.js";
-import type {CompareMessage} from "./messages.js";
+import type {
+  CompareMessage,
+  CompareResponse
+} from "./messages.js";
 import {mountPriceLens} from "./ui/render.js";
 
 const listing = extractEbayListing(document, window.location.href);
@@ -11,12 +13,18 @@ if (listing) {
 
   void chrome.runtime
     .sendMessage(message)
-    .then((result: ComparisonResult | undefined) => {
-      if (!result) {
-        view.renderError("No comparison result was returned.");
+    .then((response: CompareResponse | undefined) => {
+      if (!response) {
+        view.renderError("No comparison response was returned.");
         return;
       }
-      view.renderComparison(result);
+
+      if (!response.ok) {
+        view.renderError(response.error);
+        return;
+      }
+
+      view.renderComparison(response.result);
     })
     .catch(() => {
       view.renderError("Comparison service is unavailable.");
