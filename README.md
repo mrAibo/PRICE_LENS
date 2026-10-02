@@ -53,7 +53,7 @@ npm test
 npm run build
 ```
 
-Start the bootstrap API:
+Start the local API:
 
 ```bash
 npm run start -w @price-lens/api
@@ -67,9 +67,9 @@ PRICE_LENS_FIXTURE_PROVIDER=1 npm run start -w @price-lens/api
 
 The fixture source is labelled `fixture` / `PriceLens Fixture Shop` and is never represented as Idealo, Geizhals or Amazon data.
 
-Then load `apps/extension/dist` as an unpacked extension in a Chromium-compatible browser. The bootstrap extension talks to `http://127.0.0.1:8787`; production API configuration is intentionally deferred until deployment is defined.
+Then load `apps/extension/dist` as an unpacked extension in a Chromium-compatible browser. The development extension talks to `http://127.0.0.1:8787`; production API configuration is intentionally deferred until deployment is defined.
 
-The repository is an npm-workspaces monorepo. Bootstrap code lives in the `bootstrap/price-lens-mvp` branch until the architecture and first vertical slice pass review.
+The repository is an npm-workspaces monorepo. The tested early-MVP baseline is now on `main`; new work should branch from the current `main`.
 
 ## External providers
 
