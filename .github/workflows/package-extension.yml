@@ -29,8 +29,11 @@ jobs:
       - name: Upgrade npm
         run: npm install --global npm@11
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify dependency licenses
+        run: npm run licenses:check
 
       - name: Require production HTTPS origin
         shell: bash
