@@ -266,7 +266,7 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] extension build-time API-origin configuration
 - [x] generated extension artifact verification in CI
 - [ ] backend production environment/configuration strategy
-- [ ] Chrome packaging
+- [x] Chrome packaging workflow + CI ZIP smoke test
 - [ ] Firefox compatibility evaluation
 - [ ] dependency-license inventory for release
 - [ ] privacy policy / store disclosures if public distribution proceeds
