@@ -1,7 +1,11 @@
 import type {EcommerceListing} from "@price-lens/contracts";
 import {extractEbayItemId, extractEbayListing} from "./ebay/extract.js";
 import type {CompareMessage, CompareResponse} from "./messages.js";
-import {mountPriceLens, type PriceLensView} from "./ui/render.js";
+import {
+  mountPriceLens,
+  mountUnsupportedPriceLens,
+  type PriceLensView
+} from "./ui/render.js";
 
 export interface PriceLensLifecycleOptions {
   document: Document;
@@ -9,6 +13,7 @@ export interface PriceLensLifecycleOptions {
   getPageUrl?: () => string;
   sendMessage: (message: CompareMessage) => Promise<CompareResponse | undefined>;
   mount?: (document: Document, listing: EcommerceListing) => PriceLensView;
+  mountUnsupported?: (document: Document, message: string) => void;
   debounceMs?: number;
 }
 
@@ -23,6 +28,7 @@ export function createPriceLensLifecycle(
 ): PriceLensLifecycle {
   const getPageUrl = options.getPageUrl ?? (() => options.window.location.href);
   const mount = options.mount ?? mountPriceLens;
+  const mountUnsupported = options.mountUnsupported ?? mountUnsupportedPriceLens;
   const debounceMs = options.debounceMs ?? 250;
 
   let stopped = false;
@@ -50,10 +56,24 @@ export function createPriceLensLifecycle(
     const listing = extractEbayListing(options.document, pageUrl);
 
     if (!listing) {
-      if (urlItemId && lastItemId && urlItemId !== lastItemId) {
+      if (urlItemId) {
+        const unsupportedFingerprint = `unsupported:${urlItemId}`;
+        if (lastFingerprint === unsupportedFingerprint) return;
+
+        generation += 1;
+        lastFingerprint = unsupportedFingerprint;
+        lastItemId = urlItemId;
+        mountUnsupported(
+          options.document,
+          "This eBay listing cannot be compared safely because its current title or price is missing or ambiguous."
+        );
+        return;
+      }
+
+      if (lastFingerprint !== undefined || lastItemId !== undefined) {
         generation += 1;
         lastFingerprint = undefined;
-        lastItemId = urlItemId;
+        lastItemId = undefined;
         options.document.getElementById("price-lens-root")?.remove();
       }
       return;
