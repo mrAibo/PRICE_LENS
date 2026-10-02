@@ -243,6 +243,64 @@ describe("PriceLens HTTP API", () => {
     });
   });
 
+  it.each([
+    [
+      "non-eBay HTTPS URL",
+      {
+        ...listing,
+        url: "https://example.test/itm/123456789012"
+      }
+    ],
+    [
+      "mismatched eBay item id",
+      {
+        ...listing,
+        url: "https://www.ebay.de/itm/999999999999"
+      }
+    ],
+    [
+      "invalid nested identity type",
+      {
+        ...listing,
+        identity: {
+          ...listing.identity,
+          brand: 123
+        }
+      }
+    ],
+    [
+      "invalid structured variant",
+      {
+        ...listing,
+        identity: {
+          ...listing.identity,
+          variant: {
+            packCount: 1.5
+          }
+        }
+      }
+    ],
+    [
+      "invalid condition",
+      {
+        ...listing,
+        condition: "brand_new"
+      }
+    ]
+  ])("rejects %s at the API trust boundary", async (_label, invalidListing) => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing: invalidListing})
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_request"
+    });
+  });
+
   it("rejects malformed comparison requests", async () => {
     const baseUrl = await startServer();
     const response = await fetch(`${baseUrl}/v1/compare`, {

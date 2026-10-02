@@ -1,6 +1,13 @@
 import {randomUUID} from "node:crypto";
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from "node:http";
-import type {ComparisonRequest, EcommerceListing} from "@price-lens/contracts";
+import type {
+  ComparisonRequest,
+  EcommerceListing,
+  ListingCondition,
+  Money,
+  ProductIdentity,
+  ProductVariant
+} from "@price-lens/contracts";
 import {
   compareWithProviders,
   type PriceProvider
@@ -137,24 +144,187 @@ function isComparisonRequest(value: unknown): value is ComparisonRequest {
 }
 
 function isEbayListing(value: unknown): value is EcommerceListing {
-  if (!value || typeof value !== "object") return false;
-  const listing = value as Partial<EcommerceListing>;
+  if (!isRecord(value)) return false;
+
+  const source = value.source;
+  const itemId = value.itemId;
+  const url = value.url;
+  const title = value.title;
 
   return (
-    listing.source === "ebay" &&
-    typeof listing.itemId === "string" &&
-    listing.itemId.length > 0 &&
-    typeof listing.url === "string" &&
-    listing.url.startsWith("https://") &&
-    typeof listing.title === "string" &&
-    listing.title.length > 0 &&
-    !!listing.price &&
-    Number.isFinite(listing.price.amount) &&
-    listing.price.amount >= 0 &&
-    typeof listing.price.currency === "string" &&
-    listing.price.currency.length > 0 &&
-    !!listing.identity &&
-    Array.isArray(listing.extractionEvidence) &&
-    Array.isArray(listing.extractionWarnings)
+    source === "ebay" &&
+    typeof itemId === "string" &&
+    /^\d{9,15}$/.test(itemId) &&
+    typeof url === "string" &&
+    url.length <= 4096 &&
+    isTrustedEbayItemUrl(url, itemId) &&
+    typeof title === "string" &&
+    title.trim().length > 0 &&
+    title.length <= 2048 &&
+    isMoney(value.price) &&
+    (value.shipping === undefined || isMoney(value.shipping)) &&
+    isListingCondition(value.condition) &&
+    isProductIdentity(value.identity) &&
+    (value.imageUrl === undefined || isSafeHttpsUrl(value.imageUrl, 4096)) &&
+    isStringArray(value.extractionEvidence, 100, 1024) &&
+    isStringArray(value.extractionWarnings, 100, 2048)
   );
+}
+
+function isTrustedEbayItemUrl(value: string, itemId: string): boolean {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.port
+    ) {
+      return false;
+    }
+
+    const hostname = url.hostname.toLowerCase();
+    if (hostname !== "ebay.de" && !hostname.endsWith(".ebay.de")) {
+      return false;
+    }
+
+    const pathMatch = url.pathname.match(
+      /\/itm\/(?:[^/]+\/)?(\d{9,15})(?:[/?#]|$)/i
+    );
+    const queryItem = url.searchParams.get("item");
+    const urlItemId = pathMatch?.[1] ?? (
+      queryItem && /^\d{9,15}$/.test(queryItem) ? queryItem : undefined
+    );
+
+    return urlItemId === itemId;
+  } catch {
+    return false;
+  }
+}
+
+function isMoney(value: unknown): value is Money {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.amount === "number" &&
+    Number.isFinite(value.amount) &&
+    value.amount >= 0 &&
+    typeof value.currency === "string" &&
+    /^[A-Za-z]{3}$/.test(value.currency.trim())
+  );
+}
+
+function isListingCondition(value: unknown): value is ListingCondition {
+  return (
+    value === "new" ||
+    value === "used" ||
+    value === "refurbished" ||
+    value === "open_box" ||
+    value === "unknown"
+  );
+}
+
+function isProductIdentity(value: unknown): value is ProductIdentity {
+  if (!isRecord(value)) return false;
+
+  return (
+    isOptionalString(value.brand, 512) &&
+    isOptionalString(value.model, 512) &&
+    isOptionalString(value.mpn, 512) &&
+    isOptionalTradeIdentifier(value.gtin) &&
+    isOptionalTradeIdentifier(value.ean) &&
+    isOptionalTradeIdentifier(value.upc) &&
+    (value.variant === undefined || isProductVariant(value.variant))
+  );
+}
+
+function isProductVariant(value: unknown): value is ProductVariant {
+  if (!isRecord(value)) return false;
+
+  return (
+    isOptionalPositiveNumber(value.storageGb, 100_000) &&
+    isOptionalPositiveNumber(value.ramGb, 100_000) &&
+    isOptionalPositiveNumber(value.screenSizeInches, 1_000) &&
+    isOptionalPositiveInteger(value.packCount, 10_000) &&
+    isOptionalString(value.edition, 256) &&
+    isOptionalString(value.modelQualifier, 256) &&
+    (value.bundleIncluded === undefined ||
+      typeof value.bundleIncluded === "boolean")
+  );
+}
+
+function isOptionalTradeIdentifier(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== "string") return false;
+  const digits = value.replace(/\D/g, "");
+  return [8, 12, 13, 14].includes(digits.length) && digits === value;
+}
+
+function isOptionalString(value: unknown, maxLength: number): boolean {
+  return (
+    value === undefined ||
+    (
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      value.length <= maxLength
+    )
+  );
+}
+
+function isOptionalPositiveNumber(
+  value: unknown,
+  maxValue: number
+): boolean {
+  return (
+    value === undefined ||
+    (
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value > 0 &&
+      value <= maxValue
+    )
+  );
+}
+
+function isOptionalPositiveInteger(
+  value: unknown,
+  maxValue: number
+): boolean {
+  return (
+    value === undefined ||
+    (
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value > 0 &&
+      value <= maxValue
+    )
+  );
+}
+
+function isSafeHttpsUrl(value: unknown, maxLength: number): boolean {
+  if (typeof value !== "string" || value.length > maxLength) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isStringArray(
+  value: unknown,
+  maxItems: number,
+  maxItemLength: number
+): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= maxItems &&
+    value.every(
+      (entry) =>
+        typeof entry === "string" &&
+        entry.length <= maxItemLength
+    )
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }

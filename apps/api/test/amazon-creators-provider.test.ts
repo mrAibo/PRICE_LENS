@@ -174,6 +174,33 @@ describe("Amazon Creators provider", () => {
     ]);
   });
 
+  it("ignores provider items whose detail URL leaves the Amazon Germany domain", async () => {
+    const payload = searchResponse() as {
+      searchResult: {
+        items: Array<{detailPageURL: string}>;
+      };
+    };
+    payload.searchResult.items[0]!.detailPageURL =
+      "https://www.amazon.de.evil.example/dp/B0EXAMPLE01";
+
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "token", expires_in: 3600})
+      )
+      .mockResolvedValueOnce(jsonResponse(payload));
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      partnerTag: "price-lens-21",
+      fetchImpl
+    });
+
+    await expect(provider.search({listing})).resolves.toEqual([]);
+  });
+
   it("keeps Amazon shipping unknown so it cannot become the best landed-price offer", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -379,6 +406,18 @@ describe("Amazon Creators environment configuration", () => {
         AMAZON_CREATORS_ENABLED: "1"
       })
     ).toThrow("requires credential");
+  });
+
+  it("rejects a non-German marketplace hostname", () => {
+    expect(() =>
+      new AmazonCreatorsProvider({
+        credentialId: "id",
+        credentialSecret: "secret",
+        credentialVersion: "3.2",
+        partnerTag: "price-lens-21",
+        marketplace: "www.amazon.com"
+      })
+    ).toThrow("amazon.de hostname");
   });
 
   it("creates a Germany provider with assigned credential version", () => {
