@@ -124,15 +124,21 @@ function extractJsonLdPrice(
   evidence: string[]
 ): Money | undefined {
   if (!product) return undefined;
-  const offer = firstObject(product.offers);
-  if (!offer) return undefined;
 
-  const amount = parseSchemaAmount(offer.price);
-  const currency = readString(offer.priceCurrency);
-  if (amount === undefined || !currency) return undefined;
+  const prices = objectList(product.offers)
+    .map((offer) => {
+      const amount = parseSchemaAmount(offer.price);
+      const currency = readString(offer.priceCurrency);
+      if (amount === undefined || !currency) return undefined;
+      return {amount, currency: currency.toUpperCase()} satisfies Money;
+    })
+    .filter((price): price is Money => !!price);
+
+  const price = unambiguousMoney(prices);
+  if (!price) return undefined;
 
   evidence.push("jsonld:Product.offers.price");
-  return {amount, currency: currency.toUpperCase()};
+  return price;
 }
 
 function extractContentPrice(
@@ -218,10 +224,12 @@ function extractCondition(
   document: Document,
   evidence: string[]
 ): ListingCondition {
-  const offer = firstObject(product?.offers);
+  const offerConditions = objectList(product?.offers)
+    .map((offer) => readString(offer.itemCondition))
+    .filter((value): value is string => !!value);
   const structured =
-    readString(offer?.itemCondition) ??
     readString(product?.itemCondition) ??
+    unambiguousString(offerConditions) ??
     readContent(document, '[itemprop="itemCondition"][content]');
 
   const raw =
@@ -274,7 +282,9 @@ function extractJsonLdShipping(
   product: JsonRecord | undefined,
   itemCurrency: string
 ): Money | undefined {
-  const offer = firstObject(product?.offers);
+  const offers = objectList(product?.offers);
+  if (offers.length !== 1) return undefined;
+  const offer = offers[0];
   if (!offer) return undefined;
 
   const candidates = objectList(offer.shippingDetails)
@@ -384,6 +394,33 @@ function isGermany(value: string | undefined): boolean {
   if (!value) return false;
   const normalized = normalizeSearchText(value).replace(/\s+/g, "");
   return ["de", "deu", "germany", "deutschland"].includes(normalized);
+}
+
+function unambiguousMoney(values: Money[]): Money | undefined {
+  if (values.length === 0) return undefined;
+  const first = values[0];
+  if (!first) return undefined;
+
+  return values.every(
+    (value) =>
+      value.currency === first.currency &&
+      value.amount === first.amount
+  )
+    ? first
+    : undefined;
+}
+
+function unambiguousString(values: string[]): string | undefined {
+  if (values.length === 0) return undefined;
+  const normalized = new Map<string, string>();
+
+  for (const value of values) {
+    const key = normalizeSearchText(value).trim();
+    if (!key) continue;
+    if (!normalized.has(key)) normalized.set(key, value);
+  }
+
+  return normalized.size === 1 ? normalized.values().next().value : undefined;
 }
 
 function allSameMoney(values: Money[]): boolean {

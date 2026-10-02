@@ -67,6 +67,128 @@ describe("eBay listing extraction", () => {
     expect(listing?.extractionEvidence).toContain("jsonld:Offer.shippingDetails");
   });
 
+  it("falls back to the current DOM variant when JSON-LD offers disagree", () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+      <script type="application/ld+json">
+      {
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"Variant Product",
+        "offers":[
+          {
+            "@type":"Offer",
+            "price":"99.90",
+            "priceCurrency":"EUR",
+            "itemCondition":"https://schema.org/UsedCondition",
+            "shippingDetails":{
+              "@type":"OfferShippingDetails",
+              "shippingRate":{"value":"0","currency":"EUR"},
+              "shippingDestination":{"addressCountry":"DE"}
+            }
+          },
+          {
+            "@type":"Offer",
+            "price":"129.90",
+            "priceCurrency":"EUR",
+            "itemCondition":"https://schema.org/NewCondition",
+            "shippingDetails":{
+              "@type":"OfferShippingDetails",
+              "shippingRate":{"value":"19.99","currency":"EUR"},
+              "shippingDestination":{"addressCountry":"DE"}
+            }
+          }
+        ]
+      }
+      </script>
+      </head><body>
+        <div data-testid="x-price-primary">EUR 129,90</div>
+        <div class="x-item-condition-text"><span class="ux-textspans">Neu</span></div>
+        <dl class="ux-labels-values ux-labels-values--shipping">
+          <dt class="ux-labels-values__labels"><span>Versand:</span></dt>
+          <dd class="ux-labels-values__values"><span class="ux-textspans--BOLD">EUR 5,49</span></dd>
+        </dl>
+      </body></html>
+    `);
+
+    const listing = extractEbayListing(
+      dom.window.document,
+      "https://www.ebay.de/itm/123456789012"
+    );
+
+    expect(listing?.price).toEqual({amount: 129.9, currency: "EUR"});
+    expect(listing?.condition).toBe("new");
+    expect(listing?.shipping).toEqual({amount: 5.49, currency: "EUR"});
+    expect(listing?.extractionEvidence).toContain("dom:primary-price");
+    expect(listing?.extractionEvidence).toContain("dom:condition");
+    expect(listing?.extractionEvidence).toContain("dom:shipping");
+    expect(listing?.extractionEvidence).not.toContain("jsonld:Product.offers.price");
+    expect(listing?.extractionEvidence).not.toContain("jsonld:Offer.shippingDetails");
+  });
+
+  it("rejects a listing when variant JSON-LD prices disagree and no current price exists", () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+      <script type="application/ld+json">
+      {
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"Ambiguous Variant Product",
+        "offers":[
+          {"@type":"Offer","price":"99.90","priceCurrency":"EUR"},
+          {"@type":"Offer","price":"129.90","priceCurrency":"EUR"}
+        ]
+      }
+      </script>
+      </head><body></body></html>
+    `);
+
+    const listing = extractEbayListing(
+      dom.window.document,
+      "https://www.ebay.de/itm/123456789012"
+    );
+
+    expect(listing).toBeNull();
+  });
+
+  it("accepts equivalent prices repeated across structured offers", () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+      <script type="application/ld+json">
+      {
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"Equivalent Variant Product",
+        "offers":[
+          {
+            "@type":"Offer",
+            "price":"149.00",
+            "priceCurrency":"EUR",
+            "itemCondition":"https://schema.org/NewCondition"
+          },
+          {
+            "@type":"Offer",
+            "price":"149.00",
+            "priceCurrency":"EUR",
+            "itemCondition":"https://schema.org/NewCondition"
+          }
+        ]
+      }
+      </script>
+      </head><body></body></html>
+    `);
+
+    const listing = extractEbayListing(
+      dom.window.document,
+      "https://www.ebay.de/itm/123456789012"
+    );
+
+    expect(listing?.price).toEqual({amount: 149, currency: "EUR"});
+    expect(listing?.condition).toBe("new");
+    expect(listing?.extractionEvidence).toContain("jsonld:Product.offers.price");
+    expect(listing?.extractionEvidence).toContain("structured:condition");
+  });
+
   it("falls back to content attributes for price", () => {
     const dom = new JSDOM(`
       <!doctype html><html><head>
