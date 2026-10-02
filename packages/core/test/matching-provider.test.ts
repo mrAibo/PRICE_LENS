@@ -82,6 +82,72 @@ describe("PriceLens matching guard", () => {
     expect(result.reason).toContain("Condition mismatch");
   });
 
+  it.each([
+    ["storage", {storageGb: 512}, "Storage capacity mismatch"],
+    ["RAM", {ramGb: 32}, "RAM mismatch"],
+    ["screen size", {screenSizeInches: 15.7}, "Screen-size mismatch"],
+    ["pack count", {packCount: 2}, "Pack-count mismatch"]
+  ])(
+    "rejects a %s variant conflict even when the strong product identifier matches",
+    (_label, conflictingVariant, expectedReason) => {
+      const source = {
+        ...listing,
+        identity: {
+          ...listing.identity,
+          variant: {
+            storageGb: 256,
+            ramGb: 16,
+            screenSizeInches: 15.6,
+            packCount: 1
+          }
+        }
+      };
+
+      const result = evaluateProviderCandidate(
+        source,
+        candidate({
+          identity: {
+            brand: "Sony",
+            model: "WH-1000XM6",
+            mpn: "WH1000XM6B",
+            ean: "4548736162657",
+            variant: {
+              storageGb: 256,
+              ramGb: 16,
+              screenSizeInches: 15.6,
+              packCount: 1,
+              ...conflictingVariant
+            }
+          }
+        })
+      );
+
+      expect(result.decision).toBe("reject");
+      expect(result.reason).toContain(expectedReason);
+    }
+  );
+
+  it("does not reject when variant data is missing on one side", () => {
+    const source = {
+      ...listing,
+      identity: {
+        ...listing.identity,
+        variant: {
+          storageGb: 256,
+          ramGb: 16
+        }
+      }
+    };
+
+    const result = evaluateProviderCandidate(source, candidate());
+
+    expect(result).toMatchObject({
+      decision: "auto_match",
+      confidence: 1,
+      method: "gtin"
+    });
+  });
+
   it("accepts exact MPN only with a compatible brand", () => {
     const withoutGtin = {
       ...listing,
