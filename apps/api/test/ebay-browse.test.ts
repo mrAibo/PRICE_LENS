@@ -95,6 +95,35 @@ describe("eBay Browse enrichment", () => {
     expect(browseHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
   });
 
+  it("coalesces concurrent identical legacy-item lookups", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "shared-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          localizedAspects: [{name: "EAN", value: "4548736162657"}]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    const [first, second] = await Promise.all([
+      enricher.enrich(baseListing),
+      enricher.enrich(baseListing)
+    ]);
+
+    expect(first.identity.ean).toBe("4548736162657");
+    expect(second.identity.ean).toBe("4548736162657");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("caches both token and legacy-item lookup", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
