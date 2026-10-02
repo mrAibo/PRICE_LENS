@@ -151,9 +151,17 @@ describe("provider orchestration", () => {
     });
 
     expect(result.offers).toHaveLength(0);
-    expect(result.providerStatus[0]).toMatchObject({
+    expect(
+      result.providerStatus.find((status) => status.provider === "geizhals")
+    ).toMatchObject({
       provider: "geizhals",
       state: "error"
+    });
+    expect(
+      result.providerStatus.find((status) => status.provider === "idealo")
+    ).toMatchObject({
+      provider: "idealo",
+      state: "unconfigured"
     });
   });
 });

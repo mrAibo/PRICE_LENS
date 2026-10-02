@@ -50,7 +50,17 @@ export async function compareWithProviders(
   );
 
   const offers = results.flatMap((result) => result.offers);
-  const statuses = results.map((result) => result.status);
+  const statusByProvider = new Map(
+    results.map((result) => [result.status.provider, result.status] as const)
+  );
+  const allProviderIds: PriceProviderId[] = ["idealo", "geizhals", "amazon"];
+  const statuses: ProviderStatus[] = allProviderIds.map((provider) =>
+    statusByProvider.get(provider) ?? {
+      provider,
+      state: "unconfigured",
+      message: "Provider adapter is not configured."
+    }
+  );
 
   return createComparisonResult(listing, offers, statuses, options.requestId);
 }
