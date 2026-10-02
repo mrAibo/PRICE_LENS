@@ -104,6 +104,22 @@ describe("eBay listing extraction", () => {
       </head><body>
         <div data-testid="x-price-primary">EUR 129,90</div>
         <div class="x-item-condition-text"><span class="ux-textspans">Neu</span></div>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Speicherkapazität:</span></dt>
+          <dd class="ux-labels-values__values"><span>1 TB</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Arbeitsspeicher:</span></dt>
+          <dd class="ux-labels-values__values"><span>16 GB</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Bildschirmgröße:</span></dt>
+          <dd class="ux-labels-values__values"><span>15,6 Zoll</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Anzahl pro Packung:</span></dt>
+          <dd class="ux-labels-values__values"><span>2 Stück</span></dd>
+        </dl>
         <dl class="ux-labels-values ux-labels-values--shipping">
           <dt class="ux-labels-values__labels"><span>Versand:</span></dt>
           <dd class="ux-labels-values__values"><span class="ux-textspans--BOLD">EUR 5,49</span></dd>
@@ -250,12 +266,39 @@ describe("eBay listing extraction", () => {
       brand: "Sony",
       model: "Alpha 7 IV",
       mpn: "ILCE7M4/B",
-      ean: "4548736133767"
+      ean: "4548736133767",
+      variant: {
+        storageGb: 1000,
+        ramGb: 16,
+        screenSizeInches: 15.6,
+        packCount: 2
+      }
     });
     expect(
       listing?.extractionEvidence.some((value) => value.startsWith("dom:item-specifics:"))
     ).toBe(true);
     expect(listing?.extractionEvidence).toContain("dom:shipping");
+  });
+
+  it("does not invent a structured variant from ambiguous item-specific values", () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+        <meta property="og:title" content="Ambiguous Laptop">
+      </head><body>
+        <div class="x-price-primary">EUR 999,00</div>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Speicherkapazität:</span></dt>
+          <dd class="ux-labels-values__values"><span>256 GB / 512 GB</span></dd>
+        </dl>
+      </body></html>
+    `);
+
+    const listing = extractEbayListing(
+      dom.window.document,
+      "https://www.ebay.de/itm/123456789012"
+    );
+
+    expect(listing?.identity.variant?.storageGb).toBeUndefined();
   });
 
   it("extracts a paid DOM shipping price", () => {
