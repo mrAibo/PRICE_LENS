@@ -1,0 +1,66 @@
+name: Package Chrome Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_origin:
+        description: HTTPS PriceLens API origin embedded in the extension
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PRICE_LENS_API_ORIGIN: ${{ inputs.api_origin }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Upgrade npm
+        run: npm install --global npm@11
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Require production HTTPS origin
+        shell: bash
+        run: |
+          case "$PRICE_LENS_API_ORIGIN" in
+            https://*) ;;
+            *)
+              echo "api_origin must use HTTPS for a release package." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Build extension
+        run: npm run build -w @price-lens/extension
+
+      - name: Verify generated artifact
+        run: npm run verify-artifact -w @price-lens/extension
+
+      - name: Package Chrome ZIP
+        run: |
+          rm -f apps/extension/price-lens-chrome.zip
+          (cd apps/extension/dist && zip -X -q -r ../price-lens-chrome.zip .)
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "manifest.json"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "background.js"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "content.js"
+
+      - name: Upload Chrome package
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-lens-chrome-${{ github.sha }}
+          path: apps/extension/price-lens-chrome.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -42,3 +42,10 @@ jobs:
         run: |
           npm run build -w @price-lens/extension
           npm run verify-artifact -w @price-lens/extension
+      - name: Smoke-package Chrome ZIP
+        run: |
+          rm -f apps/extension/price-lens-chrome.zip
+          (cd apps/extension/dist && zip -X -q -r ../price-lens-chrome.zip .)
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "manifest.json"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "background.js"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "content.js"
