@@ -84,6 +84,7 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] in-flight Amazon SearchItems + OAuth coalescing with caller-local cancellation
 - [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
 - [x] opt-in privacy-minimized JSON diagnostics with provider latency/state aggregation
+- [x] periodic cumulative operational metrics snapshots (provider states + avg/max latency + rejection reasons)
 - [x] provider product/price caches disabled by default until approved freshness rules are known
 - [x] explicit TTL-only provider caching with configuration validation
 - [x] deep inbound eBay payload validation at the API trust boundary
@@ -170,7 +171,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 - [x] in-flight provider request coalescing
 - [ ] provider-approved production cache/freshness policy
-- [ ] persistent observability/metrics
+- [ ] durable external observability/metrics persistence and alerting
 - [ ] first approved real provider adapter
 - [ ] multi-provider production comparison
 - [ ] eBay search-result card augmentation
@@ -260,4 +261,5 @@ Canonical documents:
 - [Matcher calibration](MATCHER_CALIBRATION.md)
 - [eBay Browse enrichment](EBAY_BROWSE_ENRICHMENT.md)
 - [Amazon Creators provider](AMAZON_CREATORS_PROVIDER.md)
+- [Observability](OBSERVABILITY.md)
 - [Open-source reuse](OPEN_SOURCE_REUSE.md)
