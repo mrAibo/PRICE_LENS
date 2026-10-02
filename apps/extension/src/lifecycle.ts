@@ -141,7 +141,13 @@ export function listingFingerprint(listing: EcommerceListing): string {
       mpn: identity.mpn ?? null,
       gtin: identity.gtin ?? null,
       ean: identity.ean ?? null,
-      upc: identity.upc ?? null
+      upc: identity.upc ?? null,
+      variant: {
+        storageGb: identity.variant?.storageGb ?? null,
+        ramGb: identity.variant?.ramGb ?? null,
+        screenSizeInches: identity.variant?.screenSizeInches ?? null,
+        packCount: identity.variant?.packCount ?? null
+      }
     }
   });
 }
