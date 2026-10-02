@@ -238,7 +238,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] deep request validation
 - [x] eBay inbound URL host/item-id trust checks
 - [x] Amazon Germany marketplace/detail-URL allowlist
-- [ ] production HTTPS/deployment configuration
+- [x] extension production API origin requires HTTPS
+- [ ] backend production HTTPS/ingress deployment configuration
 - [ ] extend outbound allowlists to future providers
 - [ ] structured secret management
 - [ ] privacy review before any telemetry
@@ -259,7 +260,9 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 ### Distribution
 
 - [ ] production API deployment model
-- [ ] environment/configuration strategy
+- [x] extension build-time API-origin configuration
+- [x] generated extension artifact verification in CI
+- [ ] backend production environment/configuration strategy
 - [ ] Chrome packaging
 - [ ] Firefox compatibility evaluation
 - [ ] dependency-license inventory for release
