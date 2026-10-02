@@ -247,6 +247,18 @@ describe("eBay listing extraction", () => {
           <dt class="ux-labels-values__labels"><span>Anzahl pro Packung:</span></dt>
           <dd class="ux-labels-values__values"><span>2 Stück</span></dd>
         </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Edition:</span></dt>
+          <dd class="ux-labels-values__values"><span>Limited Edition</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Modellnummer:</span></dt>
+          <dd class="ux-labels-values__values"><span>ILCE7M4-LTD</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Benutzerdefiniertes Bundle:</span></dt>
+          <dd class="ux-labels-values__values"><span>Nein</span></dd>
+        </dl>
         <dl class="ux-labels-values ux-labels-values--shipping">
           <dt class="ux-labels-values__labels"><span>Versand:</span></dt>
           <dd class="ux-labels-values__values"><span class="ux-textspans--BOLD">Kostenloser Versand</span></dd>
@@ -271,7 +283,10 @@ describe("eBay listing extraction", () => {
         storageGb: 1000,
         ramGb: 16,
         screenSizeInches: 15.6,
-        packCount: 2
+        packCount: 2,
+        edition: "Limited Edition",
+        modelQualifier: "ILCE7M4-LTD",
+        bundleIncluded: false
       }
     });
     expect(

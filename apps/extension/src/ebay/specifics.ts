@@ -130,6 +130,48 @@ export function enrichIdentityFromSpecifics(
     addedFields.push("variant.packCount");
   }
 
+  const edition = cleanVariantText(findValue(specifics, [
+    "edition",
+    "ausgabe",
+    "sonderedition",
+    "product edition"
+  ]));
+  if (variant.edition === undefined && edition) {
+    variant.edition = edition;
+    addedFields.push("variant.edition");
+  }
+
+  const modelQualifier = cleanVariantText(findValue(specifics, [
+    "modellnummer",
+    "model number",
+    "modellvariante",
+    "model variant",
+    "modellcode",
+    "model code"
+  ]));
+  if (variant.modelQualifier === undefined && modelQualifier) {
+    variant.modelQualifier = modelQualifier;
+    addedFields.push("variant.modelQualifier");
+  }
+
+  const bundleFlag = parseExplicitBoolean(findValue(specifics, [
+    "benutzerdefiniertes bundle",
+    "custom bundle",
+    "bundle",
+    "bundle enthalten",
+    "bundle included"
+  ]));
+  const bundleDescription = findValue(specifics, [
+    "bundle-beschreibung",
+    "bundle description"
+  ]);
+  const bundleIncluded =
+    bundleFlag ?? (bundleDescription ? true : undefined);
+  if (variant.bundleIncluded === undefined && bundleIncluded !== undefined) {
+    variant.bundleIncluded = bundleIncluded;
+    addedFields.push("variant.bundleIncluded");
+  }
+
   if (Object.keys(variant).length > 0) {
     identity.variant = variant;
   }
@@ -198,6 +240,27 @@ function parsePackCount(value: string | undefined): number | undefined {
 
   const count = Number.parseInt(match[1]!, 10);
   return Number.isFinite(count) && count > 0 ? count : undefined;
+}
+
+function cleanVariantText(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  return cleaned || undefined;
+}
+
+function parseExplicitBoolean(value: string | undefined): boolean | undefined {
+  if (!value) return undefined;
+  const normalized = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (/^(?:ja|yes|true|1|enthalten|included)$/.test(normalized)) return true;
+  if (/^(?:nein|no|false|0|nicht enthalten|not included)$/.test(normalized)) {
+    return false;
+  }
+  return undefined;
 }
 
 function normalizeLabel(value: string): string {

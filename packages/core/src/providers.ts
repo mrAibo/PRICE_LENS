@@ -6,6 +6,7 @@ import type {
   Money,
   PriceProviderId,
   ProductIdentity,
+  ProviderReviewCandidate,
   ProviderStatus
 } from "@price-lens/contracts";
 import {calculateLandedPrice, createComparisonResult} from "./comparison.js";
@@ -86,6 +87,7 @@ async function runProvider(
     );
 
     const accepted: MarketOffer[] = [];
+    const reviewCandidates: ProviderReviewCandidate[] = [];
     let reviewCount = 0;
 
     for (const candidate of candidates) {
@@ -96,6 +98,15 @@ async function runProvider(
       const match = evaluateProviderCandidate(listing, candidate);
       if (match.decision === "review") {
         reviewCount += 1;
+        if (reviewCandidates.length < 10) {
+          reviewCandidates.push({
+            providerProductId: candidate.providerProductId,
+            productTitle: candidate.productTitle,
+            confidence: match.confidence,
+            matchMethod: match.method,
+            reason: match.reason
+          });
+        }
         continue;
       }
       if (match.decision !== "auto_match") {
@@ -131,7 +142,8 @@ async function runProvider(
           latencyMs,
           message: reviewCount > 0
             ? `${accepted.length} automatic match(es); ${reviewCount} candidate(s) require review.`
-            : `${accepted.length} automatic match(es).`
+            : `${accepted.length} automatic match(es).`,
+          reviewCandidates: reviewCandidates.length > 0 ? reviewCandidates : undefined
         }
       };
     }
@@ -144,7 +156,8 @@ async function runProvider(
         latencyMs,
         message: reviewCount > 0
           ? `${reviewCount} candidate(s) require review; none were auto-matched.`
-          : "No candidate passed the automatic match threshold."
+          : "No candidate passed the automatic match threshold.",
+        reviewCandidates: reviewCandidates.length > 0 ? reviewCandidates : undefined
       }
     };
   } catch (error) {
