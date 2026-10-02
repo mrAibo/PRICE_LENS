@@ -22,6 +22,14 @@ assert(
   "background.service_worker must be background.js."
 );
 
+const permissions = manifest.permissions;
+assert(
+  Array.isArray(permissions) &&
+    permissions.length === 1 &&
+    permissions[0] === "storage",
+  "Release manifest permissions must contain only storage for local consent state."
+);
+
 const hostPermissions = manifest.host_permissions;
 assert(
   Array.isArray(hostPermissions),
