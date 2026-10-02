@@ -104,22 +104,6 @@ describe("eBay listing extraction", () => {
       </head><body>
         <div data-testid="x-price-primary">EUR 129,90</div>
         <div class="x-item-condition-text"><span class="ux-textspans">Neu</span></div>
-        <dl class="ux-labels-values">
-          <dt class="ux-labels-values__labels"><span>Speicherkapazität:</span></dt>
-          <dd class="ux-labels-values__values"><span>1 TB</span></dd>
-        </dl>
-        <dl class="ux-labels-values">
-          <dt class="ux-labels-values__labels"><span>Arbeitsspeicher:</span></dt>
-          <dd class="ux-labels-values__values"><span>16 GB</span></dd>
-        </dl>
-        <dl class="ux-labels-values">
-          <dt class="ux-labels-values__labels"><span>Bildschirmgröße:</span></dt>
-          <dd class="ux-labels-values__values"><span>15,6 Zoll</span></dd>
-        </dl>
-        <dl class="ux-labels-values">
-          <dt class="ux-labels-values__labels"><span>Anzahl pro Packung:</span></dt>
-          <dd class="ux-labels-values__values"><span>2 Stück</span></dd>
-        </dl>
         <dl class="ux-labels-values ux-labels-values--shipping">
           <dt class="ux-labels-values__labels"><span>Versand:</span></dt>
           <dd class="ux-labels-values__values"><span class="ux-textspans--BOLD">EUR 5,49</span></dd>
@@ -246,6 +230,22 @@ describe("eBay listing extraction", () => {
         <dl class="ux-labels-values">
           <dt class="ux-labels-values__labels"><span>EAN:</span></dt>
           <dd class="ux-labels-values__values"><span>4548736133767</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Speicherkapazität:</span></dt>
+          <dd class="ux-labels-values__values"><span>1 TB</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Arbeitsspeicher:</span></dt>
+          <dd class="ux-labels-values__values"><span>16 GB</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Bildschirmgröße:</span></dt>
+          <dd class="ux-labels-values__values"><span>15,6 Zoll</span></dd>
+        </dl>
+        <dl class="ux-labels-values">
+          <dt class="ux-labels-values__labels"><span>Anzahl pro Packung:</span></dt>
+          <dd class="ux-labels-values__values"><span>2 Stück</span></dd>
         </dl>
         <dl class="ux-labels-values ux-labels-values--shipping">
           <dt class="ux-labels-values__labels"><span>Versand:</span></dt>
