@@ -56,15 +56,18 @@ Delivered:
 - [x] Shadow DOM PriceLens card
 - [x] page-transition lifecycle handling
 - [x] extraction and lifecycle unit fixtures
+- [x] labelled synthetic regression corpus (9 fixtures / 77 scalar labels)
+- [x] explicit extraction-evidence baseline document
 - [x] reject ambiguous multi-offer structured price/condition/shipping
 - [x] extract explicit storage/RAM/screen-size/pack-count item specifics
 
 Still required:
 
 - [ ] expand fixture corpus across representative eBay.de layouts
-- [ ] label expected identity/price/shipping/condition fields
-- [ ] measure extraction accuracy by field
-- [ ] add explicit unsupported-state result when safe normalization is impossible
+- [x] label expected identity/price/shipping/condition fields in the initial corpus
+- [x] enforce exact per-field labels in CI for the synthetic corpus
+- [ ] add representative anonymized real-layout fixtures and measure empirical field accuracy
+- [x] add explicit unsupported-state result when safe normalization is impossible
 - [ ] document selector/structured-data failure modes
 
 Exit gate: labelled fixture accuracy is measured; extractor failures degrade to an explicit unsupported state.
