@@ -6,7 +6,8 @@ import type {
   ListingCondition,
   Money,
   ProductIdentity,
-  ProductVariant
+  ProductVariant,
+  WarningCode
 } from "@price-lens/contracts";
 import {
   compareWithProviders,
@@ -127,6 +128,7 @@ export function createPriceLensServer(
             durationMs: elapsedMs(startedAt, now),
             offerCount: result.offers.length,
             warningCount: result.warnings.length,
+            warningCodes: result.warningCodes,
             enrichmentFallback,
             providers: result.providerStatus.map((status) => ({
               provider: status.provider,
@@ -264,7 +266,28 @@ function isEbayListing(value: unknown): value is EcommerceListing {
     isProductIdentity(value.identity) &&
     (value.imageUrl === undefined || isSafeHttpsUrl(value.imageUrl, 4096)) &&
     isStringArray(value.extractionEvidence, 100, 1024) &&
-    isStringArray(value.extractionWarnings, 100, 2048)
+    isStringArray(value.extractionWarnings, 100, 2048) &&
+    (
+      value.extractionWarningCodes === undefined ||
+      isWarningCodeArray(value.extractionWarningCodes)
+    )
+  );
+}
+
+function isWarningCodeArray(value: unknown): value is WarningCode[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 100 &&
+    value.every(isWarningCode)
+  );
+}
+
+function isWarningCode(value: unknown): value is WarningCode {
+  return (
+    value === "extraction_no_strong_identifier" ||
+    value === "ebay_shipping_unknown" ||
+    value === "ebay_enrichment_unavailable" ||
+    value === "market_shipping_incomplete"
   );
 }
 
