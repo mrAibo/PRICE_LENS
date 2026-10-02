@@ -217,6 +217,12 @@ export class EbayBrowseEnricher {
     return token;
   }
 
+  private apiBaseUrl(): string {
+    return this.environment === "production"
+      ? "https://api.ebay.com"
+      : "https://api.sandbox.ebay.com";
+  }
+
   private async fetchWithTimeout(
     input: URL,
     init: RequestInit
