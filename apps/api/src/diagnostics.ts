@@ -19,6 +19,7 @@ export interface CompareCompletedDiagnostic {
   durationMs: number;
   offerCount: number;
   warningCount: number;
+  warningCodes: WarningCode[];
   enrichmentFallback: boolean;
   providers: ProviderDiagnostic[];
 }
@@ -57,6 +58,7 @@ export interface OperationalMetricsSnapshot {
   rejectionReasons: Partial<Record<RequestRejectedDiagnostic["reason"], number>>;
   offerCount: number;
   warningCount: number;
+  warningCodes: Partial<Record<WarningCode, number>>;
   enrichmentFallbackCount: number;
   providers: ProviderMetricsSnapshot[];
 }
