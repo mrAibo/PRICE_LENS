@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `cb2ce59ddb7f82ccb377286b3038ebfa411ee3fc` (through PR #27)
+Current implementation checkpoint: `f7e40335ef5a8690d8c91c3beabf774addf7ba25` (through PR #28)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -39,7 +39,9 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] extraction/lifecycle unit tests
 - [x] labelled synthetic extraction corpus: 9 fixtures / 77 scalar labels (PR #17)
 - [x] extraction evidence baseline in `docs/EXTRACTION_EVIDENCE.md`
-- [x] explicit user-visible unsupported extraction state with zero provider/API lookup (PR #18)
+- [x] explicit user-visible unsupported extraction state with zero provider/API lookup
+- [x] executable selector/JSON-LD extraction failure-mode contract
+- [x] documented safe partial vs unsupported extraction states (PR #18)
 - [x] ambiguous multi-offer JSON-LD protection (PR #15)
 - [x] explicit storage/RAM/screen-size/pack-count extraction from item specifics
 - [x] structured edition/model-qualifier/bundle extraction and fingerprinting
@@ -188,6 +190,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #25 — API/provider URL trust-boundary hardening — merged into `main`
 - PR #26 — privacy-minimized structured diagnostics — merged into `main`
 - PR #27 — compliance-safe provider cache defaults — merged into `main`
+- PR #28 — executable eBay extraction failure-mode contract — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -197,7 +200,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
-6. Document and close the remaining internal Phase 1 selector/structured-data failure-mode work.
+6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
 
