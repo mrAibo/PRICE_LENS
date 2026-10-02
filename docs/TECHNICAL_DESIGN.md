@@ -55,9 +55,10 @@ Early non-goals:
 │      │                                                      │
 │      +--> product matcher / hard mismatch rules             │
 │      │                                                      │
-│      +--> IdealoProvider       (planned, access-gated)      │
-│      +--> GeizhalsProvider     (planned, access-gated)      │
-│      +--> AmazonProvider       (planned, access-gated)      │
+│      +--> eBay Browse enricher (implemented, access-gated) │
+│      +--> IdealoProvider       (planned, docs/access-gated) │
+│      +--> GeizhalsProvider     (planned, docs/access-gated) │
+│      +--> AmazonProvider       (implemented, access-gated)  │
 │      +--> FixtureProvider      (dev-only, opt-in)           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -81,7 +82,9 @@ apps/
     src/
       app.ts              HTTP server/application boundary
       server.ts           process/configuration entry point
-      fixture-provider.ts dev-only provider
+      fixture-provider.ts         dev-only provider
+      ebay-browse.ts              optional eBay identity enrichment
+      amazon-creators-provider.ts optional Amazon.de provider
     test/
 
 packages/
@@ -199,10 +202,15 @@ Hard contradictions override fuzzy similarity. Current hard checks include:
 - conflicting structured RAM
 - conflicting structured screen size
 - conflicting structured pack count
+- conflicting explicit edition
+- conflicting explicit model qualifier
+- conflicting explicit bundle/standalone state
+- conservative Digital-vs-Disc and Body-Only-vs-Kit title signals
+- conservative same-family model qualifier / numeric-generation conflicts
 
-Variant values are currently accepted only from explicitly labelled structured/item-specific fields; PriceLens does not guess them from a free-form title. A conflict is enforced only when both sides provide the field, so incomplete provider data does not create a false rejection.
+Structured RAM/storage/screen fields now feed the composite scorer as well as hard mismatch checks. The labelled calibration corpus verifies that a rich same-product match can clear `0.90`, while an under-specified otherwise-identical match remains at the `0.70` review boundary.
 
-Remaining calibration work includes labelled fixtures for model suffixes, console/product editions and materially different bundles/accessories, plus threshold calibration before fuzzy coverage is expanded.
+Provider status preserves up to 10 review candidates with confidence, method and reason. See [MATCHER_CALIBRATION.md](MATCHER_CALIBRATION.md).
 
 ## 7. Price semantics
 
@@ -282,13 +290,13 @@ Production preference:
 - Geizhals: Publisher Programme / agreed machine-readable access
 - Amazon Germany: Associates + Creators API
 
-See [PROVIDER_ACCESS.md](PROVIDER_ACCESS.md) for the verified access gate.
+See [PROVIDER_ACCESS.md](PROVIDER_ACCESS.md) for the verified access gate and [PROVIDER_ONBOARDING.md](PROVIDER_ONBOARDING.md) for the exact account/application steps.
 
 Scrapers may be used only as replaceable research spikes unless terms and operational constraints are explicitly resolved.
 
 ## 11. Cache design
 
-Not yet implemented.
+Provider-local bootstrap caches now exist for eBay OAuth/item enrichment and Amazon OAuth/SearchItems. A shared production cache/coalescing layer is not yet implemented.
 
 Planned lookup key priority:
 
@@ -383,14 +391,13 @@ Current GitHub Actions performs typecheck, tests and build. Provider live traffi
 
 ## 16. Near-term implementation sequence
 
-1. Finish Phase 1 eBay fixture corpus and extraction measurement.
-2. Finish the remaining Phase 2 edition/bundle/model-suffix fixtures and matcher threshold calibration.
-3. Keep the dev fixture provider for end-to-end browser verification.
-4. Add eBay Browse API enrichment behind server-side configuration.
-5. Complete official-access onboarding for Idealo/Geizhals/Amazon independently.
-6. Implement one real provider end-to-end before enabling multiple real providers.
-7. Add cache/coalescing only after provider contract behavior is known.
-8. Expand to eBay search-result cards only after single-item correctness gates pass.
+1. Capture and independently review representative real eBay.de layout fixtures; publish observed per-field metrics.
+2. Live-validate the implemented eBay Browse enrichment with Sandbox credentials and complete Production approval.
+3. Submit/complete Idealo iPN, Geizhals Publisher and Amazon Associates/Creators onboarding.
+4. Live-validate Amazon Creators responses and program rules; Amazon remains excluded from best landed price while mandatory shipping is unknown.
+5. Implement Idealo/Geizhals only against the publisher contracts they provide.
+6. Add shared cache/coalescing/observability after live provider constraints are known.
+7. Expand to eBay search-result cards only after the single-item evidence gates pass.
 
 ## 17. Definition of the first real MVP
 

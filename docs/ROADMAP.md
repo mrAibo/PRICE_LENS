@@ -10,8 +10,8 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | --- | --- | --- |
 | 0 — Bootstrap | **complete** | clean checkout typechecks, tests and builds in CI |
 | 1 — eBay extraction vertical slice | **in progress** | measured labelled-fixture accuracy + safe unsupported state |
-| 2 — Matching/comparison engine | **in progress** | zero known labelled hard-mismatch auto-matches |
-| 3 — eBay API enrichment | **blocked on credentials** | enrichment improves coverage without becoming mandatory |
+| 2 — Matching/comparison engine | **complete (current labelled gate)** | zero known labelled hard-mismatch auto-matches |
+| 3 — eBay API enrichment | **implementation complete; live validation blocked** | enrichment improves coverage without becoming mandatory |
 | 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
 | 5 — First real provider | **not started** | one production-quality provider end to end |
 | 6 — Multi-provider comparison | **not started** | partial failures + concurrency + freshness are production-safe |
@@ -60,6 +60,9 @@ Delivered:
 - [x] explicit extraction-evidence baseline document
 - [x] reject ambiguous multi-offer structured price/condition/shipping
 - [x] extract explicit storage/RAM/screen-size/pack-count item specifics
+- [x] observed-layout anonymization/capture command
+- [x] independent review gate for real-layout fixtures
+- [x] separate synthetic and observed per-field metrics
 
 Still required:
 
@@ -74,7 +77,7 @@ Exit gate: labelled fixture accuracy is measured; extractor failures degrade to 
 
 ## Phase 2 — Matching and comparison engine
 
-Status: **in progress**
+Status: **complete for the current labelled gate**
 
 Delivered:
 
@@ -88,33 +91,35 @@ Delivered:
 - [x] provider timeout/error isolation
 - [x] opt-in fixture provider for complete local end-to-end validation
 
-Still required:
+Delivered safety/calibration:
 
 - [x] hard mismatch rules/fixtures for storage capacity
 - [x] RAM mismatches
 - [x] screen-size variants from explicit structured data
 - [x] pack-count variants from explicit structured data
-- [ ] model-suffix variants not represented by structured fields
-- [ ] console/product edition variants
-- [ ] materially different bundles/accessories
-- [ ] labelled calibration set for automatic/review thresholds
-- [ ] review/debug visibility for non-auto-matched candidates
+- [x] conservative model qualifier and numeric-generation variants
+- [x] console/product edition variants
+- [x] explicit standalone-versus-bundle variants
+- [x] labelled calibration set for automatic/review thresholds
+- [x] review/debug visibility for non-auto-matched candidates
 
 Exit gate: no known labelled hard-mismatch fixture is auto-matched.
 
 ## Phase 3 — eBay API enrichment
 
-Status: **blocked on eBay developer credentials**
+Status: **implementation complete; live Sandbox/Production validation blocked**
 
 Deliverables:
 
-- [ ] server-side eBay API credentials/configuration
-- [ ] Browse API client/adapter
-- [ ] GTIN/EPID/product enrichment
-- [ ] token lifecycle
-- [ ] rate-limit handling
-- [ ] cache
-- [ ] fallback when API access is unavailable
+- [ ] server-side eBay Sandbox credentials/live validation
+- [x] Browse API client/enrichment adapter
+- [x] brand/model/MPN/GTIN/EAN/UPC enrichment paths
+- [x] OAuth token lifecycle
+- [x] rate-limit/error handling
+- [x] token/item cache
+- [x] fallback when API access is unavailable
+- [ ] measure enrichment coverage on live representative items
+- [ ] complete required Production approval / Growth Check
 
 Exit gate: enrichment improves coverage without becoming mandatory for page extraction.
 
@@ -144,33 +149,36 @@ Run independent access spikes before production adapters.
 ### Amazon Germany
 
 - [x] select Creators API instead of new PA-API 5.0 work
+- [x] implement OAuth/SearchItems provider scaffold and contract tests
+- [x] preserve incomplete landed-price semantics because OffersV2 lacks mandatory shipping charges
 - [ ] verify Associates/Creators eligibility
-- [ ] complete onboarding
-- [ ] confirm current price/freshness rules
-- [ ] confirm identifier lookup and attribution
-- [ ] configure backend credentials
+- [ ] complete onboarding/live credentials
+- [ ] confirm current price/freshness/cache rules with approved access
+- [ ] confirm attribution/display requirements in the intended extension flow
 
 Exit gate: each enabled production provider has an explicit permitted data-access path.
 
 ## Phase 5 — First real provider
 
-Status: **not started**
+Status: **provider scaffold available; live provider gate not yet passed**
 
 Deliver one complete production-quality provider before enabling all three.
 
 Requirements:
 
-- [ ] credentials/configuration
-- [ ] timeout policy
-- [ ] retry policy where permitted
-- [ ] cache/freshness policy
-- [ ] normalized offers
-- [ ] match confidence
-- [ ] attribution/deep links
-- [ ] provider status reporting
-- [ ] fixture/contract tests
-- [ ] disable/fallback behavior
-- [ ] local and CI-safe testing without live credentials
+- [ ] approved live credentials/access
+- [x] backend-only environment configuration
+- [x] timeout policy
+- [x] controlled auth refresh/error behavior
+- [ ] live-approved cache/freshness policy
+- [x] normalized Amazon offer scaffold
+- [x] match confidence/reason through shared matcher
+- [ ] live attribution/display policy validation
+- [x] provider status reporting
+- [x] fixture/contract tests
+- [x] disable/fallback behavior
+- [x] local and CI-safe testing without live credentials
+- [ ] one provider with complete mandatory-shipping semantics and live validation
 
 Exit gate: one real provider satisfies its contract and can fail independently without breaking PriceLens.
 
