@@ -82,6 +82,58 @@ export function enrichIdentityFromSpecifics(
     addedFields.push("upc");
   }
 
+  const variant = {...identity.variant};
+
+  const storageGb = parseCapacityGb(findValue(specifics, [
+    "speicherkapazität",
+    "storage capacity",
+    "festplattenkapazität",
+    "ssd-speicherkapazität",
+    "ssd capacity"
+  ]));
+  if (variant.storageGb === undefined && storageGb !== undefined) {
+    variant.storageGb = storageGb;
+    addedFields.push("variant.storageGb");
+  }
+
+  const ramGb = parseCapacityGb(findValue(specifics, [
+    "arbeitsspeicher",
+    "arbeitsspeichergröße",
+    "ram",
+    "ram größe",
+    "ram size"
+  ]));
+  if (variant.ramGb === undefined && ramGb !== undefined) {
+    variant.ramGb = ramGb;
+    addedFields.push("variant.ramGb");
+  }
+
+  const screenSizeInches = parseScreenSizeInches(findValue(specifics, [
+    "bildschirmgröße",
+    "displaygröße",
+    "screen size",
+    "display size"
+  ]));
+  if (variant.screenSizeInches === undefined && screenSizeInches !== undefined) {
+    variant.screenSizeInches = screenSizeInches;
+    addedFields.push("variant.screenSizeInches");
+  }
+
+  const packCount = parsePackCount(findValue(specifics, [
+    "anzahl pro packung",
+    "packungsinhalt",
+    "number in pack",
+    "pack count"
+  ]));
+  if (variant.packCount === undefined && packCount !== undefined) {
+    variant.packCount = packCount;
+    addedFields.push("variant.packCount");
+  }
+
+  if (Object.keys(variant).length > 0) {
+    identity.variant = variant;
+  }
+
   return {identity, addedFields};
 }
 
@@ -103,6 +155,49 @@ function cleanTradeIdentifier(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const digits = value.replace(/\D/g, "");
   return [8, 12, 13, 14].includes(digits.length) ? digits : undefined;
+}
+
+function parseCapacityGb(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+
+  const matches = [...value.matchAll(/(\d+(?:[.,]\d+)?)\s*(tb|gb|mb)\b/gi)]
+    .map((match) => {
+      const amount = Number.parseFloat(match[1]!.replace(",", "."));
+      if (!Number.isFinite(amount) || amount <= 0) return undefined;
+
+      const unit = match[2]!.toLowerCase();
+      const gb = unit === "tb" ? amount * 1000 : unit === "mb" ? amount / 1000 : amount;
+      return Math.round((gb + Number.EPSILON) * 1000) / 1000;
+    })
+    .filter((amount): amount is number => amount !== undefined);
+
+  const distinct = [...new Set(matches)];
+  return distinct.length === 1 ? distinct[0] : undefined;
+}
+
+function parseScreenSizeInches(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+
+  const matches = [...value.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:"|″|zoll|inch(?:es)?)/gi)]
+    .map((match) => Number.parseFloat(match[1]!.replace(",", ".")))
+    .filter((amount) => Number.isFinite(amount) && amount > 0);
+
+  const rounded = matches.map((amount) =>
+    Math.round((amount + Number.EPSILON) * 100) / 100
+  );
+  const distinct = [...new Set(rounded)];
+  return distinct.length === 1 ? distinct[0] : undefined;
+}
+
+function parsePackCount(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+
+  const normalized = value.trim().toLowerCase();
+  const match = normalized.match(/^(\d{1,3})(?:\s*(?:stück|stuck|pcs?|pieces?|x))?$/i);
+  if (!match) return undefined;
+
+  const count = Number.parseInt(match[1]!, 10);
+  return Number.isFinite(count) && count > 0 ? count : undefined;
 }
 
 function normalizeLabel(value: string): string {

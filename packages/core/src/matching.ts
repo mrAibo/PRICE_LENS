@@ -2,7 +2,8 @@ import type {
   EcommerceListing,
   ListingCondition,
   MatchMethod,
-  ProductIdentity
+  ProductIdentity,
+  ProductVariant
 } from "@price-lens/contracts";
 import {
   matchProduct,
@@ -145,6 +146,53 @@ export function findHardMismatch(
   const candidateMpn = normalizeToken(candidateIdentity.mpn);
   if (listingMpn && candidateMpn && listingMpn !== candidateMpn) {
     return "Conflicting manufacturer part numbers.";
+  }
+
+  const variantMismatch = findVariantMismatch(
+    listingIdentity.variant,
+    candidateIdentity.variant
+  );
+  if (variantMismatch) return variantMismatch;
+
+  return undefined;
+}
+
+function findVariantMismatch(
+  listing: ProductVariant | undefined,
+  candidate: ProductVariant | undefined
+): string | undefined {
+  if (!listing || !candidate) return undefined;
+
+  if (
+    listing.storageGb !== undefined &&
+    candidate.storageGb !== undefined &&
+    listing.storageGb !== candidate.storageGb
+  ) {
+    return `Storage capacity mismatch: ${listing.storageGb} GB vs ${candidate.storageGb} GB.`;
+  }
+
+  if (
+    listing.ramGb !== undefined &&
+    candidate.ramGb !== undefined &&
+    listing.ramGb !== candidate.ramGb
+  ) {
+    return `RAM mismatch: ${listing.ramGb} GB vs ${candidate.ramGb} GB.`;
+  }
+
+  if (
+    listing.screenSizeInches !== undefined &&
+    candidate.screenSizeInches !== undefined &&
+    Math.abs(listing.screenSizeInches - candidate.screenSizeInches) > 0.05
+  ) {
+    return `Screen-size mismatch: ${listing.screenSizeInches} in vs ${candidate.screenSizeInches} in.`;
+  }
+
+  if (
+    listing.packCount !== undefined &&
+    candidate.packCount !== undefined &&
+    listing.packCount !== candidate.packCount
+  ) {
+    return `Pack-count mismatch: ${listing.packCount} vs ${candidate.packCount}.`;
   }
 
   return undefined;
