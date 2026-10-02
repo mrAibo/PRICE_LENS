@@ -174,7 +174,14 @@ function isEbayListing(value: unknown): value is EcommerceListing {
 function isTrustedEbayItemUrl(value: string, itemId: string): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return false;
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.port
+    ) {
+      return false;
+    }
 
     const hostname = url.hostname.toLowerCase();
     if (hostname !== "ebay.de" && !hostname.endsWith(".ebay.de")) {
