@@ -484,7 +484,14 @@ function isTrustedAmazonDetailUrl(
 ): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return false;
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.port
+    ) {
+      return false;
+    }
 
     const hostname = url.hostname.toLowerCase();
     const marketplaceHostname = normalizeAmazonMarketplace(marketplace);
