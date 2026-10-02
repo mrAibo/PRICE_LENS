@@ -27,6 +27,7 @@ See:
 - [Preliminary technical design](docs/TECHNICAL_DESIGN.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Current project status](docs/STATUS.md)
+- [eBay extraction evidence](docs/EXTRACTION_EVIDENCE.md)
 - [Open-source reuse](docs/OPEN_SOURCE_REUSE.md)
 - [Provider access research](docs/PROVIDER_ACCESS.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
