@@ -159,7 +159,11 @@ function renderResult(
     ? `<div class="delta">Best market price: ${escapeHtml(
         formatMoney(result.bestOffer.landedPrice.amount, result.bestOffer.landedPrice.currency)
       )}</div>`
-    : '<div class="warn">Price providers are not configured yet.</div>';
+    : result.offers.length > 0
+      ? '<div class="warn">Offers were found, but mandatory shipping is unavailable, so no complete landed-price comparison is shown.</div>'
+      : statuses.some((status) => status.state !== "unconfigured")
+        ? '<div class="warn">No complete comparable market offer was found.</div>'
+        : '<div class="warn">Price providers are not configured yet.</div>';
 
   const delta = result.delta
     ? `<div class="muted">eBay vs market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
