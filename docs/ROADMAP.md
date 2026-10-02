@@ -192,10 +192,11 @@ Deliverables:
 - [x] provider concurrency limits
 - [x] API comparison overload limit
 - [x] request coalescing
-- [ ] partial-result behavior
-- [ ] best landed price
-- [ ] source freshness indicators
-- [ ] UI states for unavailable/uncertain providers
+- [x] partial-result behavior
+- [x] best landed price
+- [x] source freshness indicators
+- [x] UI states for unavailable providers
+- [ ] richer uncertainty presentation for review-only candidates
 - [x] provider caches default disabled pending approved rules
 - [ ] provider-specific approved cache TTL rules
 
