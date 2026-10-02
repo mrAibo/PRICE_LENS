@@ -71,7 +71,7 @@ Still required:
 - [x] enforce exact per-field labels in CI for the synthetic corpus
 - [ ] add representative anonymized real-layout fixtures and measure empirical field accuracy
 - [x] add explicit unsupported-state result when safe normalization is impossible
-- [ ] document selector/structured-data failure modes
+- [x] document and regression-test selector/structured-data failure modes
 
 Exit gate: labelled fixture accuracy is measured; extractor failures degrade to an explicit unsupported state.
 
