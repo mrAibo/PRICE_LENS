@@ -192,8 +192,14 @@ Hard contradictions override fuzzy similarity. Current hard checks include:
 - brand conflict
 - conflicting GTIN/EAN/UPC
 - conflicting MPN
+- conflicting structured storage capacity
+- conflicting structured RAM
+- conflicting structured screen size
+- conflicting structured pack count
 
-The next calibration work must add labelled variant fixtures for storage, RAM, pack count, edition, screen/model suffix and bundles before fuzzy coverage is expanded.
+Variant values are currently accepted only from explicitly labelled structured/item-specific fields; PriceLens does not guess them from a free-form title. A conflict is enforced only when both sides provide the field, so incomplete provider data does not create a false rejection.
+
+Remaining calibration work includes labelled fixtures for model suffixes, console/product editions and materially different bundles/accessories, plus threshold calibration before fuzzy coverage is expanded.
 
 ## 7. Price semantics
 
@@ -374,7 +380,7 @@ Current GitHub Actions performs typecheck, tests and build. Provider live traffi
 ## 16. Near-term implementation sequence
 
 1. Finish Phase 1 eBay fixture corpus and extraction measurement.
-2. Finish Phase 2 hard-variant mismatch fixtures and matcher calibration.
+2. Finish the remaining Phase 2 edition/bundle/model-suffix fixtures and matcher threshold calibration.
 3. Keep the dev fixture provider for end-to-end browser verification.
 4. Add eBay Browse API enrichment behind server-side configuration.
 5. Complete official-access onboarding for Idealo/Geizhals/Amazon independently.
