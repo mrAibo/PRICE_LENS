@@ -8,6 +8,7 @@ import type {
 import {
   matchProduct,
   normalizeProductTitle,
+  type ExtractedSpecs,
   type MatchCandidate
 } from "product-matcher";
 import type {ProviderCandidate} from "./providers.js";
@@ -46,6 +47,21 @@ export function evaluateProviderCandidate(
     };
   }
 
+  const titleVariantMismatch = findTitleVariantMismatch(
+    listing.title,
+    candidate.productTitle,
+    listing.identity.model,
+    candidate.identity.model
+  );
+  if (titleVariantMismatch) {
+    return {
+      decision: "reject",
+      confidence: 0,
+      method: "unknown",
+      reason: titleVariantMismatch
+    };
+  }
+
   if (hasExactTradeItemIdentifier(listing.identity, candidate.identity)) {
     return {
       decision: "auto_match",
@@ -69,7 +85,8 @@ export function evaluateProviderCandidate(
     brand: candidate.identity.brand ?? null,
     model: candidate.identity.model ?? null,
     identifiers: matcherIdentifiers(candidate.identity),
-    normalizedName: normalizeProductTitle(candidate.productTitle)
+    normalizedName: normalizeProductTitle(candidate.productTitle),
+    specs: matcherSpecs(candidate.identity)
   };
 
   const outcome = matchProduct(
@@ -78,7 +95,8 @@ export function evaluateProviderCandidate(
       brand: listing.identity.brand ?? null,
       identifiers: matcherIdentifiers(listing.identity),
       modelBase: listing.identity.model ?? null,
-      modelFull: listing.identity.model ?? null
+      modelFull: listing.identity.model ?? null,
+      specs: matcherSpecs(listing.identity)
     },
     [productCandidate],
     PRICE_LENS_MATCH_THRESHOLDS
@@ -195,7 +213,220 @@ function findVariantMismatch(
     return `Pack-count mismatch: ${listing.packCount} vs ${candidate.packCount}.`;
   }
 
+  const listingEdition = normalizeToken(listing.edition);
+  const candidateEdition = normalizeToken(candidate.edition);
+  if (
+    listingEdition &&
+    candidateEdition &&
+    listingEdition !== candidateEdition
+  ) {
+    return `Edition mismatch: ${listing.edition} vs ${candidate.edition}.`;
+  }
+
+  const listingQualifier = normalizeToken(listing.modelQualifier);
+  const candidateQualifier = normalizeToken(candidate.modelQualifier);
+  if (
+    listingQualifier &&
+    candidateQualifier &&
+    listingQualifier !== candidateQualifier
+  ) {
+    return `Model qualifier mismatch: ${listing.modelQualifier} vs ${candidate.modelQualifier}.`;
+  }
+
+  if (
+    listing.bundleIncluded !== undefined &&
+    candidate.bundleIncluded !== undefined &&
+    listing.bundleIncluded !== candidate.bundleIncluded
+  ) {
+    return `Bundle-state mismatch: ${listing.bundleIncluded ? "bundle" : "standalone"} vs ${candidate.bundleIncluded ? "bundle" : "standalone"}.`;
+  }
+
   return undefined;
+}
+
+function findTitleVariantMismatch(
+  listingTitle: string,
+  candidateTitle: string,
+  listingModel: string | undefined,
+  candidateModel: string | undefined
+): string | undefined {
+  const listingEdition = editionSignal(listingTitle);
+  const candidateEdition = editionSignal(candidateTitle);
+  if (
+    listingEdition &&
+    candidateEdition &&
+    listingEdition !== candidateEdition
+  ) {
+    return `Edition mismatch from titles: ${listingEdition} vs ${candidateEdition}.`;
+  }
+
+  const listingBundle = bundleSignal(listingTitle);
+  const candidateBundle = bundleSignal(candidateTitle);
+  if (
+    listingBundle &&
+    candidateBundle &&
+    listingBundle !== candidateBundle
+  ) {
+    return `Bundle mismatch from titles: ${listingBundle} vs ${candidateBundle}.`;
+  }
+
+  const modelMismatch = findModelQualifierOrGenerationMismatch(
+    listingModel,
+    candidateModel
+  );
+  if (modelMismatch) return modelMismatch;
+
+  return undefined;
+}
+
+function editionSignal(value: string): string | undefined {
+  const normalized = normalizeWords(value);
+  const patterns: Array<[RegExp, string]> = [
+    [/\bdigital edition\b|\bdigital ausgabe\b/, "digital"],
+    [/\bdisc edition\b|\bdisk edition\b|\bdisc version\b/, "disc"],
+    [/\bstandard edition\b|\bstandard ausgabe\b/, "standard"],
+    [/\bcollector s edition\b|\bcollectors edition\b|\bsammleredition\b/, "collector"],
+    [/\blimited edition\b|\blimitierte ausgabe\b/, "limited"],
+    [/\bdeluxe edition\b/, "deluxe"],
+    [/\bultimate edition\b/, "ultimate"]
+  ];
+
+  for (const [pattern, label] of patterns) {
+    if (pattern.test(normalized)) return label;
+  }
+  return undefined;
+}
+
+function bundleSignal(value: string): "bundle" | "standalone" | undefined {
+  const normalized = normalizeWords(value);
+
+  if (
+    /\bbody only\b|\bnur gehause\b|\bconsole only\b|\bnur konsole\b|\bwithout accessories\b|\bohne zubehor\b|\bdevice only\b|\bnur gerat\b/.test(
+      normalized
+    )
+  ) {
+    return "standalone";
+  }
+
+  if (
+    /\bbundle\b|\bkit\b|\binklusive (?:controller|spiel|game|objektiv|lens|tasche|case)\b/.test(
+      normalized
+    )
+  ) {
+    return "bundle";
+  }
+
+  return undefined;
+}
+
+function findModelQualifierOrGenerationMismatch(
+  listingModel: string | undefined,
+  candidateModel: string | undefined
+): string | undefined {
+  if (!listingModel || !candidateModel) return undefined;
+
+  const left = modelShape(listingModel);
+  const right = modelShape(candidateModel);
+
+  if (
+    left.base &&
+    right.base &&
+    left.base === right.base &&
+    left.qualifiers.join(",") !== right.qualifiers.join(",") &&
+    (left.qualifiers.length > 0 || right.qualifiers.length > 0)
+  ) {
+    return `Model qualifier mismatch: ${listingModel} vs ${candidateModel}.`;
+  }
+
+  const leftGeneration = trailingGeneration(listingModel);
+  const rightGeneration = trailingGeneration(candidateModel);
+  if (
+    leftGeneration &&
+    rightGeneration &&
+    leftGeneration.prefix === rightGeneration.prefix &&
+    leftGeneration.suffix === rightGeneration.suffix &&
+    leftGeneration.generation !== rightGeneration.generation
+  ) {
+    return `Model generation mismatch: ${listingModel} vs ${candidateModel}.`;
+  }
+
+  return undefined;
+}
+
+const MODEL_QUALIFIERS = new Set([
+  "air",
+  "fe",
+  "lite",
+  "max",
+  "mini",
+  "plus",
+  "pro",
+  "se",
+  "slim",
+  "ultra",
+  "xl"
+]);
+
+function modelShape(value: string): {base: string; qualifiers: string[]} {
+  const tokens = normalizeWords(value).split(" ").filter(Boolean);
+  const qualifiers = [...new Set(tokens.filter((token) => MODEL_QUALIFIERS.has(token)))].sort();
+  const base = tokens.filter((token) => !MODEL_QUALIFIERS.has(token)).join("");
+  return {base, qualifiers};
+}
+
+function trailingGeneration(
+  value: string
+): {prefix: string; generation: string; suffix: string} | undefined {
+  const compact = normalizeToken(value);
+  if (!compact) return undefined;
+
+  const match = compact.match(/^(.{4,}?)(\d+)([a-z]*)$/);
+  if (!match?.[1] || !match[2]) return undefined;
+
+  return {
+    prefix: match[1],
+    generation: match[2],
+    suffix: match[3] ?? ""
+  };
+}
+
+function matcherSpecs(identity: ProductIdentity): ExtractedSpecs | undefined {
+  const variant = identity.variant;
+  if (
+    !variant ||
+    (
+      variant.ramGb === undefined &&
+      variant.storageGb === undefined &&
+      variant.screenSizeInches === undefined
+    )
+  ) {
+    return undefined;
+  }
+
+  return {
+    brand: identity.brand ?? null,
+    modelBase: identity.model ?? null,
+    modelFull: identity.model ?? null,
+    cpu: null,
+    gpu: null,
+    ramGb: variant.ramGb ?? null,
+    storageGb: variant.storageGb ?? null,
+    storageType: null,
+    screenSize: variant.screenSizeInches ?? null,
+    resolution: null,
+    os: null,
+    remainingTokens: []
+  };
+}
+
+function normalizeWords(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function hasExactTradeItemIdentifier(
