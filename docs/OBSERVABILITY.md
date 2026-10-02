@@ -1,6 +1,6 @@
 # PriceLens Observability
 
-Status: **initial privacy-minimized diagnostics**
+Status: **privacy-minimized diagnostics + process-local aggregation implemented**
 
 Updated: **2026-10-02**
 
@@ -11,10 +11,12 @@ for the first operational signals.
 
 ```text
 PRICE_LENS_JSON_LOGS=1
+PRICE_LENS_METRICS_EVERY=100
 ```
 
-When enabled, the API writes one JSON object per line to stdout for comparison
-completion and rejected requests.
+When enabled, the API writes JSON objects per line to stdout for comparison
+completion and rejected requests, plus a cumulative `metrics_snapshot` after every
+`PRICE_LENS_METRICS_EVERY` diagnostic events.
 
 ## Correlation
 
@@ -73,6 +75,28 @@ The built-in diagnostic events do **not** contain:
 Provider status messages are also omitted from diagnostics so a future provider cannot
 accidentally leak raw response text into logs.
 
+## Aggregate metrics snapshots
+
+The process-local aggregator emits cumulative counters without product/listing fields.
+
+A `metrics_snapshot` contains:
+
+- sample count;
+- completed and rejected request counts;
+- rejection counts by controlled reason;
+- offer and warning totals;
+- enrichment fallback count;
+- per-provider observation and state counts;
+- latency sample count, average and maximum;
+- review-candidate count.
+
+Snapshots intentionally omit request ids, product identity, item/title/URL and user data.
+
+Counters reset when the Node process restarts. PriceLens does not expose a public metrics
+HTTP endpoint at this stage. Durable retention, dashboards and alerts belong to the
+future deployment logging/metrics backend and require an explicit retention/access
+policy.
+
 ## Failure isolation
 
 Diagnostics are non-critical. A throwing/broken diagnostic sink is swallowed and must
@@ -80,14 +104,13 @@ never alter the HTTP response path.
 
 ## Next steps
 
-After live-provider validation, extend this layer with aggregate counters rather than
-richer per-product logs:
+Continue extending aggregate signals rather than richer per-product logs:
 
 - cache hit/miss counters
-- rate-limit counters
-- provider timeout/error counters
-- latency histograms
+- rate-limit-specific counters
+- latency histograms/percentiles in the external metrics backend
 - match-decision counts
 - unsupported-extraction counts
+- durable retention and alerting in the chosen deployment platform
 
 Any persistent telemetry requires a separate privacy review before collection.
