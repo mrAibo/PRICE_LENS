@@ -4,11 +4,13 @@ Updated: **2026-10-02**
 
 Overall status: **active implementation / early MVP**
 
-Primary integration branch: `bootstrap/price-lens-mvp`
+Primary integration branch: `main`
 
-Current merged checkpoint: `466b28a77fd1610912e19b4dc387565ae3c3fc8b` (PR #18)
+Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Main bootstrap PR: **#1 — feat: bootstrap PriceLens MVP architecture and eBay vertical slice** (draft, target `main`)
+Latest implementation checkpoint included in that baseline: `466b28a77fd1610912e19b4dc387565ae3c3fc8b` (PR #18)
+
+Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -144,24 +146,24 @@ Still required:
 
 ## Important merged work
 
-- PR #7 — extension lifecycle hardening — merged into `bootstrap/price-lens-mvp`
-- PR #8 — provider access research — merged into `bootstrap/price-lens-mvp`
-- PR #9 — project checkpoint + local fixture provider — merged into `bootstrap/price-lens-mvp`
-- PR #15 — ambiguous multi-variant JSON-LD safety — merged into `bootstrap/price-lens-mvp`
-- PR #16 — structured variant safety guards — merged into `bootstrap/price-lens-mvp`
-- PR #17 — labelled eBay extraction corpus — merged into `bootstrap/price-lens-mvp`
-- PR #18 — explicit unsupported extraction UI/state — merged into `bootstrap/price-lens-mvp`
+- PR #1 — bootstrap architecture + safe eBay vertical slice — merged into `main`
+- PR #7 — extension lifecycle hardening — incorporated through the bootstrap history
+- PR #8 — provider access research — incorporated through the bootstrap history
+- PR #9 — project checkpoint + local fixture provider — incorporated through the bootstrap history
+- PR #15 — ambiguous multi-variant JSON-LD safety — incorporated through the bootstrap history
+- PR #16 — structured variant safety guards — incorporated through the bootstrap history
+- PR #17 — labelled eBay extraction corpus — incorporated through the bootstrap history
+- PR #18 — explicit unsupported extraction UI/state — incorporated through the bootstrap history
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Keep PR #1 as the umbrella bootstrap review until the initial vertical slice is accepted.
-2. Issue #10 — complete the eBay fixture corpus and publish extraction evidence.
-3. Issue #11 — complete hard-variant mismatch tests before broadening fuzzy matching.
-4. Use the opt-in fixture provider to validate the browser/API UI path locally.
-5. Issue #12 — add eBay Browse API enrichment when credentials are available.
-6. Issue #13 — obtain official Idealo/Geizhals/Amazon access in parallel.
-7. Issue #14 — implement one approved real provider completely before enabling all providers.
+1. Issue #10 — complete representative eBay fixture evidence and empirical field metrics.
+2. Issue #11 — complete edition/bundle/model-suffix calibration before broadening fuzzy matching.
+3. Use the opt-in fixture provider to validate the browser/API UI path locally.
+4. Issue #12 — add eBay Browse API enrichment when credentials are available.
+5. Issue #13 — obtain official Idealo/Geizhals/Amazon access in parallel.
+6. Issue #14 — implement one approved real provider completely before enabling all providers.
 
 ## Local verification
 
@@ -191,7 +193,7 @@ Load `apps/extension/dist` as an unpacked Chromium extension and open an eBay.de
 For a new development session:
 
 1. inspect this file first
-2. synchronize `bootstrap/price-lens-mvp`
+2. synchronize `main`
 3. inspect commits newer than the baseline/checkpoint recorded here
 4. preserve all valid newer work
 5. run CI-equivalent checks before and after material implementation
