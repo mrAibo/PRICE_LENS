@@ -67,7 +67,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
       options.marketplace ?? "www.amazon.de"
     );
     this.timeoutMs = options.timeoutMs ?? 5000;
-    this.cacheTtlMs = options.cacheTtlMs ?? 10 * 60 * 1000;
+    this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "Amazon Creators");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
   }
@@ -77,6 +77,9 @@ export class AmazonCreatorsProvider implements PriceProvider {
     const cached = this.searchCache.get(cacheKey);
     if (cached && cached.expiresAt > this.now()) {
       return cached.candidates;
+    }
+    if (cached) {
+      this.searchCache.delete(cacheKey);
     }
 
     const active = this.searchInFlight.get(cacheKey);
@@ -128,10 +131,12 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
     const payload = await readJsonRecord(response, "Amazon Creators API");
     const candidates = parseSearchItems(payload, this.now(), this.marketplace);
-    this.searchCache.set(cacheKey, {
-      candidates,
-      expiresAt: this.now() + this.cacheTtlMs
-    });
+    if (this.cacheTtlMs > 0) {
+      this.searchCache.set(cacheKey, {
+        candidates,
+        expiresAt: this.now() + this.cacheTtlMs
+      });
+    }
     return candidates;
   }
 
@@ -303,7 +308,11 @@ export function createAmazonCreatorsProviderFromEnv(
     credentialSecret,
     credentialVersion,
     partnerTag,
-    marketplace: env.AMAZON_MARKETPLACE?.trim() || "www.amazon.de"
+    marketplace: env.AMAZON_MARKETPLACE?.trim() || "www.amazon.de",
+    cacheTtlMs: parseCacheTtlEnv(
+      env.AMAZON_CREATORS_CACHE_TTL_MS,
+      "AMAZON_CREATORS_CACHE_TTL_MS"
+    )
   });
 }
 
@@ -597,6 +606,25 @@ async function readJsonRecord(
   const record = readRecord(value);
   if (!record) throw new Error(`${source} returned an invalid JSON object.`);
   return record;
+}
+
+function parseCacheTtlEnv(
+  raw: string | undefined,
+  name: string
+): number {
+  if (raw === undefined || raw.trim() === "") return 0;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${name} must be a non-negative integer number of milliseconds.`);
+  }
+
+  return validateCacheTtl(Number(raw.trim()), name);
+}
+
+function validateCacheTtl(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} cache TTL must be a non-negative safe integer.`);
+  }
+  return value;
 }
 
 function requireValue(value: string, name: string): string {
