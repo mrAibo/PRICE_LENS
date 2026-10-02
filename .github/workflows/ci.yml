@@ -24,6 +24,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.4
       - name: Upgrade npm
         run: npm install --global npm@11
       - name: Install dependencies
@@ -34,6 +38,12 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Terraform format
+        run: terraform fmt -check -recursive infra/gcp
+      - name: Terraform init
+        run: terraform -chdir=infra/gcp init -backend=false -input=false
+      - name: Terraform validate
+        run: terraform -chdir=infra/gcp validate
       - name: Verify local extension artifact
         run: npm run verify-artifact -w @price-lens/extension
       - name: Verify production extension artifact
