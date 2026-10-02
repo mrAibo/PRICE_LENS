@@ -140,10 +140,10 @@ variable "provider_secret_ids" {
   description = "Secret Manager secret IDs created for backend-only provider credentials. Values are names, never secret contents."
   type        = map(string)
   default = {
-    EBAY_CLIENT_ID                     = "price-lens-ebay-client-id"
-    EBAY_CLIENT_SECRET                 = "price-lens-ebay-client-secret"
-    AMAZON_CREATORS_CREDENTIAL_ID      = "price-lens-amazon-creators-credential-id"
-    AMAZON_CREATORS_CREDENTIAL_SECRET  = "price-lens-amazon-creators-credential-secret"
+    EBAY_CLIENT_ID                    = "price-lens-ebay-client-id"
+    EBAY_CLIENT_SECRET                = "price-lens-ebay-client-secret"
+    AMAZON_CREATORS_CREDENTIAL_ID     = "price-lens-amazon-creators-credential-id"
+    AMAZON_CREATORS_CREDENTIAL_SECRET = "price-lens-amazon-creators-credential-secret"
   }
 }
 
