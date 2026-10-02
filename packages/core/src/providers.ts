@@ -8,7 +8,7 @@ import type {
   ProductIdentity,
   ProviderStatus
 } from "@price-lens/contracts";
-import {calculateLandedPrice, createComparisonResult} from "./index.js";
+import {calculateLandedPrice, createComparisonResult} from "./comparison.js";
 import {evaluateProviderCandidate} from "./matching.js";
 
 export interface ProviderCandidate {
