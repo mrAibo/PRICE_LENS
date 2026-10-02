@@ -10,9 +10,13 @@ Repository: https://github.com/Zarenk/product-matcher
 
 License: MIT.
 
-Planned use: direct npm dependency for normalization and product matching. Do not vendor the source unless there is a concrete need.
+Pinned upstream commit: `7908e1d8da715c3af04f2368cf249a022699a262`.
 
-Required action: preserve dependency license/notice in distributions as required.
+Use: vendored workspace package at `packages/product-matcher`. The production source snapshot is copied without source modifications; PriceLens adds only the local package/build wrapper.
+
+Reason for vendoring: CI verified on 2026-10-02 that `product-matcher@1.0.0` was not available from the public npm registry, and the Git repository does not include built `dist/` artifacts or a package prepare lifecycle suitable for direct Git installation.
+
+Required action: keep the upstream MIT license, exact upstream SHA, and modification note in `THIRD_PARTY_NOTICES.md`.
 
 ### hendt/ebay-api
 
