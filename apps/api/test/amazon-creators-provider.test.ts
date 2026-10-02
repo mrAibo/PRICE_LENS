@@ -298,7 +298,30 @@ describe("Amazon Creators provider", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it("caches the access token and identical searches", async () => {
+  it("does not cache Amazon product data between sequential searches by default", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "token", expires_in: 3600})
+      )
+      .mockResolvedValueOnce(jsonResponse(searchResponse()))
+      .mockResolvedValueOnce(jsonResponse(searchResponse()));
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      partnerTag: "price-lens-21",
+      fetchImpl
+    });
+
+    await provider.search({listing});
+    await provider.search({listing});
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("caches identical Amazon searches only with an explicit TTL", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -311,6 +334,7 @@ describe("Amazon Creators provider", () => {
       credentialSecret: "secret",
       credentialVersion: "3.2",
       partnerTag: "price-lens-21",
+      cacheTtlMs: 60_000,
       fetchImpl
     });
 
@@ -406,6 +430,19 @@ describe("Amazon Creators environment configuration", () => {
         AMAZON_CREATORS_ENABLED: "1"
       })
     ).toThrow("requires credential");
+  });
+
+  it("rejects invalid product-data cache TTL configuration", () => {
+    expect(() =>
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2",
+        AMAZON_PARTNER_TAG: "price-lens-21",
+        AMAZON_CREATORS_CACHE_TTL_MS: "1.5"
+      })
+    ).toThrow("AMAZON_CREATORS_CACHE_TTL_MS");
   });
 
   it("rejects a non-German marketplace hostname", () => {
