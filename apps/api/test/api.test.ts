@@ -193,6 +193,85 @@ describe("PriceLens HTTP API", () => {
     );
   });
 
+  it("emits privacy-minimized compare diagnostics", async () => {
+    const diagnostics: unknown[] = [];
+    let nowValue = 1_000;
+
+    const server = createPriceLensServer({
+      providers: [createFixtureProvider({discountRatio: 0.1})],
+      requestIdFactory: () => "req-diagnostic-001",
+      diagnostics: (event) => diagnostics.push(event),
+      now: () => {
+        nowValue += 7;
+        return nowValue;
+      }
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({listing})
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({
+      type: "compare_completed",
+      requestId: "req-diagnostic-001",
+      route: "/v1/compare",
+      status: 200,
+      offerCount: 1,
+      enrichmentFallback: false,
+      providers: expect.arrayContaining([
+        expect.objectContaining({
+          provider: "fixture",
+          state: "ok"
+        })
+      ])
+    });
+
+    const serialized = JSON.stringify(diagnostics[0]);
+    expect(serialized).not.toContain(listing.title);
+    expect(serialized).not.toContain(listing.itemId);
+    expect(serialized).not.toContain(listing.url);
+  });
+
+  it("diagnostic sink failures never break the request", async () => {
+    const server = createPriceLensServer({
+      providers: [createFixtureProvider()],
+      diagnostics: () => {
+        throw new Error("diagnostic sink unavailable");
+      }
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({listing})
+      }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      listing: {
+        itemId: listing.itemId
+      }
+    });
+  });
+
   it("uses one request id in both the response header and comparison result", async () => {
     const server = createPriceLensServer({
       providers: [createFixtureProvider({discountRatio: 0.1})],
@@ -216,6 +295,38 @@ describe("PriceLens HTTP API", () => {
     await expect(response.json()).resolves.toMatchObject({
       requestId: "req-correlation-001"
     });
+  });
+
+  it("emits a controlled diagnostic for rejected requests", async () => {
+    const diagnostics: unknown[] = [];
+    const server = createPriceLensServer({
+      requestIdFactory: () => "req-rejected-001",
+      diagnostics: (event) => diagnostics.push(event)
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({listing: {source: "ebay"}})
+      }
+    );
+
+    expect(response.status).toBe(400);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        type: "request_rejected",
+        requestId: "req-rejected-001",
+        route: "/v1/compare",
+        status: 400,
+        reason: "invalid_request"
+      })
+    ]);
   });
 
   it("correlates validation errors with the response header", async () => {
