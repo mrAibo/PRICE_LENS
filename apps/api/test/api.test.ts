@@ -297,6 +297,38 @@ describe("PriceLens HTTP API", () => {
     });
   });
 
+  it("emits a controlled diagnostic for rejected requests", async () => {
+    const diagnostics: unknown[] = [];
+    const server = createPriceLensServer({
+      requestIdFactory: () => "req-rejected-001",
+      diagnostics: (event) => diagnostics.push(event)
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({listing: {source: "ebay"}})
+      }
+    );
+
+    expect(response.status).toBe(400);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        type: "request_rejected",
+        requestId: "req-rejected-001",
+        route: "/v1/compare",
+        status: 400,
+        reason: "invalid_request"
+      })
+    ]);
+  });
+
   it("correlates validation errors with the response header", async () => {
     const server = createPriceLensServer({
       requestIdFactory: () => "req-error-001"
