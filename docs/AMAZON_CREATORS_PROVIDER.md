@@ -32,6 +32,7 @@ AMAZON_CREATORS_CREDENTIAL_SECRET=<Credential Secret>
 AMAZON_CREATORS_CREDENTIAL_VERSION=<assigned version, usually 3.2 for EU>
 AMAZON_PARTNER_TAG=<Germany Partner Tag>
 AMAZON_MARKETPLACE=www.amazon.de
+AMAZON_CREATORS_CACHE_TTL_MS=0
 ```
 
 Never store the Credential Secret in the browser extension, repository, GitHub issue,
@@ -80,11 +81,20 @@ destination-dependent shipping.
 Implemented:
 
 - OAuth token cache with expiry safety window
-- per-search cache
+- in-flight SearchItems coalescing
+- optional per-search product cache, disabled by default
 - one token refresh after HTTP 401
 - controlled 404 / 429 handling
 - request timeout
 - provider failure isolation through the core orchestrator
+
+Product/price responses are **not cached between sequential searches by default**.
+`AMAZON_CREATORS_CACHE_TTL_MS=0` remains the safe setting until the approved German
+Associates/Creators account rules for freshness, display and retention are verified.
+
+Concurrent identical searches still share one in-flight request. Once Amazon's current
+rules for this account/use case are confirmed, an explicit non-negative TTL in
+milliseconds can be configured. Invalid TTL values fail startup.
 
 ## Live validation gate
 
