@@ -4,7 +4,12 @@ import type {
   EcommerceListing
 } from "@price-lens/contracts";
 
-export const DEFAULT_PRICE_LENS_API_URL = "http://127.0.0.1:8787";
+declare const __PRICE_LENS_API_ORIGIN__: string | undefined;
+
+export const DEFAULT_PRICE_LENS_API_URL =
+  typeof __PRICE_LENS_API_ORIGIN__ === "string"
+    ? __PRICE_LENS_API_ORIGIN__
+    : "http://127.0.0.1:8787";
 export const DEFAULT_API_TIMEOUT_MS = 4000;
 
 export interface ComparisonClientOptions {
