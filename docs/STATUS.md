@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `8a56e76e26d5f9d6900d1f742d99c89a73fc0b53` (through PR #22)
+Current implementation checkpoint: `a4c7b5081d9e1ad9a9eab2f151a8db9bc107f37e` (through PR #24)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -74,6 +74,9 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] eBay token/item cache, timeout, 401 refresh and 404/429 handling
 - [x] Amazon Creators API provider scaffold with OAuth/SearchItems contract tests
 - [x] Amazon offers remain landed-price incomplete when mandatory shipping is unavailable
+- [x] in-flight eBay Browse legacy-item lookup + OAuth coalescing
+- [x] in-flight Amazon SearchItems + OAuth coalescing with caller-local cancellation
+- [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
 
 ### Provider/access research
 
@@ -151,7 +154,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 ## Not started
 
-- [ ] production cache/coalescing
+- [x] in-flight provider request coalescing
+- [ ] provider-approved production cache/freshness policy
 - [ ] persistent observability/metrics
 - [ ] first approved real provider adapter
 - [ ] multi-provider production comparison
@@ -174,6 +178,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #20 — edition/bundle/model calibration — merged into `main`
 - PR #21 — eBay Browse enrichment scaffold — merged into `main`
 - PR #22 — Amazon Creators provider scaffold — merged into `main`
+- PR #24 — provider single-flight + request correlation — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -182,7 +187,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 2. Issue #12 — insert eBay Sandbox credentials and perform live Browse validation, then Production approval.
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
-5. Add production cache/coalescing/observability only after live provider rules are known.
+5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
+6. Continue security hardening at the inbound/outbound URL trust boundary.
 
 ## Local verification
 
