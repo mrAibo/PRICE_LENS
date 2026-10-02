@@ -158,6 +158,56 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("temporarily unavailable");
   });
 
+  it("shows review-only candidates as excluded uncertainty, not market offers", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "review-only",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [],
+      providerStatus: [
+        {
+          provider: "amazon",
+          state: "no_match",
+          reviewCandidates: [
+            {
+              providerProductId: "B0REVIEW01",
+              productTitle: "Example Product Bundle",
+              confidence: 0.74,
+              matchMethod: "fuzzy",
+              reason: "Product matcher score requires review."
+            },
+            {
+              providerProductId: "B0REVIEW02",
+              productTitle: "Example Product Alternate",
+              confidence: 0.71,
+              matchMethod: "fuzzy",
+              reason: "Product matcher score requires review."
+            }
+          ]
+        }
+      ],
+      warnings: [],
+      generatedAt: "2026-10-02T12:00:00Z"
+    };
+
+    view.renderComparison(result);
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+
+    expect(text).toContain("Possible matches excluded from price comparison");
+    expect(text).toContain("Example Product Bundle");
+    expect(text).toContain("74% confidence");
+    expect(text).toContain("+1 more");
+    expect(text).toContain("not used for the best-price");
+    expect(text).toContain("1 needs review");
+    expect(text).not.toContain("Best available market price");
+  });
+
   it("formats offer freshness against the comparison generation time", () => {
     expect(
       formatFreshness(
