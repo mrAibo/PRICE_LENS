@@ -3,6 +3,7 @@ import type {EcommerceListing} from "@price-lens/contracts";
 import {
   compareWithProviders,
   evaluateProviderCandidate,
+  limitProviderConcurrency,
   type PriceProvider,
   type ProviderCandidate
 } from "../src/index.js";
@@ -347,6 +348,60 @@ describe("PriceLens matching guard", () => {
       confidence: 1
     });
   });
+});
+
+describe("provider concurrency limits", () => {
+  it("rejects provider work immediately when the concurrency cap is reached", async () => {
+    let releaseFirst!: () => void;
+    let markStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const firstPending = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    let callCount = 0;
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        callCount += 1;
+        if (callCount === 1) {
+          markStarted();
+          await firstPending;
+        }
+        return [];
+      }
+    };
+
+    const limited = limitProviderConcurrency(provider, 1);
+    const first = limited.search({listing});
+    await firstStarted;
+
+    await expect(limited.search({listing})).rejects.toThrow(
+      "idealo provider concurrency limit reached (1)"
+    );
+
+    releaseFirst();
+    await expect(first).resolves.toEqual([]);
+    await expect(limited.search({listing})).resolves.toEqual([]);
+  });
+
+  it.each([0, -1, 1.5])(
+    "rejects invalid provider concurrency limit %s",
+    (limit) => {
+      const provider: PriceProvider = {
+        id: "idealo",
+        async search() {
+          return [];
+        }
+      };
+
+      expect(() => limitProviderConcurrency(provider, limit)).toThrow(
+        "maxConcurrent must be a positive integer"
+      );
+    }
+  );
 });
 
 describe("provider orchestration", () => {
