@@ -12,22 +12,32 @@ import {
   compareWithProviders,
   type PriceProvider
 } from "@price-lens/core";
+import {
+  safeEmitDiagnostic,
+  type PriceLensDiagnosticSink
+} from "./diagnostics.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
+const ENRICHMENT_FALLBACK_WARNING =
+  "eBay API enrichment is currently unavailable; page extraction was used.";
 
 export interface PriceLensApiOptions {
   providers?: PriceProvider[];
   enrichListing?: (listing: EcommerceListing) => Promise<EcommerceListing>;
   enrichmentStatus?: Record<string, string>;
   requestIdFactory?: () => string;
+  diagnostics?: PriceLensDiagnosticSink;
+  now?: () => number;
 }
 
 export function createPriceLensServer(
   options: PriceLensApiOptions = {}
 ): Server {
   const providers = options.providers ?? [];
+  const now = options.now ?? Date.now;
 
   return createServer(async (request, response) => {
+    const startedAt = now();
     const requestId = options.requestIdFactory?.() ?? randomUUID();
     setJsonHeaders(response);
     response.setHeader("x-price-lens-request-id", requestId);
@@ -51,19 +61,29 @@ export function createPriceLensServer(
             message: "Expected a valid eBay listing payload.",
             requestId
           });
+          safeEmitDiagnostic(options.diagnostics, {
+            type: "request_rejected",
+            requestId,
+            route: "/v1/compare",
+            status: 400,
+            reason: "invalid_request",
+            durationMs: elapsedMs(startedAt, now)
+          });
           return;
         }
 
         let listing = payload.listing;
+        let enrichmentFallback = false;
         if (options.enrichListing) {
           try {
             listing = await options.enrichListing(listing);
           } catch {
+            enrichmentFallback = true;
             listing = {
               ...listing,
               extractionWarnings: [
                 ...listing.extractionWarnings,
-                "eBay API enrichment is currently unavailable; page extraction was used."
+                ENRICHMENT_FALLBACK_WARNING
               ]
             };
           }
@@ -73,13 +93,40 @@ export function createPriceLensServer(
           requestId
         });
         sendJson(response, 200, result);
+        safeEmitDiagnostic(options.diagnostics, {
+          type: "compare_completed",
+          requestId,
+          route: "/v1/compare",
+          status: 200,
+          durationMs: elapsedMs(startedAt, now),
+          offerCount: result.offers.length,
+          warningCount: result.warnings.length,
+          enrichmentFallback,
+          providers: result.providerStatus.map((status) => ({
+            provider: status.provider,
+            state: status.state,
+            ...(status.latencyMs !== undefined
+              ? {latencyMs: status.latencyMs}
+              : {}),
+            reviewCandidateCount: status.reviewCandidates?.length ?? 0
+          }))
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid request";
-        const status = message.includes("too large") ? 413 : 400;
+        const status: 400 | 413 = message.includes("too large") ? 413 : 400;
+        const reason = status === 413 ? "payload_too_large" : "invalid_json";
         sendJson(response, status, {
-          error: status === 413 ? "payload_too_large" : "invalid_json",
+          error: reason,
           message,
           requestId
+        });
+        safeEmitDiagnostic(options.diagnostics, {
+          type: "request_rejected",
+          requestId,
+          route: "/v1/compare",
+          status,
+          reason,
+          durationMs: elapsedMs(startedAt, now)
         });
       }
       return;
@@ -90,7 +137,19 @@ export function createPriceLensServer(
       message: "Route not found",
       requestId
     });
+    safeEmitDiagnostic(options.diagnostics, {
+      type: "request_rejected",
+      requestId,
+      route: request.url ?? "",
+      status: 404,
+      reason: "not_found",
+      durationMs: elapsedMs(startedAt, now)
+    });
   });
+}
+
+function elapsedMs(startedAt: number, now: () => number): number {
+  return Math.max(0, now() - startedAt);
 }
 
 function providerConfiguration(providers: PriceProvider[]): Record<string, string> {
