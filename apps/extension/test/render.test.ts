@@ -204,7 +204,7 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("74% confidence");
     expect(text).toContain("+1 more");
     expect(text).toContain("not used for the best-price");
-    expect(text).toContain("1 needs review");
+    expect(text).toContain("2 need review");
     expect(text).not.toContain("Best available market price");
   });
 
