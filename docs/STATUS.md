@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `a99775c9a6b8a27ea0d8eb6551f6cd6d4af15296` (through PR #25)
+Current implementation checkpoint: `37b69a3d496140900c668a342b7f7e9f010cac46` (through PR #26)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -77,6 +77,7 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] in-flight eBay Browse legacy-item lookup + OAuth coalescing
 - [x] in-flight Amazon SearchItems + OAuth coalescing with caller-local cancellation
 - [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
+- [x] opt-in privacy-minimized JSON diagnostics with provider latency/state aggregation
 - [x] deep inbound eBay payload validation at the API trust boundary
 - [x] eBay item URL host/id consistency checks
 - [x] Amazon Germany marketplace/detail-URL allowlist
@@ -183,6 +184,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #22 — Amazon Creators provider scaffold — merged into `main`
 - PR #24 — provider single-flight + request correlation — merged into `main`
 - PR #25 — API/provider URL trust-boundary hardening — merged into `main`
+- PR #26 — privacy-minimized structured diagnostics — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -192,8 +194,9 @@ Future categories must extend the calibration corpus before thresholds are chang
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
-6. Add structured request/provider diagnostics without logging secrets or browser cookies.
-7. Continue security hardening as new provider adapters are added.
+6. Document and close the remaining internal Phase 1 selector/structured-data failure-mode work.
+7. Keep provider product-data caches compliance-safe until live freshness rules are approved.
+8. Continue security hardening as new provider adapters are added.
 
 ## Local verification
 
