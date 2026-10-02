@@ -32,6 +32,12 @@ export interface ProductIdentity {
   variant?: ProductVariant;
 }
 
+export type WarningCode =
+  | "extraction_no_strong_identifier"
+  | "ebay_shipping_unknown"
+  | "ebay_enrichment_unavailable"
+  | "market_shipping_incomplete";
+
 export interface EcommerceListing {
   source: "ebay";
   itemId: string;
@@ -44,6 +50,7 @@ export interface EcommerceListing {
   imageUrl?: string;
   extractionEvidence: string[];
   extractionWarnings: string[];
+  extractionWarningCodes?: WarningCode[];
 }
 
 export type PriceProviderId = "idealo" | "geizhals" | "amazon" | "fixture";
@@ -100,6 +107,7 @@ export interface ComparisonResult {
   delta?: ComparisonDelta;
   providerStatus: ProviderStatus[];
   warnings: string[];
+  warningCodes: WarningCode[];
   generatedAt: string;
 }
 
