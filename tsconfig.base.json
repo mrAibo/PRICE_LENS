@@ -9,11 +9,6 @@
     "useDefineForClassFields": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@price-lens/contracts": ["packages/contracts/src/index.ts"],
-      "@price-lens/core": ["packages/core/src/index.ts"]
-    }
+    "skipLibCheck": true
   }
 }
