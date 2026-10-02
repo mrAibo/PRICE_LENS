@@ -31,6 +31,7 @@ EBAY_ENVIRONMENT=sandbox
 EBAY_MARKETPLACE_ID=EBAY_DE
 EBAY_CLIENT_ID=<Sandbox App ID>
 EBAY_CLIENT_SECRET=<Sandbox Cert ID>
+EBAY_BROWSE_CACHE_TTL_MS=0
 ```
 
 Do not share the Cert ID / Client Secret in a GitHub issue or chat.
@@ -177,10 +178,13 @@ AMAZON_CREATORS_CREDENTIAL_SECRET=<Credential Secret>
 AMAZON_CREATORS_CREDENTIAL_VERSION=<assigned Version>
 AMAZON_PARTNER_TAG=<Germany Partner Tag>
 AMAZON_MARKETPLACE=www.amazon.de
+AMAZON_CREATORS_CACHE_TTL_MS=0
 ```
 
-PriceLens already implements OAuth, SearchItems, identity/offer parsing, cache and
-provider orchestration. No credential should ever enter the extension.
+PriceLens already implements OAuth, SearchItems, identity/offer parsing, in-flight
+request coalescing and optional provider-local caching. Product/price cache TTL stays
+at `0` until Amazon's approved-account freshness/retention rules are validated.
+No credential should ever enter the extension.
 
 ### Important Amazon shipping limitation
 
