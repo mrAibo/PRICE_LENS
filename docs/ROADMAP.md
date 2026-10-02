@@ -56,6 +56,8 @@ Delivered:
 - [x] Shadow DOM PriceLens card
 - [x] page-transition lifecycle handling
 - [x] extraction and lifecycle unit fixtures
+- [x] reject ambiguous multi-offer structured price/condition/shipping
+- [x] extract explicit storage/RAM/screen-size/pack-count item specifics
 
 Still required:
 
@@ -85,11 +87,12 @@ Delivered:
 
 Still required:
 
-- [ ] hard mismatch rules/fixtures for storage capacity
-- [ ] RAM mismatches
-- [ ] screen/model suffix variants
+- [x] hard mismatch rules/fixtures for storage capacity
+- [x] RAM mismatches
+- [x] screen-size variants from explicit structured data
+- [x] pack-count variants from explicit structured data
+- [ ] model-suffix variants not represented by structured fields
 - [ ] console/product edition variants
-- [ ] pack-count variants
 - [ ] materially different bundles/accessories
 - [ ] labelled calibration set for automatic/review thresholds
 - [ ] review/debug visibility for non-auto-matched candidates
