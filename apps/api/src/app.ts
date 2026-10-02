@@ -61,11 +61,17 @@ export function createPriceLensServer(
 
 function providerConfiguration(providers: PriceProvider[]): Record<string, string> {
   const configured = new Set(providers.map((provider) => provider.id));
-  return {
+  const status: Record<string, string> = {
     idealo: configured.has("idealo") ? "configured" : "unconfigured",
     geizhals: configured.has("geizhals") ? "configured" : "unconfigured",
     amazon: configured.has("amazon") ? "configured" : "unconfigured"
   };
+
+  if (configured.has("fixture")) {
+    status.fixture = "configured";
+  }
+
+  return status;
 }
 
 function setJsonHeaders(response: ServerResponse): void {
