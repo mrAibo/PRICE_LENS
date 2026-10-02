@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Latest implementation checkpoint included in that baseline: `466b28a77fd1610912e19b4dc387565ae3c3fc8b` (PR #18)
+Current implementation checkpoint: `8a56e76e26d5f9d6900d1f742d99c89a73fc0b53` (through PR #22)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -42,6 +42,10 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] explicit user-visible unsupported extraction state with zero provider/API lookup (PR #18)
 - [x] ambiguous multi-offer JSON-LD protection (PR #15)
 - [x] explicit storage/RAM/screen-size/pack-count extraction from item specifics
+- [x] structured edition/model-qualifier/bundle extraction and fingerprinting
+- [x] observed real-layout capture/anonymization tool
+- [x] independent `reviewed:true` evidence gate for observed fixtures
+- [x] separate synthetic vs observed per-field extraction metrics
 - [x] structured variant fields participate in lifecycle fingerprinting
 
 ### Core/API
@@ -57,11 +61,19 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] exact brand + MPN match path
 - [x] hard condition/brand/identifier mismatch guards
 - [x] hard storage/RAM/screen-size/pack-count mismatch guards
+- [x] hard edition/bundle/model-qualifier/model-generation mismatch guards
 - [x] `product-matcher` composite scoring integration
+- [x] labelled 0.90/0.70 matcher calibration corpus
+- [x] review-candidate confidence/method/reason diagnostics
+- [x] Phase 2 zero-known-false-auto gate passed; Issue #11 closed
 - [x] `GET /health`
 - [x] `POST /v1/compare`
 - [x] API request validation and body-size guard
 - [x] opt-in local `fixture` provider for true end-to-end development without external traffic
+- [x] server-side eBay Browse OAuth/enrichment client with fail-open fallback
+- [x] eBay token/item cache, timeout, 401 refresh and 404/429 handling
+- [x] Amazon Creators API provider scaffold with OAuth/SearchItems contract tests
+- [x] Amazon offers remain landed-price incomplete when mandatory shipping is unavailable
 
 ### Provider/access research
 
@@ -89,26 +101,28 @@ Still required:
 
 ### Phase 2 — matcher/comparison gate
 
-Still required:
+Status: **complete for the current labelled gate**
 
-- [x] hard mismatch fixtures for storage/capacity
-- [x] RAM mismatch fixtures
-- [x] pack-count mismatch fixtures
-- [x] screen-size mismatch fixtures
-- [ ] console/product edition mismatch fixtures
-- [ ] materially different bundle/accessory mismatch fixtures
-- [ ] model-suffix mismatch fixtures beyond explicit screen-size data
-- [ ] labelled calibration set for `0.90/0.70` thresholds
-- [ ] review-candidate visibility/debug tooling
+- [x] storage/RAM/pack-count/screen mismatch fixtures
+- [x] product edition mismatch fixtures
+- [x] standalone-versus-bundle mismatch fixtures
+- [x] model qualifier and numeric generation mismatch fixtures
+- [x] labelled `0.90/0.70` calibration corpus
+- [x] review-candidate visibility/debug tooling
+- [x] zero known false automatic matches in the labelled corpus
+
+Future categories must extend the calibration corpus before thresholds are changed.
 
 ## Blocked on external access
 
 ### eBay enrichment
 
-- [ ] eBay developer credentials
-- [ ] Browse API adapter
-- [ ] server-side token lifecycle
-- [ ] rate-limit/cache behavior
+- [ ] eBay developer credentials / Sandbox live validation
+- [x] Browse API enrichment client
+- [x] server-side OAuth token lifecycle
+- [x] timeout, cache, 401 refresh, 404 and rate-limit handling
+- [x] fail-open page-extraction fallback
+- [ ] Production Buy API / Growth Check approval as required by eBay
 
 ### Idealo
 
@@ -127,11 +141,13 @@ Still required:
 
 ### Amazon Germany
 
-- [ ] Associates eligibility
-- [ ] Creators API onboarding
-- [ ] price-display/freshness rules
-- [ ] credentials
-- [ ] attribution requirements
+- [ ] Associates/Creators eligibility
+- [ ] Creators API onboarding / live credentials
+- [x] Creators OAuth/SearchItems provider scaffold
+- [x] ItemInfo / OffersV2 contract parsing
+- [x] unknown mandatory shipping is kept incomplete and excluded from best-offer selection
+- [ ] live price-display/freshness/cache policy validation
+- [ ] attribution/compliance validation with the approved account
 
 ## Not started
 
@@ -154,16 +170,19 @@ Still required:
 - PR #16 — structured variant safety guards — incorporated through the bootstrap history
 - PR #17 — labelled eBay extraction corpus — incorporated through the bootstrap history
 - PR #18 — explicit unsupported extraction UI/state — incorporated through the bootstrap history
+- PR #19 — observed eBay capture + field metrics — merged into `main`
+- PR #20 — edition/bundle/model calibration — merged into `main`
+- PR #21 — eBay Browse enrichment scaffold — merged into `main`
+- PR #22 — Amazon Creators provider scaffold — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Issue #10 — complete representative eBay fixture evidence and empirical field metrics.
-2. Issue #11 — complete edition/bundle/model-suffix calibration before broadening fuzzy matching.
-3. Use the opt-in fixture provider to validate the browser/API UI path locally.
-4. Issue #12 — add eBay Browse API enrichment when credentials are available.
-5. Issue #13 — obtain official Idealo/Geizhals/Amazon access in parallel.
-6. Issue #14 — implement one approved real provider completely before enabling all providers.
+1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics.
+2. Issue #12 — insert eBay Sandbox credentials and perform live Browse validation, then Production approval.
+3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
+4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
+5. Add production cache/coalescing/observability only after live provider rules are known.
 
 ## Local verification
 
@@ -205,4 +224,8 @@ Canonical documents:
 - [Technical design](TECHNICAL_DESIGN.md)
 - [Roadmap](ROADMAP.md)
 - [Provider access](PROVIDER_ACCESS.md)
+- [Provider onboarding](PROVIDER_ONBOARDING.md)
+- [Matcher calibration](MATCHER_CALIBRATION.md)
+- [eBay Browse enrichment](EBAY_BROWSE_ENRICHMENT.md)
+- [Amazon Creators provider](AMAZON_CREATORS_PROVIDER.md)
 - [Open-source reuse](OPEN_SOURCE_REUSE.md)
