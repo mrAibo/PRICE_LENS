@@ -20,8 +20,8 @@ variable "name_prefix" {
   default     = "price-lens"
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{1,40}[a-z0-9]$", var.name_prefix))
-    error_message = "name_prefix must be lowercase, 3-42 characters, and contain only letters, digits and hyphens."
+    condition     = can(regex("^[a-z][a-z0-9-]{1,24}[a-z0-9]$", var.name_prefix))
+    error_message = "name_prefix must be lowercase, 3-26 characters, and contain only letters, digits and hyphens so the derived service-account ID stays valid."
   }
 }
 
@@ -122,18 +122,33 @@ variable "max_concurrent_comparisons" {
   description = "Application-level comparison concurrency limit."
   type        = number
   default     = 16
+
+  validation {
+    condition     = var.max_concurrent_comparisons >= 1
+    error_message = "max_concurrent_comparisons must be at least 1."
+  }
 }
 
 variable "provider_max_concurrency" {
   description = "Application-level per-provider concurrency limit."
   type        = number
   default     = 4
+
+  validation {
+    condition     = var.provider_max_concurrency >= 1
+    error_message = "provider_max_concurrency must be at least 1."
+  }
 }
 
 variable "metrics_every" {
   description = "Emit one cumulative diagnostics metrics snapshot after this many diagnostic events."
   type        = number
   default     = 100
+
+  validation {
+    condition     = var.metrics_every >= 1
+    error_message = "metrics_every must be at least 1."
+  }
 }
 
 variable "provider_secret_ids" {
