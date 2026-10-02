@@ -106,3 +106,61 @@ Issue #10 remains open until:
 4. selector/structured-data failure modes are documented.
 
 The synthetic corpus is the foundation for that gate, not the final evidence.
+
+
+## Capturing observed real-layout fixtures
+
+The repository now contains a review-gated capture tool. Save a real public eBay.de
+item page as HTML in the browser, then run:
+
+```bash
+npm run capture:ebay -- \
+  --html /path/to/saved-page.html \
+  --url "https://www.ebay.de/itm/REAL_ITEM_ID" \
+  --id "observed-phone-buy-it-now" \
+  --layout-class "buy-it-now"
+```
+
+The generated JSON goes to `apps/extension/test/fixtures/observed/` by default.
+
+The capture deliberately does **not** persist the original URL. It stores a SHA-256
+digest for provenance/deduplication, uses a synthetic item id in the fixture, and
+keeps only extractor-relevant JSON-LD, price, condition and whitelisted item-specific
+markup. Seller/account areas are excluded by construction.
+
+Every captured fixture starts as `reviewed: false`. The generated `expected`
+object is only a draft produced by the current extractor. A person must independently
+compare it with the live page or a screenshot, correct any wrong expected values, and
+only then set `reviewed: true`.
+
+This review gate is critical: otherwise the extractor would be grading its own output.
+
+## Per-field metrics command
+
+Run:
+
+```bash
+npm run evidence:ebay
+```
+
+The command reports exact labelled accuracy separately for:
+
+- supported / unsupported classification
+- listing identity fields
+- price
+- mandatory shipping / unknown shipping
+- condition
+- strong identity fields
+- structured variant fields
+
+It prints two independent corpora:
+
+1. `synthetic-regression` — deterministic regression protection;
+2. `observed-reviewed` — only independently reviewed fixtures derived from real
+   eBay.de pages.
+
+An unreviewed observed fixture is intentionally excluded from real-layout metrics.
+
+At this checkpoint the infrastructure for real-layout measurement is complete, but a
+real-world accuracy percentage must not be published until reviewed observed fixtures
+have been collected.
