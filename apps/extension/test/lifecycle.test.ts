@@ -103,7 +103,7 @@ describe("PriceLens content lifecycle", () => {
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
-      window: dom.window as unknown as Window,
+      window: dom.window as unknown as Window & typeof globalThis,
       sendMessage,
       mount
     });
@@ -131,7 +131,7 @@ describe("PriceLens content lifecycle", () => {
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
-      window: dom.window as unknown as Window,
+      window: dom.window as unknown as Window & typeof globalThis,
       sendMessage,
       mount
     });
@@ -177,7 +177,7 @@ describe("PriceLens content lifecycle", () => {
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
-      window: dom.window as unknown as Window,
+      window: dom.window as unknown as Window & typeof globalThis,
       sendMessage,
       mount
     });

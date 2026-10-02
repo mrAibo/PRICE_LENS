@@ -5,7 +5,7 @@ import {mountPriceLens, type PriceLensView} from "./ui/render.js";
 
 export interface PriceLensLifecycleOptions {
   document: Document;
-  window: Window;
+  window: Window & typeof globalThis;
   getPageUrl?: () => string;
   sendMessage: (message: CompareMessage) => Promise<CompareResponse | undefined>;
   mount?: (document: Document, listing: EcommerceListing) => PriceLensView;
