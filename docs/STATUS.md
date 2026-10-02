@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `a76ffe53b4a818d705140129b7d11bdf09a62002` (through PR #35)
+Current implementation checkpoint: `bd1a385834e42004ec90186ff8c27df41050bfbb` (through PR #36)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -53,6 +53,10 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] generated extension artifact verification for dev + production-origin builds
 - [x] Chrome ZIP smoke packaging in CI
 - [x] manual HTTPS production-origin Chrome package workflow
+- [x] explicit first-use privacy consent before eBay extraction/network traffic
+- [x] local consent revocation control
+- [x] release artifact enforces minimal `storage` permission only
+- [x] behavior-derived privacy baseline and Chrome Web Store release checklist
 
 ### Core/API
 
@@ -207,6 +211,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #31 — bounded API/provider concurrency — merged into `main`
 - PR #32 — Chrome extension packaging workflow — merged into `main`
 - PR #35 — Cloud Run production container/deployment baseline — merged into `main`
+- PR #36 — Chrome privacy consent + Web Store release baseline — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -219,7 +224,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — provision the selected Cloud Run + load-balancer + Cloud Armor topology, establish the final HTTPS API origin, Secret Manager bindings, privacy/store readiness, then run the Chrome package workflow.
+9. Issue #33 — provision the selected Cloud Run + load-balancer + Cloud Armor topology, establish the final HTTPS API origin and Secret Manager bindings, fill publisher/contact/log-retention/provider-attribution fields in the privacy policy, then run the Chrome package workflow.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
