@@ -33,7 +33,7 @@ output "cloud_armor_policy_name" {
 
 output "load_balancer_ip" {
   description = "Public IPv4 address to publish in DNS when runtime deployment is enabled."
-  value       = var.deploy_runtime ? module.api_lb[0].external_ip : null
+  value       = var.deploy_runtime ? google_compute_global_address.api[0].address : null
 }
 
 output "api_origin" {
@@ -46,6 +46,6 @@ output "required_dns_a_record" {
   value = var.deploy_runtime ? {
     name  = var.api_domain
     type  = "A"
-    value = module.api_lb[0].external_ip
+    value = google_compute_global_address.api[0].address
   } : null
 }
