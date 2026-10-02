@@ -20,6 +20,7 @@ describe("structured diagnostics", () => {
       durationMs: 42,
       offerCount: 1,
       warningCount: 0,
+      warningCodes: [],
       enrichmentFallback: false,
       providers: [
         {
@@ -77,6 +78,7 @@ describe("structured diagnostics", () => {
       durationMs: 60,
       offerCount: 0,
       warningCount: 1,
+      warningCodes: ["ebay_enrichment_unavailable"],
       enrichmentFallback: true,
       providers: [
         {
@@ -107,6 +109,9 @@ describe("structured diagnostics", () => {
       },
       offerCount: 1,
       warningCount: 1,
+      warningCodes: {
+        ebay_enrichment_unavailable: 1
+      },
       enrichmentFallbackCount: 1,
       providers: [
         {
