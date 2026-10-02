@@ -2,13 +2,20 @@ import {limitProviderConcurrency} from "@price-lens/core";
 import {createPriceLensServer} from "./app.js";
 import {createAmazonCreatorsProviderFromEnv} from "./amazon-creators-provider.js";
 import {createEbayBrowseEnricherFromEnv} from "./ebay-browse.js";
-import {createJsonLineDiagnosticSink} from "./diagnostics.js";
+import {
+  createAggregatingDiagnosticSink,
+  createJsonLineDiagnosticSink
+} from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
 const host = process.env.HOST ?? "127.0.0.1";
 const fixtureProviderEnabled = process.env.PRICE_LENS_FIXTURE_PROVIDER === "1";
 const structuredDiagnosticsEnabled = process.env.PRICE_LENS_JSON_LOGS === "1";
+const metricsEmitEvery = readPositiveIntegerEnv(
+  "PRICE_LENS_METRICS_EVERY",
+  100
+);
 const maxConcurrentComparisons = readPositiveIntegerEnv(
   "PRICE_LENS_MAX_CONCURRENT_COMPARISONS",
   16
@@ -26,11 +33,16 @@ const providers = [
   limitProviderConcurrency(provider, providerMaxConcurrency)
 );
 
+const diagnostics = structuredDiagnosticsEnabled
+  ? createAggregatingDiagnosticSink(
+      createJsonLineDiagnosticSink(),
+      metricsEmitEvery
+    ).sink
+  : undefined;
+
 const server = createPriceLensServer({
   providers,
-  diagnostics: structuredDiagnosticsEnabled
-    ? createJsonLineDiagnosticSink()
-    : undefined,
+  diagnostics,
   enrichListing: ebayEnricher
     ? (listing) => ebayEnricher.enrich(listing)
     : undefined,
@@ -45,7 +57,9 @@ server.listen(port, host, () => {
     fixtureProviderEnabled ? "fixture provider enabled" : undefined,
     ebayEnricher ? "eBay Browse enrichment enabled" : undefined,
     amazonProvider ? "Amazon Creators provider enabled" : undefined,
-    structuredDiagnosticsEnabled ? "JSON diagnostics enabled" : undefined,
+    structuredDiagnosticsEnabled
+      ? `JSON diagnostics enabled, metrics every ${metricsEmitEvery} events`
+      : undefined,
     `comparison concurrency ${maxConcurrentComparisons}`,
     `provider concurrency ${providerMaxConcurrency}`
   ].filter(Boolean);
