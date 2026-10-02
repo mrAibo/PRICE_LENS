@@ -53,9 +53,9 @@ jobs:
         run: |
           rm -f apps/extension/price-lens-chrome.zip
           (cd apps/extension/dist && zip -X -q -r ../price-lens-chrome.zip .)
-          test "$(unzip -Z1 apps/extension/price-lens-chrome.zip | grep -c '^manifest.json$')" -eq 1
-          test "$(unzip -Z1 apps/extension/price-lens-chrome.zip | grep -c '^background.js$')" -eq 1
-          test "$(unzip -Z1 apps/extension/price-lens-chrome.zip | grep -c '^content.js$')" -eq 1
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "manifest.json"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "background.js"
+          unzip -Z1 apps/extension/price-lens-chrome.zip | grep -Fxq "content.js"
 
       - name: Upload Chrome package
         uses: actions/upload-artifact@v4
