@@ -1,6 +1,6 @@
 # PriceLens Project Status
 
-Updated: **2026-10-02**
+Updated: **2026-10-03**
 
 Overall status: **active implementation / early MVP**
 
@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `3d62d96eb9a599552d76f9385d00ebe0d8218030` (through PR #38)
+Current implementation checkpoint: `791230c132e24b076fe79dd86cc84ae81ba0303e` (through PR #39)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -223,6 +223,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #36 — Chrome privacy consent + Web Store release baseline — merged into `main`
 - PR #37 — partial-provider result + source freshness UI — merged into `main`
 - PR #38 — review-only match uncertainty UI — merged into `main`
+- PR #39 — validated GCP Terraform production baseline — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
