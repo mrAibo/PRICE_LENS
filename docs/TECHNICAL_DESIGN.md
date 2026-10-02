@@ -296,9 +296,24 @@ Scrapers may be used only as replaceable research spikes unless terms and operat
 
 ## 11. Cache design
 
-Provider-local bootstrap caches now exist for eBay OAuth/item enrichment and Amazon OAuth/SearchItems. A shared production cache/coalescing layer is not yet implemented.
+Authentication-token caches exist for eBay and Amazon with expiry safety windows.
+In-flight duplicate product lookups are coalesced.
 
-Planned lookup key priority:
+**Product/price response caching is disabled between sequential requests by default.**
+The default provider product-data TTL is `0 ms` until the live, approved provider
+account rules establish the permitted freshness and retention behavior.
+
+Explicit configuration:
+
+```text
+EBAY_BROWSE_CACHE_TTL_MS=0
+AMAZON_CREATORS_CACHE_TTL_MS=0
+```
+
+A positive TTL may be enabled only after the applicable provider policy is validated.
+The configuration rejects negative, fractional or unsafe integer TTL values.
+
+Future persistent/shared cache key priority:
 
 ```text
 GTIN
@@ -307,13 +322,14 @@ GTIN
 -> normalized title fingerprint
 ```
 
-Initial target behavior:
+Required behavior:
 
-- positive provider result TTL: 10–30 min, later provider-specific
-- negative-result TTL: shorter
+- provider-specific TTL derived from approved rules, never a generic guessed TTL
+- shorter negative-result TTL only where the provider rules permit it
 - request coalescing for concurrent identical lookups
 - cache key must include any identity field that changes product variant semantics
 - cache storage remains server-side
+- stale entries are removed rather than reused
 
 ## 12. Security and privacy
 
@@ -396,7 +412,7 @@ Current GitHub Actions performs typecheck, tests and build. Provider live traffi
 3. Submit/complete Idealo iPN, Geizhals Publisher and Amazon Associates/Creators onboarding.
 4. Live-validate Amazon Creators responses and program rules; Amazon remains excluded from best landed price while mandatory shipping is unknown.
 5. Implement Idealo/Geizhals only against the publisher contracts they provide.
-6. Add shared cache/coalescing/observability after live provider constraints are known.
+6. Keep product-data cache TTL at zero until live provider constraints are known; in-flight coalescing and privacy-minimized observability are already implemented.
 7. Expand to eBay search-result cards only after the single-item evidence gates pass.
 
 ## 17. Definition of the first real MVP
