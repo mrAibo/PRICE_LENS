@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `707570444d114a853ae295aed789f590296c7ee0` (through PR #32)
+Current implementation checkpoint: `a76ffe53b4a818d705140129b7d11bdf09a62002` (through PR #35)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -92,6 +92,10 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] Amazon Germany marketplace/detail-URL allowlist
 - [x] bounded API comparison concurrency with overload `503`
 - [x] independent hard concurrency caps for each configured price provider
+- [x] production multi-stage API Docker image, non-root runtime
+- [x] deployment readiness endpoint (`GET /ready`)
+- [x] bounded graceful SIGTERM/SIGINT shutdown
+- [x] CI builds and smoke-runs the production API container
 
 ### Provider/access research
 
@@ -202,6 +206,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #30 — generated extension artifact verification — merged into `main`
 - PR #31 — bounded API/provider concurrency — merged into `main`
 - PR #32 — Chrome extension packaging workflow — merged into `main`
+- PR #35 — Cloud Run production container/deployment baseline — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -214,7 +219,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — choose production deployment/ingress, final API origin, privacy/store readiness, then run the Chrome package workflow.
+9. Issue #33 — provision the selected Cloud Run + load-balancer + Cloud Armor topology, establish the final HTTPS API origin, Secret Manager bindings, privacy/store readiness, then run the Chrome package workflow.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
