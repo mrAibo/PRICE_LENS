@@ -234,9 +234,11 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 
 - [x] no provider secrets in extension
 - [x] no arbitrary URL fetch endpoint
-- [x] request validation
+- [x] deep request validation
+- [x] eBay inbound URL host/item-id trust checks
+- [x] Amazon Germany marketplace/detail-URL allowlist
 - [ ] production HTTPS/deployment configuration
-- [ ] outbound provider allowlist enforcement
+- [ ] extend outbound allowlists to future providers
 - [ ] structured secret management
 - [ ] privacy review before any telemetry
 
