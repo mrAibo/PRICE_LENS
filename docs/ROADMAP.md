@@ -207,7 +207,7 @@ Traffic/scale rules:
 - [ ] no eager per-card provider calls on eBay search-result pages
 - [ ] future search-result augmentation is user-triggered per card by default
 - [ ] add report/session reuse before enabling broad international fan-out at scale
-- [ ] measure provider-call count and latency for compact reports
+- [x] measure aggregate eBay/Amazon marketplace-call count, success/failure and fan-out latency for compact reports
 
 Exit gate: a user can explicitly request one PriceLens report, immediately see the few
 offers that can actually save money, optionally expand the full list, and do so without
