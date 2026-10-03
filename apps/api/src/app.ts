@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from "node:http";
 import type {
+  BuyerDestination,
   ComparisonRequest,
   EcommerceListing,
   ListingCondition,
@@ -168,7 +169,8 @@ export function createPriceLensServer(
 
         const result = await compareWithProviders(listing, providers, {
           requestId,
-          normalizeOffers: options.normalizeOffers
+          normalizeOffers: options.normalizeOffers,
+          destination: payload.destination
         });
         sendJson(response, 200, result);
         safeEmitDiagnostic(options.diagnostics, {
@@ -352,8 +354,29 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 function isComparisonRequest(value: unknown): value is ComparisonRequest {
-  if (!value || typeof value !== "object") return false;
-  return isEbayListing((value as {listing?: unknown}).listing);
+  if (!isRecord(value)) return false;
+  return (
+    isEbayListing(value.listing) &&
+    (value.destination === undefined || isBuyerDestination(value.destination))
+  );
+}
+
+function isBuyerDestination(value: unknown): value is BuyerDestination {
+  if (!isRecord(value)) return false;
+  if (
+    typeof value.country !== "string" ||
+    !/^[A-Z]{2}$/.test(value.country)
+  ) {
+    return false;
+  }
+
+  if (value.postalCode === undefined) return true;
+  return (
+    typeof value.postalCode === "string" &&
+    value.postalCode.length >= 1 &&
+    value.postalCode.length <= 16 &&
+    /^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(value.postalCode)
+  );
 }
 
 function isEbayListing(value: unknown): value is EcommerceListing {
