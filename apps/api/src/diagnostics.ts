@@ -3,6 +3,11 @@ import type {
   PriceProviderId,
   ProviderState
 } from "@price-lens/contracts";
+import type {
+  ProviderCacheEvent,
+  ProviderCacheOutcome,
+  ProviderCacheSource
+} from "./provider-cache.js";
 
 export type ComparisonWarningCategory =
   | "extraction_warning"
@@ -49,6 +54,17 @@ export interface RequestRejectedDiagnostic {
   durationMs: number;
 }
 
+export interface ProviderCacheDiagnostic extends ProviderCacheEvent {
+  type: "provider_cache";
+}
+
+export interface ProviderCacheMetricsSnapshot {
+  source: ProviderCacheSource;
+  outcomes: Record<ProviderCacheOutcome, number>;
+  lookupCount: number;
+  hitRate: number;
+}
+
 export interface ProviderMetricsSnapshot {
   provider: PriceProviderId;
   observations: number;
@@ -73,12 +89,14 @@ export interface OperationalMetricsSnapshot {
   acceptedMatchMethods: MatchMethodCounts;
   reviewMatchMethods: MatchMethodCounts;
   enrichmentFallbackCount: number;
+  providerCaches: ProviderCacheMetricsSnapshot[];
   providers: ProviderMetricsSnapshot[];
 }
 
 export type PriceLensDiagnosticEvent =
   | CompareCompletedDiagnostic
   | RequestRejectedDiagnostic
+  | ProviderCacheDiagnostic
   | OperationalMetricsSnapshot;
 
 export type PriceLensDiagnosticSink = (
@@ -108,6 +126,10 @@ export function createAggregatingDiagnosticSink(
   const warningCategories = new Map<ComparisonWarningCategory, number>();
   const acceptedMatchMethods = new Map<MatchMethod, number>();
   const reviewMatchMethods = new Map<MatchMethod, number>();
+  const cacheMetrics = new Map<
+    ProviderCacheSource,
+    Record<ProviderCacheOutcome, number>
+  >();
   const providerMetrics = new Map<
     PriceProviderId,
     {
@@ -133,6 +155,21 @@ export function createAggregatingDiagnosticSink(
       acceptedMatchMethods: Object.fromEntries(acceptedMatchMethods),
       reviewMatchMethods: Object.fromEntries(reviewMatchMethods),
       enrichmentFallbackCount,
+      providerCaches: [...cacheMetrics.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([source, outcomes]) => {
+          const lookupCount = outcomes.hit + outcomes.miss + outcomes.coalesced;
+          const resolvedLookups = outcomes.hit + outcomes.miss;
+          return {
+            source,
+            outcomes: {...outcomes},
+            lookupCount,
+            hitRate:
+              resolvedLookups === 0
+                ? 0
+                : roundMetric(outcomes.hit / resolvedLookups)
+          };
+        }),
       providers: [...providerMetrics.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([provider, metrics]) => ({
@@ -155,6 +192,17 @@ export function createAggregatingDiagnosticSink(
   const sink: PriceLensDiagnosticSink = (event) => {
     if (event.type === "metrics_snapshot") {
       downstream(event);
+      return;
+    }
+
+    if (event.type === "provider_cache") {
+      const current = cacheMetrics.get(event.source) ?? {
+        hit: 0,
+        miss: 0,
+        coalesced: 0
+      };
+      current[event.outcome] += 1;
+      cacheMetrics.set(event.source, current);
       return;
     }
 

@@ -237,6 +237,7 @@ describe("Amazon Creators provider", () => {
   });
 
   it("coalesces concurrent identical searches and token minting", async () => {
+    const cacheObserver = vi.fn();
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -249,7 +250,8 @@ describe("Amazon Creators provider", () => {
       credentialSecret: "secret",
       credentialVersion: "3.2",
       partnerTag: "price-lens-21",
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     const [first, second] = await Promise.all([
@@ -260,6 +262,10 @@ describe("Amazon Creators provider", () => {
     expect(first).toHaveLength(1);
     expect(second).toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "coalesced"
+    ]);
   });
 
   it("does not let one aborted waiter cancel a shared Amazon search", async () => {
@@ -299,6 +305,7 @@ describe("Amazon Creators provider", () => {
   });
 
   it("does not cache Amazon product data between sequential searches by default", async () => {
+    const cacheObserver = vi.fn();
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -312,16 +319,22 @@ describe("Amazon Creators provider", () => {
       credentialSecret: "secret",
       credentialVersion: "3.2",
       partnerTag: "price-lens-21",
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     await provider.search({listing});
     await provider.search({listing});
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "miss"
+    ]);
   });
 
   it("caches identical Amazon searches only with an explicit TTL", async () => {
+    const cacheObserver = vi.fn();
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -335,13 +348,18 @@ describe("Amazon Creators provider", () => {
       credentialVersion: "3.2",
       partnerTag: "price-lens-21",
       cacheTtlMs: 60_000,
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     await provider.search({listing});
     await provider.search({listing});
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "hit"
+    ]);
   });
 
   it("refreshes the token once after a 401", async () => {

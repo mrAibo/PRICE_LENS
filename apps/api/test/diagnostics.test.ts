@@ -128,6 +128,7 @@ describe("structured diagnostics", () => {
         fuzzy: 2
       },
       enrichmentFallbackCount: 1,
+      providerCaches: [],
       providers: [
         {
           provider: "amazon",
@@ -153,6 +154,51 @@ describe("structured diagnostics", () => {
     expect(serialized).not.toMatch(
       /requestId|route|title|itemId|url|credential|secret/i
     );
+  });
+
+  it("aggregates cache hit/miss/coalesced events without logging cache keys", () => {
+    const downstream = vi.fn();
+    const aggregator = createAggregatingDiagnosticSink(downstream, 100);
+
+    aggregator.sink({
+      type: "provider_cache",
+      source: "ebay",
+      outcome: "miss"
+    });
+    aggregator.sink({
+      type: "provider_cache",
+      source: "ebay",
+      outcome: "hit"
+    });
+    aggregator.sink({
+      type: "provider_cache",
+      source: "ebay",
+      outcome: "coalesced"
+    });
+    aggregator.sink({
+      type: "provider_cache",
+      source: "amazon",
+      outcome: "miss"
+    });
+
+    expect(downstream).not.toHaveBeenCalled();
+    expect(aggregator.snapshot().providerCaches).toEqual([
+      {
+        source: "amazon",
+        outcomes: {hit: 0, miss: 1, coalesced: 0},
+        lookupCount: 1,
+        hitRate: 0
+      },
+      {
+        source: "ebay",
+        outcomes: {hit: 1, miss: 1, coalesced: 1},
+        lookupCount: 3,
+        hitRate: 0.5
+      }
+    ]);
+
+    const serialized = JSON.stringify(aggregator.snapshot().providerCaches);
+    expect(serialized).not.toMatch(/key|item|title|url|query|term/i);
   });
 
   it.each([0, -1, 1.5])(

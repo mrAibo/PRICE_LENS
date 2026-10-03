@@ -4,9 +4,11 @@ import {createAmazonCreatorsProviderFromEnv} from "./amazon-creators-provider.js
 import {createEbayBrowseEnricherFromEnv} from "./ebay-browse.js";
 import {
   createAggregatingDiagnosticSink,
-  createJsonLineDiagnosticSink
+  createJsonLineDiagnosticSink,
+  safeEmitDiagnostic
 } from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
+import type {ProviderCacheObserver} from "./provider-cache.js";
 import {installGracefulShutdown} from "./shutdown.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
@@ -25,21 +27,33 @@ const providerMaxConcurrency = readPositiveIntegerEnv(
   "PRICE_LENS_PROVIDER_MAX_CONCURRENCY",
   4
 );
-const ebayEnricher = createEbayBrowseEnricherFromEnv();
-const amazonProvider = createAmazonCreatorsProviderFromEnv();
+const diagnosticAggregator = structuredDiagnosticsEnabled
+  ? createAggregatingDiagnosticSink(
+      createJsonLineDiagnosticSink(),
+      metricsEmitEvery
+    )
+  : undefined;
+const diagnostics = diagnosticAggregator?.sink;
+const cacheObserver: ProviderCacheObserver | undefined = diagnostics
+  ? (event) =>
+      safeEmitDiagnostic(diagnostics, {
+        type: "provider_cache",
+        ...event
+      })
+  : undefined;
+
+const ebayEnricher = createEbayBrowseEnricherFromEnv(process.env, {
+  cacheObserver
+});
+const amazonProvider = createAmazonCreatorsProviderFromEnv(process.env, {
+  cacheObserver
+});
 const providers = [
   ...(fixtureProviderEnabled ? [createFixtureProvider()] : []),
   ...(amazonProvider ? [amazonProvider] : [])
 ].map((provider) =>
   limitProviderConcurrency(provider, providerMaxConcurrency)
 );
-
-const diagnostics = structuredDiagnosticsEnabled
-  ? createAggregatingDiagnosticSink(
-      createJsonLineDiagnosticSink(),
-      metricsEmitEvery
-    ).sink
-  : undefined;
 
 const server = createPriceLensServer({
   providers,
