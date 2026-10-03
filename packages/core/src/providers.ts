@@ -17,6 +17,8 @@ export interface ProviderCandidate {
   providerProductId?: string;
   productTitle: string;
   merchant?: string;
+  sellerFeedbackPercentage?: number;
+  sellerFeedbackScore?: number;
   url: string;
   condition: ListingCondition;
   identity: ProductIdentity;
@@ -32,6 +34,7 @@ export interface ProviderSearchInput {
 
 export interface PriceProvider {
   readonly id: PriceProviderId;
+  readonly matchAcrossConditions?: boolean;
   search(input: ProviderSearchInput): Promise<ProviderCandidate[]>;
 }
 
@@ -47,6 +50,7 @@ export function limitProviderConcurrency(
 
   return {
     id: provider.id,
+    matchAcrossConditions: provider.matchAcrossConditions,
 
     async search(input) {
       if (active >= maxConcurrent) {
@@ -84,7 +88,12 @@ export async function compareWithProviders(
   const statusByProvider = new Map(
     results.map((result) => [result.status.provider, result.status] as const)
   );
-  const allProviderIds: PriceProviderId[] = ["idealo", "geizhals", "amazon"];
+  const allProviderIds: PriceProviderId[] = [
+    "ebay_market",
+    "idealo",
+    "geizhals",
+    "amazon"
+  ];
   if (statusByProvider.has("fixture")) {
     allProviderIds.push("fixture");
   }
@@ -125,7 +134,9 @@ async function runProvider(
         continue;
       }
 
-      const match = evaluateProviderCandidate(listing, candidate);
+      const match = evaluateProviderCandidate(listing, candidate, {
+        ignoreCondition: provider.matchAcrossConditions === true
+      });
       if (match.decision === "review") {
         reviewCount += 1;
         if (reviewCandidates.length < 10) {
@@ -149,6 +160,8 @@ async function runProvider(
         providerProductId: candidate.providerProductId,
         productTitle: candidate.productTitle,
         merchant: candidate.merchant,
+        sellerFeedbackPercentage: candidate.sellerFeedbackPercentage,
+        sellerFeedbackScore: candidate.sellerFeedbackScore,
         url: candidate.url,
         condition: candidate.condition,
         itemPrice: candidate.itemPrice,
