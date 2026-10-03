@@ -26,9 +26,9 @@ locals {
 
     EBAY_BROWSE_ENABLED                 = var.ebay_browse_enabled ? "1" : "0"
     EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
-    EBAY_ENVIRONMENT         = var.ebay_environment
-    EBAY_MARKETPLACE_ID      = var.ebay_marketplace_id
-    EBAY_BROWSE_CACHE_TTL_MS = tostring(var.ebay_browse_cache_ttl_ms)
+    EBAY_ENVIRONMENT                    = var.ebay_environment
+    EBAY_MARKETPLACE_ID                 = var.ebay_marketplace_id
+    EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
     AMAZON_CREATORS_ENABLED            = var.amazon_creators_enabled ? "1" : "0"
     AMAZON_CREATORS_CREDENTIAL_VERSION = var.amazon_credential_version
