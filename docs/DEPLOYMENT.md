@@ -2,7 +2,7 @@
 
 Status: **Cloud Run container + validated Terraform IaC baseline implemented / public resources not yet provisioned**
 
-Updated: **2026-10-02**
+Updated: **2026-10-03**
 
 PriceLens has two separately deployable surfaces:
 
@@ -46,11 +46,11 @@ Plain HTTP is accepted only for loopback hosts:
 Set one build-time origin:
 
 ```bash
-PRICE_LENS_API_ORIGIN=https://api.example.invalid \
+PRICE_LENS_API_ORIGIN=https://api.your-owned-domain.de \
   npm run build -w @price-lens/extension
 ```
 
-The origin validator requires:
+The build-time origin validator requires:
 
 - an absolute URL;
 - HTTPS for any non-loopback host;
@@ -58,6 +58,10 @@ The origin validator requires:
 - no query string;
 - no fragment;
 - no embedded username/password.
+
+A **release candidate** has a stronger gate: the packaging workflow rejects IP/localhost,
+reserved example/test domains, placeholder hostnames and non-default HTTPS ports, then
+performs live JSON probes against `/ready` and `/health` before it builds the ZIP.
 
 The generated manifest gets only the corresponding host permission:
 
@@ -371,12 +375,25 @@ api_origin=https://<deployed-price-lens-api>
 
 The workflow:
 
-1. requires the release input to use HTTPS;
-2. builds the Manifest V3 extension with that exact origin;
-3. runs the generated-artifact verifier;
-4. creates `price-lens-chrome.zip` with `manifest.json` at the archive root;
-5. validates the ZIP layout;
-6. uploads the ZIP as a short-lived GitHub Actions artifact.
+1. validates that the input is a real-looking production HTTPS origin (not an IP,
+   localhost, reserved example/test hostname, placeholder hostname, path/query URL or
+   non-default HTTPS port);
+2. probes `GET /ready` and `GET /health` and requires the PriceLens
+   `{"status":"ready"}` / `{"status":"ok"}` contracts;
+3. builds the Manifest V3 extension with that exact verified origin;
+4. runs the generated-artifact verifier;
+5. creates `price-lens-chrome.zip` with `manifest.json` at the archive root;
+6. validates the ZIP layout;
+7. uploads the ZIP as a short-lived GitHub Actions artifact.
+
+Firefox candidate packaging uses the same production-origin preflight. Local validation
+without a network probe is available as:
+
+```bash
+npm run release:preflight -- --origin https://api.your-owned-domain.de
+```
+
+The actual candidate workflows always add `--probe`.
 
 The workflow packages a candidate artifact only. Store submission remains blocked until
 the deployed API origin, privacy/store disclosures, provider access and operational
