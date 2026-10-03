@@ -193,7 +193,8 @@ International foundation:
 - [x] pass buyer destination context where the provider supports shipping calculation
 - [x] deduplicate the same eBay item returned by multiple marketplaces
 - [x] preserve original marketplace currency and block raw cross-currency ranking
-- [ ] add explicit FX normalization before cross-currency savings ranking
+- [x] add explicit ECB reference FX normalization before cross-currency savings ranking
+- [ ] live-validate ECB refresh/freshness behavior in deployed runtime
 - [ ] distinguish EU from non-EU landed-cost semantics
 - [ ] add Amazon EU marketplace fan-out only where approved Partner Tags/access exist
 - [ ] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
