@@ -172,26 +172,28 @@ Product rule:
 
 Compact-first UX:
 
-- [ ] render an idle PriceLens lens/eye control after safe local extraction
-- [ ] send zero comparison/provider requests until the user presses the control
-- [ ] show a loading state only after explicit request
-- [ ] show only materially useful cheaper offers in the initial report
-- [ ] prioritize cheaper offers in the same condition as the current listing
-- [ ] show refurbished/used alternatives separately
-- [ ] cap the compact report to a small number of actionable offers
-- [ ] add a `+` control to expand the complete returned offer list
-- [ ] collapsing/reopening the already loaded report must not trigger a new provider request
+- [x] render an idle PriceLens lens/eye control after safe local extraction
+- [x] send zero comparison/provider requests until the user presses the control
+- [x] show a loading state only after explicit request
+- [x] show only materially useful cheaper offers in the initial report
+- [x] prioritize cheaper offers in the same condition as the current listing
+- [x] show refurbished/used alternatives separately
+- [x] cap the compact report to a small number of actionable offers
+- [x] add a `+` control to expand the complete returned offer list
+- [x] collapsing/reopening the already loaded report must not trigger a new provider request
 - [ ] add an explicit refresh action later when report caching is introduced
 
 International foundation:
 
-- [ ] add marketplace/source-country metadata to normalized offers
-- [ ] make comparison currency-safe before multi-currency marketplace fan-out
-- [ ] model buyer destination country and optional postal code without IP inference
-- [ ] add eBay EU marketplace fan-out, starting with DE/PL/AT/FR/IT/ES/NL/BE
-- [ ] pass buyer destination context where the provider supports shipping calculation
-- [ ] deduplicate the same eBay item returned by multiple marketplaces
-- [ ] preserve original currency and add explicit FX normalization before cross-currency ranking
+- [x] add marketplace/source-country metadata to normalized offers
+- [x] make comparison currency-safe before multi-currency marketplace fan-out
+- [x] model buyer destination country explicitly at backend configuration level (default DE; no IP inference)
+- [ ] add optional user-controlled delivery postal code/country preference in the extension
+- [x] add eBay EU marketplace fan-out, starting with DE/PL/AT/FR/IT/ES/NL/BE
+- [x] pass buyer destination context where the provider supports shipping calculation
+- [x] deduplicate the same eBay item returned by multiple marketplaces
+- [x] preserve original marketplace currency and block raw cross-currency ranking
+- [ ] add explicit FX normalization before cross-currency savings ranking
 - [ ] distinguish EU from non-EU landed-cost semantics
 - [ ] add Amazon EU marketplace fan-out only where approved Partner Tags/access exist
 - [ ] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
