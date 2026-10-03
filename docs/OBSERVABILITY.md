@@ -91,9 +91,15 @@ A `metrics_snapshot` contains:
 - warning totals by controlled category;
 - accepted/review match-decision counts by method;
 - enrichment fallback count;
+- eBay/Amazon product-cache `hit` / `miss` / `coalesced` counts plus hit rate;
 - per-provider observation and state counts;
 - latency sample count, average and maximum;
 - review-candidate count.
+
+Provider product-cache lookup events are aggregated in-process and are **not** emitted
+as per-lookup JSON lines. The aggregator records only provider source plus
+`hit` / `miss` / `coalesced` counters; cache keys and lookup terms never enter
+diagnostics.
 
 Snapshots intentionally omit request ids, product identity, item/title/URL and user data.
 
@@ -128,7 +134,6 @@ never alter the HTTP response path.
 
 Continue extending aggregate signals rather than richer per-product logs:
 
-- cache hit/miss counters where provider policy permits persistent caches;
 - provider/rate-limit-specific counters;
 - unsupported-extraction counts;
 - production dashboards after the first live deployment;
