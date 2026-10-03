@@ -121,6 +121,46 @@ describe("PriceLens unsupported UI", () => {
     expect(shadow?.textContent).toContain("valid postal code");
   });
 
+  it("shows restricted comparison sources as private beta without treating them as outages", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "restricted-sources",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [],
+      providerStatus: [
+        {
+          provider: "idealo",
+          state: "restricted",
+          message: "Private beta"
+        },
+        {
+          provider: "geizhals",
+          state: "restricted",
+          message: "Private beta"
+        },
+        {provider: "amazon", state: "unconfigured"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    };
+
+    view.renderComparison(result);
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const text = shadow?.textContent ?? "";
+    expect(text).toContain("Private beta sources");
+    expect(text).toContain("Idealo · Geizhals");
+    expect(text).toContain("not available in the public plan yet");
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-expand]")?.click();
+    expect(shadow?.textContent).toContain("private beta");
+    expect(text).not.toContain("temporarily unavailable");
+  });
+
   it("explains incomplete landed-price offers instead of saying providers are unconfigured", () => {
     const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
     const view = mountPriceLens(dom.window.document, listing);
