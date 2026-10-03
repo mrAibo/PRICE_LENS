@@ -215,6 +215,9 @@ export function createPriceLensServer(
             ...(status.latencyMs !== undefined
               ? {latencyMs: status.latencyMs}
               : {}),
+            ...(status.failureCategory !== undefined
+              ? {failureCategory: status.failureCategory}
+              : {}),
             reviewCandidateCount: status.reviewCandidates?.length ?? 0
           }))
         });
