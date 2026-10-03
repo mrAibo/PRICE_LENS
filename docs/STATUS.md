@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `fe53b52f61bda1c34f0a47f3ac140e67693776f2` (PR #57). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `8f1d119b549180d59a43858d73ca77568347ddf7` (PR #58). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -298,6 +298,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #55 — ECB reference FX normalization + provenance/fail-open ranking — merged into `main`
 - PR #56 — explicit buyer destination country/postal-code + eBay shipping context — merged into `main`
 - PR #57 — Amazon EU marketplace fan-out + locale-specific Partner Tag gating — merged into `main`
+- PR #58 — server-owned private-beta provider entitlements + public placeholders — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
