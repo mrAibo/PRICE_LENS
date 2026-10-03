@@ -465,13 +465,15 @@ describe("eBay same-product marketplace search", () => {
       return jsonResponse({itemSummaries: []});
     });
 
+    const fanoutObserver = vi.fn();
     const enricher = new EbayBrowseEnricher({
       clientId: "id",
       clientSecret: "secret",
       marketplaceSearchIds: ["EBAY_DE", "EBAY_PL"],
       deliveryCountry: "DE",
       marketplaceSearchConcurrency: 2,
-      fetchImpl
+      fetchImpl,
+      fanoutObserver
     });
 
     const candidates = await enricher.searchMarketplace({
@@ -515,6 +517,14 @@ describe("eBay same-product marketplace search", () => {
       );
       expect(new Headers(init?.headers).get("x-ebay-c-enduserctx")).toBeNull();
     }
+    expect(fanoutObserver).toHaveBeenCalledTimes(1);
+    expect(fanoutObserver).toHaveBeenCalledWith({
+      source: "ebay",
+      attempted: 2,
+      succeeded: 2,
+      failed: 0,
+      durationMs: expect.any(Number)
+    });
   });
 
   it("uses explicit buyer postal code in eBay delivery filters and encoded shipping context", async () => {
