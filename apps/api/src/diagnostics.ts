@@ -8,6 +8,10 @@ import type {
   ProviderCacheOutcome,
   ProviderCacheSource
 } from "./provider-cache.js";
+import type {
+  ProviderFanoutEvent,
+  ProviderFanoutSource
+} from "./provider-fanout.js";
 
 export type ComparisonWarningCategory =
   | "extraction_warning"
@@ -59,11 +63,31 @@ export interface ProviderCacheDiagnostic extends ProviderCacheEvent {
   type: "provider_cache";
 }
 
+export interface ProviderFanoutDiagnostic extends ProviderFanoutEvent {
+  type: "provider_fanout";
+}
+
 export interface ProviderCacheMetricsSnapshot {
   source: ProviderCacheSource;
   outcomes: Record<ProviderCacheOutcome, number>;
   lookupCount: number;
   hitRate: number;
+}
+
+export interface ProviderFanoutMetricsSnapshot {
+  source: ProviderFanoutSource;
+  reports: number;
+  attemptedCalls: number;
+  succeededCalls: number;
+  failedCalls: number;
+  callsPerReport: {
+    average: number;
+    max: number;
+  };
+  latency: {
+    averageMs: number;
+    maxMs: number;
+  };
 }
 
 export interface ProviderMetricsSnapshot {
@@ -91,6 +115,7 @@ export interface OperationalMetricsSnapshot {
   reviewMatchMethods: MatchMethodCounts;
   enrichmentFallbackCount: number;
   providerCaches: ProviderCacheMetricsSnapshot[];
+  providerFanouts: ProviderFanoutMetricsSnapshot[];
   providers: ProviderMetricsSnapshot[];
 }
 
@@ -98,6 +123,7 @@ export type PriceLensDiagnosticEvent =
   | CompareCompletedDiagnostic
   | RequestRejectedDiagnostic
   | ProviderCacheDiagnostic
+  | ProviderFanoutDiagnostic
   | OperationalMetricsSnapshot;
 
 export type PriceLensDiagnosticSink = (
@@ -130,6 +156,18 @@ export function createAggregatingDiagnosticSink(
   const cacheMetrics = new Map<
     ProviderCacheSource,
     Record<ProviderCacheOutcome, number>
+  >();
+  const fanoutMetrics = new Map<
+    ProviderFanoutSource,
+    {
+      reports: number;
+      attemptedCalls: number;
+      succeededCalls: number;
+      failedCalls: number;
+      maxCallsPerReport: number;
+      latencyTotalMs: number;
+      latencyMaxMs: number;
+    }
   >();
   const providerMetrics = new Map<
     PriceProviderId,
@@ -171,6 +209,29 @@ export function createAggregatingDiagnosticSink(
                 : roundMetric(outcomes.hit / resolvedLookups)
           };
         }),
+      providerFanouts: [...fanoutMetrics.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([source, metrics]) => ({
+          source,
+          reports: metrics.reports,
+          attemptedCalls: metrics.attemptedCalls,
+          succeededCalls: metrics.succeededCalls,
+          failedCalls: metrics.failedCalls,
+          callsPerReport: {
+            average:
+              metrics.reports === 0
+                ? 0
+                : roundMetric(metrics.attemptedCalls / metrics.reports),
+            max: metrics.maxCallsPerReport
+          },
+          latency: {
+            averageMs:
+              metrics.reports === 0
+                ? 0
+                : roundMetric(metrics.latencyTotalMs / metrics.reports),
+            maxMs: metrics.latencyMaxMs
+          }
+        })),
       providers: [...providerMetrics.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([provider, metrics]) => ({
@@ -204,6 +265,47 @@ export function createAggregatingDiagnosticSink(
       };
       current[event.outcome] += 1;
       cacheMetrics.set(event.source, current);
+      return;
+    }
+
+    if (event.type === "provider_fanout") {
+      if (
+        !Number.isInteger(event.attempted) ||
+        !Number.isInteger(event.succeeded) ||
+        !Number.isInteger(event.failed) ||
+        event.attempted < 0 ||
+        event.succeeded < 0 ||
+        event.failed < 0 ||
+        event.succeeded + event.failed !== event.attempted ||
+        !Number.isFinite(event.durationMs) ||
+        event.durationMs < 0
+      ) {
+        return;
+      }
+
+      const current = fanoutMetrics.get(event.source) ?? {
+        reports: 0,
+        attemptedCalls: 0,
+        succeededCalls: 0,
+        failedCalls: 0,
+        maxCallsPerReport: 0,
+        latencyTotalMs: 0,
+        latencyMaxMs: 0
+      };
+      current.reports += 1;
+      current.attemptedCalls += event.attempted;
+      current.succeededCalls += event.succeeded;
+      current.failedCalls += event.failed;
+      current.maxCallsPerReport = Math.max(
+        current.maxCallsPerReport,
+        event.attempted
+      );
+      current.latencyTotalMs += event.durationMs;
+      current.latencyMaxMs = Math.max(
+        current.latencyMaxMs,
+        event.durationMs
+      );
+      fanoutMetrics.set(event.source, current);
       return;
     }
 
