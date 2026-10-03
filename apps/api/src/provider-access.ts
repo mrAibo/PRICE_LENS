@@ -29,7 +29,10 @@ export function normalizeProviderAccessContext(
     "pro",
     "admin"
   ];
-  if (!validTiers.includes(value.tier)) {
+  if (
+    !validTiers.includes(value.tier) ||
+    !Array.isArray(value.restrictedProviders)
+  ) {
     return PUBLIC_PROVIDER_ACCESS;
   }
 
@@ -40,12 +43,26 @@ export function normalizeProviderAccessContext(
     "amazon",
     "fixture"
   ]);
-  const restrictedProviders = [...new Set(value.restrictedProviders)].filter(
-    (provider): provider is PriceProviderId => allowedProviders.has(provider)
+
+  if (
+    value.restrictedProviders.some(
+      (provider) => !allowedProviders.has(provider)
+    )
+  ) {
+    return PUBLIC_PROVIDER_ACCESS;
+  }
+
+  const restrictedProviders = new Set<PriceProviderId>(
+    value.restrictedProviders
   );
+
+  if (value.tier === "anonymous" || value.tier === "free") {
+    restrictedProviders.add("idealo");
+    restrictedProviders.add("geizhals");
+  }
 
   return {
     tier: value.tier,
-    restrictedProviders
+    restrictedProviders: [...restrictedProviders]
   };
 }
