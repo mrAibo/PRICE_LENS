@@ -154,7 +154,7 @@ Accepted product direction:
 - [x] optional ECB reference FX normalizer preserves original PLN/etc. prices and adds EUR comparison prices
 - [ ] live ECB FX retrieval/cache/freshness validation remains pending
 - [x] backend delivery country is explicit and not inferred from IP
-- [ ] user-controlled destination postal code/country preference remains to be added
+- [x] user-controlled destination country/postal-code preference is stored locally and sent only with explicit report requests
 
 This phase is now the active implementation priority before broad search-results augmentation.
 
