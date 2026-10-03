@@ -67,7 +67,11 @@ export async function bootstrapPriceLens(
           async onRequestComparison(destination) {
             buyerDestination = destination ?? {country: "DE"};
             if (options.destinationStore) {
-              await options.destinationStore.setDestination(buyerDestination);
+              try {
+                await options.destinationStore.setDestination(buyerDestination);
+              } catch {
+                // A local storage failure must not block an explicit comparison.
+              }
             }
             await actions.onRequestComparison(buyerDestination);
           }
