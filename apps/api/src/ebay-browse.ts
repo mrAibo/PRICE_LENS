@@ -10,6 +10,10 @@ import {
   safeObserveProviderCache,
   type ProviderCacheObserver
 } from "./provider-cache.js";
+import {
+  safeObserveProviderFanout,
+  type ProviderFanoutObserver
+} from "./provider-fanout.js";
 
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
@@ -47,12 +51,13 @@ export interface EbayBrowseEnricherOptions {
   marketplaceId?: string;
   marketplaceSearchIds?: string[];
   deliveryCountry?: string;
-   marketplaceSearchConcurrency?: number;
+  marketplaceSearchConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
   now?: () => number;
   cacheObserver?: ProviderCacheObserver;
+  fanoutObserver?: ProviderFanoutObserver;
 }
 
 interface CachedItem {
@@ -72,12 +77,13 @@ export class EbayBrowseEnricher {
   private readonly marketplaceId: string;
   private readonly marketplaceSearchIds: EbayEuMarketplaceId[];
   private readonly deliveryCountry: string;
-   private readonly marketplaceSearchConcurrency: number;
+  private readonly marketplaceSearchConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
   private readonly cacheObserver?: ProviderCacheObserver;
+  private readonly fanoutObserver?: ProviderFanoutObserver;
   private readonly itemCache = new Map<string, CachedItem>();
   private readonly itemInFlight = new Map<string, Promise<JsonRecord | null>>();
   private tokenCache?: CachedToken;
@@ -104,6 +110,7 @@ export class EbayBrowseEnricher {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
     this.cacheObserver = options.cacheObserver;
+    this.fanoutObserver = options.fanoutObserver;
   }
 
   async enrich(listing: EcommerceListing): Promise<EcommerceListing> {
@@ -136,8 +143,18 @@ export class EbayBrowseEnricher {
     signal?: AbortSignal,
     destination?: BuyerDestination
   ): Promise<ProviderCandidate[]> {
+    const startedAt = this.now();
     const gtin = strongestTradeIdentifier(listing.identity);
-    if (!gtin) return [];
+    if (!gtin) {
+      safeObserveProviderFanout(this.fanoutObserver, {
+        source: "ebay",
+        attempted: 0,
+        succeeded: 0,
+        failed: 0,
+        durationMs: Math.max(0, this.now() - startedAt)
+      });
+      return [];
+    }
 
     const effectiveDestination = normalizeDestination(
       destination,
@@ -161,6 +178,16 @@ export class EbayBrowseEnricher {
       (entry): entry is PromiseFulfilledResult<ProviderCandidate[]> =>
         entry.status === "fulfilled"
     );
+    const failed = settled.length - successful.length;
+
+    safeObserveProviderFanout(this.fanoutObserver, {
+      source: "ebay",
+      attempted: settled.length,
+      succeeded: successful.length,
+      failed,
+      durationMs: Math.max(0, this.now() - startedAt)
+    });
+
     if (successful.length === 0) {
       const firstFailure = settled.find(
         (entry): entry is PromiseRejectedResult => entry.status === "rejected"
@@ -487,7 +514,10 @@ export function createEbayMarketplaceProvider(
 
 export function createEbayBrowseEnricherFromEnv(
   env: NodeJS.ProcessEnv = process.env,
-  runtimeOptions: Pick<EbayBrowseEnricherOptions, "cacheObserver"> = {}
+  runtimeOptions: Pick<
+    EbayBrowseEnricherOptions,
+    "cacheObserver" | "fanoutObserver"
+  > = {}
 ): EbayBrowseEnricher | undefined {
   if (env.EBAY_BROWSE_ENABLED !== "1") return undefined;
 
@@ -526,7 +556,8 @@ export function createEbayBrowseEnricherFromEnv(
       env.EBAY_BROWSE_CACHE_TTL_MS,
       "EBAY_BROWSE_CACHE_TTL_MS"
     ),
-    cacheObserver: runtimeOptions.cacheObserver
+    cacheObserver: runtimeOptions.cacheObserver,
+    fanoutObserver: runtimeOptions.fanoutObserver
   });
 }
 
