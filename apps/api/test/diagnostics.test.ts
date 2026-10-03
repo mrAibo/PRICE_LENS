@@ -61,6 +61,9 @@ describe("structured diagnostics", () => {
       durationMs: 40,
       offerCount: 1,
       warningCount: 0,
+      warningCategories: {},
+      acceptedMatchMethods: {gtin: 1},
+      reviewMatchMethods: {},
       enrichmentFallback: false,
       providers: [
         {
