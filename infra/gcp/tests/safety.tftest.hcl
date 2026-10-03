@@ -122,3 +122,47 @@ run "phase_b_runtime_preserves_safe_defaults" {
     error_message = "External providers must remain disabled until explicitly approved and configured."
   }
 }
+
+run "alert_enablement_without_runtime_or_recipient_is_rejected" {
+  command = plan
+
+  variables {
+    project_id                = "price-lens-test"
+    monitoring_alerts_enabled = true
+  }
+
+  expect_failures = [
+    var.monitoring_alerts_enabled
+  ]
+}
+
+run "phase_b_alerting_accepts_an_explicit_approved_channel" {
+  command = plan
+
+  variables {
+    project_id                = "price-lens-test"
+    deploy_runtime            = true
+    api_domain                = "api.example.com"
+    api_image                 = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:test-sha"
+    monitoring_alerts_enabled = true
+    monitoring_notification_channels = [
+      "projects/price-lens-test/notificationChannels/1234567890"
+    ]
+  }
+
+  assert {
+    condition     = google_monitoring_alert_policy.api_uptime[0].enabled
+    error_message = "Uptime alerts should enable only after an explicit notification channel is supplied."
+  }
+
+  assert {
+    condition     = length(google_monitoring_alert_policy.api_uptime[0].notification_channels) == 1
+    error_message = "Enabled uptime alerts must carry the explicitly configured notification channel."
+  }
+
+  assert {
+    condition     = google_monitoring_alert_policy.cloud_run_5xx[0].enabled && google_monitoring_alert_policy.cloud_run_p95_latency[0].enabled
+    error_message = "All runtime alert policies should share the explicit enablement gate."
+  }
+}
+
