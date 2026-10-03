@@ -97,6 +97,7 @@ Current implementation checkpoint: `8229ff6e40ec4a72481d720949416bda9af1944d` (P
 - [x] periodic cumulative operational metrics snapshots (provider states + avg/max latency + rejection reasons)
 - [x] structured comparison warning taxonomy aggregated without parsing human-readable warning text
 - [x] accepted/review match-method aggregate diagnostics without product identifiers
+- [x] eBay/Amazon product-cache hit/miss/coalesced aggregate metrics without cache keys or lookup terms
 - [x] GCP IaC for dedicated privacy-minimized operational-log retention
 - [x] GCP HTTPS readiness uptime check + Cloud Run 5xx/P95 alert-policy baseline
 - [x] credential-free Terraform Phase A/Phase B safety-invariant tests in CI
