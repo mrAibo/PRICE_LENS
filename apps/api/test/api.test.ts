@@ -176,6 +176,67 @@ describe("PriceLens HTTP API", () => {
     expect((await first).status).toBe(200);
   });
 
+  it("validates request bodies before applying the comparison concurrency budget", async () => {
+    let releaseEnrichment!: () => void;
+    let markEnrichmentStarted!: () => void;
+    let enrichmentCalls = 0;
+    const enrichmentStarted = new Promise<void>((resolve) => {
+      markEnrichmentStarted = resolve;
+    });
+    const enrichmentPending = new Promise<void>((resolve) => {
+      releaseEnrichment = resolve;
+    });
+
+    const server = createPriceLensServer({
+      maxConcurrentComparisons: 1,
+      enrichListing: async (value) => {
+        enrichmentCalls += 1;
+        markEnrichmentStarted();
+        await enrichmentPending;
+        return value;
+      }
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const first = fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+    await enrichmentStarted;
+
+    const malformed = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing: {source: "ebay"}})
+    });
+
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toMatchObject({
+      error: "invalid_request"
+    });
+    expect(enrichmentCalls).toBe(1);
+
+    const invalidJson = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: "{not-json"
+    });
+
+    expect(invalidJson.status).toBe(400);
+    await expect(invalidJson.json()).resolves.toMatchObject({
+      error: "invalid_json"
+    });
+    expect(enrichmentCalls).toBe(1);
+
+    releaseEnrichment();
+    expect((await first).status).toBe(200);
+  });
+
   it.each([0, -1, 1.5])(
     "rejects invalid comparison concurrency limit %s",
     (limit) => {
