@@ -12,7 +12,7 @@ const ECB_DAILY_RATES_URL =
   "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-interface EcbRateTable {
+export interface EcbRateTable {
   rateDate: string;
   fetchedAt: string;
   ratesPerEuro: Map<string, number>;
@@ -28,6 +28,7 @@ export interface EcbFxNormalizerOptions {
   now?: () => number;
   cacheTtlMs?: number;
   maxRateAgeDays?: number;
+  timeoutMs?: number;
 }
 
 export class EcbFxNormalizer {
@@ -35,6 +36,7 @@ export class EcbFxNormalizer {
   private readonly now: () => number;
   private readonly cacheTtlMs: number;
   private readonly maxRateAgeDays: number;
+  private readonly timeoutMs: number;
   private cache?: CachedRateTable;
   private inFlight?: Promise<EcbRateTable>;
 
@@ -48,6 +50,10 @@ export class EcbFxNormalizer {
     this.maxRateAgeDays = validatePositiveInteger(
       options.maxRateAgeDays ?? 7,
       "ECB FX maximum rate age"
+    );
+    this.timeoutMs = validatePositiveInteger(
+      options.timeoutMs ?? 2000,
+      "ECB FX timeout"
     );
   }
 
@@ -123,12 +129,26 @@ export class EcbFxNormalizer {
   }
 
   private async fetchRateTable(): Promise<EcbRateTable> {
-    const response = await this.fetchImpl(ECB_DAILY_RATES_URL, {
-      method: "GET",
-      headers: {
-        accept: "application/xml,text/xml;q=0.9"
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response: Response;
+
+    try {
+      response = await this.fetchImpl(ECB_DAILY_RATES_URL, {
+        method: "GET",
+        headers: {
+          accept: "application/xml,text/xml;q=0.9"
+        },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`ECB reference-rate request timed out after ${this.timeoutMs} ms.`);
       }
-    });
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -178,6 +198,11 @@ export function createEcbFxNormalizerFromEnv(
       env.ECB_FX_MAX_RATE_AGE_DAYS,
       "ECB_FX_MAX_RATE_AGE_DAYS",
       7
+    ),
+    timeoutMs: parsePositiveIntegerEnv(
+      env.ECB_FX_TIMEOUT_MS,
+      "ECB_FX_TIMEOUT_MS",
+      2000
     )
   });
 }
