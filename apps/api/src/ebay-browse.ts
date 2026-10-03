@@ -36,7 +36,7 @@ const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, string> = {
   EBAY_IT: "ebay.it",
   EBAY_ES: "ebay.es",
   EBAY_NL: "ebay.nl",
-  EBAY_BE: "ebay.com.be"
+  EBAY_BE: "ebay.be"
 };
 
 export interface EbayBrowseEnricherOptions {
