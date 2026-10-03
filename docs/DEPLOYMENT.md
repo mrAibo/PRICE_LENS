@@ -189,6 +189,13 @@ guard for requests without a usable length header.
 Terraform does not manage the authoritative DNS zone. It outputs the global load
 balancer address and required A record so DNS ownership is not guessed by the project.
 
+The runtime Terraform also defines a privacy-minimized operations layer: a dedicated
+30-day-default Cloud Logging bucket/sink for PriceLens structured diagnostics, an HTTPS
+`/ready` uptime check, and Cloud Monitoring alert policies for availability, Cloud Run
+5xx responses and successful-request P95 latency. Alert policies are created disabled
+until DNS/TLS is verified, and notification-channel contact data is deliberately not
+managed by this repository.
+
 
 ### Cloud Run service baseline
 
@@ -265,7 +272,7 @@ Before Internet exposure, the deployment must add and validate:
 - abuse/rate limiting that protects provider quotas;
 - HTTP startup/readiness via `/ready` and liveness via `/health`;
 - structured secret injection/rotation;
-- retention policy for operational logs;
+- retention policy for operational logs and incident alert ownership;
 - privacy/store disclosures if public distribution proceeds.
 
 An API token embedded in a browser extension must not be treated as a secret or as
@@ -376,5 +383,6 @@ resources are claimed as provisioned.
 - choose the final API hostname and apply Terraform Phase B;
 - publish the returned DNS A record and verify managed TLS;
 - observe Cloud Armor preview logs and tune/enable enforcement from measured traffic/provider quotas;
+- confirm operational log retention/access ownership, attach approved Monitoring notification channels, then enable/tune alerts;
 - run the Chrome package workflow against the verified final HTTPS API origin;
 - perform final privacy/store review and provider-attribution/store-submission readiness checks.
