@@ -88,12 +88,10 @@ export async function compareWithProviders(
   const statusByProvider = new Map(
     results.map((result) => [result.status.provider, result.status] as const)
   );
-  const allProviderIds: PriceProviderId[] = [
-    "ebay_market",
-    "idealo",
-    "geizhals",
-    "amazon"
-  ];
+  const allProviderIds: PriceProviderId[] = ["idealo", "geizhals", "amazon"];
+  if (statusByProvider.has("ebay_market")) {
+    allProviderIds.push("ebay_market");
+  }
   if (statusByProvider.has("fixture")) {
     allProviderIds.push("fixture");
   }
