@@ -113,6 +113,15 @@ run "phase_b_runtime_preserves_safe_defaults" {
   }
 
   assert {
+    condition = (
+      local.literal_env.PRICE_LENS_REQUEST_TIMEOUT_MS == "15000" &&
+      local.literal_env.PRICE_LENS_HEADERS_TIMEOUT_MS == "10000" &&
+      local.literal_env.PRICE_LENS_MAX_HEADERS_COUNT == "64"
+    )
+    error_message = "Production Terraform must preserve the bounded inbound HTTP reception defaults."
+  }
+
+  assert {
     condition     = local.literal_env.PRICE_LENS_FIXTURE_PROVIDER == "0"
     error_message = "The fixture provider must never be enabled by the production Terraform default."
   }
@@ -164,5 +173,19 @@ run "phase_b_alerting_accepts_an_explicit_approved_channel" {
     condition     = google_monitoring_alert_policy.cloud_run_5xx[0].enabled && google_monitoring_alert_policy.cloud_run_p95_latency[0].enabled
     error_message = "All runtime alert policies should share the explicit enablement gate."
   }
+}
+
+run "invalid_http_reception_deadline_order_is_rejected" {
+  command = plan
+
+  variables {
+    project_id              = "price-lens-test"
+    http_request_timeout_ms = 5000
+    http_headers_timeout_ms = 6000
+  }
+
+  expect_failures = [
+    var.http_headers_timeout_ms
+  ]
 }
 
