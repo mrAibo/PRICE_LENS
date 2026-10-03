@@ -140,11 +140,11 @@ run "phase_b_alerting_accepts_an_explicit_approved_channel" {
   command = plan
 
   variables {
-    project_id                     = "price-lens-test"
-    deploy_runtime                 = true
-    api_domain                     = "api.example.com"
-    api_image                      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:test-sha"
-    monitoring_alerts_enabled      = true
+    project_id                = "price-lens-test"
+    deploy_runtime            = true
+    api_domain                = "api.example.com"
+    api_image                 = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:test-sha"
+    monitoring_alerts_enabled = true
     monitoring_notification_channels = [
       "projects/price-lens-test/notificationChannels/1234567890"
     ]
