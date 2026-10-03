@@ -399,6 +399,17 @@ variable "operational_log_retention_days" {
   }
 }
 
+variable "server_busy_rejections_threshold" {
+  description = "Alert when the five-minute aligned PriceLens application-level server_busy rejection count stays above this threshold."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.server_busy_rejections_threshold >= 0
+    error_message = "server_busy_rejections_threshold must be zero or greater."
+  }
+}
+
 variable "cloud_run_5xx_requests_threshold" {
   description = "Alert when the five-minute aligned Cloud Run 5xx request count stays above this threshold."
   type        = number
