@@ -44,6 +44,11 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_MARKETPLACE_COMPARISON_ENABLED == "0"
+    error_message = "Same-product eBay marketplace comparison must remain opt-in until live API/compliance validation."
+  }
+
+  assert {
     condition     = local.literal_env.AMAZON_CREATORS_ENABLED == "0"
     error_message = "Amazon Creators must remain opt-in by default."
   }
@@ -52,6 +57,19 @@ run "phase_a_bootstrap_has_no_public_runtime" {
     condition     = local.literal_env.EBAY_BROWSE_CACHE_TTL_MS == "0" && local.literal_env.AMAZON_CREATORS_CACHE_TTL_MS == "0"
     error_message = "Provider product-data caches must remain disabled by default."
   }
+}
+
+run "ebay_marketplace_comparison_requires_browse_enablement" {
+  command = plan
+
+  variables {
+    project_id                          = "price-lens-test"
+    ebay_marketplace_comparison_enabled = true
+  }
+
+  expect_failures = [
+    check.provider_enablement
+  ]
 }
 
 run "phase_b_runtime_preserves_safe_defaults" {
