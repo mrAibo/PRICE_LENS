@@ -63,9 +63,9 @@ output "api_uptime_check_id" {
 output "monitoring_alert_policy_names" {
   description = "Cloud Monitoring alert-policy resource names for PriceLens runtime health."
   value = local.operational_observability_enabled ? {
-    uptime      = google_monitoring_alert_policy.api_uptime[0].name
+    uptime        = google_monitoring_alert_policy.api_uptime[0].name
     cloud_run_5xx = google_monitoring_alert_policy.cloud_run_5xx[0].name
-    p95_latency = google_monitoring_alert_policy.cloud_run_p95_latency[0].name
+    p95_latency   = google_monitoring_alert_policy.cloud_run_p95_latency[0].name
   } : {}
 }
 
