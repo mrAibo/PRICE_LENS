@@ -38,13 +38,13 @@ locals {
     ECB_FX_MAX_RATE_AGE_DAYS = tostring(var.ecb_fx_max_rate_age_days)
     ECB_FX_TIMEOUT_MS        = tostring(var.ecb_fx_timeout_ms)
 
-    AMAZON_CREATORS_ENABLED            = var.amazon_creators_enabled ? "1" : "0"
-    AMAZON_CREATORS_CREDENTIAL_VERSION     = var.amazon_credential_version
-    AMAZON_MARKETPLACE_PARTNER_TAGS_JSON   = jsonencode(var.amazon_marketplace_partner_tags)
-    AMAZON_MARKETPLACE_SEARCH_CONCURRENCY  = tostring(var.amazon_marketplace_search_concurrency)
-    AMAZON_PARTNER_TAG                     = var.amazon_partner_tag
-    AMAZON_MARKETPLACE                     = var.amazon_marketplace
-    AMAZON_CREATORS_CACHE_TTL_MS           = tostring(var.amazon_creators_cache_ttl_ms)
+    AMAZON_CREATORS_ENABLED               = var.amazon_creators_enabled ? "1" : "0"
+    AMAZON_CREATORS_CREDENTIAL_VERSION    = var.amazon_credential_version
+    AMAZON_MARKETPLACE_PARTNER_TAGS_JSON  = jsonencode(var.amazon_marketplace_partner_tags)
+    AMAZON_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.amazon_marketplace_search_concurrency)
+    AMAZON_PARTNER_TAG                    = var.amazon_partner_tag
+    AMAZON_MARKETPLACE                    = var.amazon_marketplace
+    AMAZON_CREATORS_CACHE_TTL_MS          = tostring(var.amazon_creators_cache_ttl_ms)
   }
 
   valid_secret_versions = {
