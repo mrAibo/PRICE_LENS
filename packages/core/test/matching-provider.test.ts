@@ -476,6 +476,56 @@ describe("provider orchestration", () => {
     });
   });
 
+  it("accepts same-product eBay alternatives across conditions without making used the new-item best price", async () => {
+    const newListing: EcommerceListing = {
+      ...listing,
+      condition: "new",
+      identity: {ean: "4548736162657"}
+    };
+    const ebayMarket: PriceProvider = {
+      id: "ebay_market",
+      matchAcrossConditions: true,
+      async search() {
+        return [
+          {
+            provider: "ebay_market",
+            providerProductId: "used-1",
+            productTitle: "Sony WH-1000XM6 used",
+            url: "https://www.ebay.de/itm/223456789012",
+            condition: "used",
+            identity: {gtin: "4548736162657"},
+            itemPrice: {amount: 200, currency: "EUR"},
+            shipping: {amount: 0, currency: "EUR"},
+            fetchedAt: new Date().toISOString()
+          },
+          {
+            provider: "ebay_market",
+            providerProductId: "new-1",
+            productTitle: "Sony WH-1000XM6 new",
+            url: "https://www.ebay.de/itm/323456789012",
+            condition: "new",
+            identity: {gtin: "4548736162657"},
+            itemPrice: {amount: 300, currency: "EUR"},
+            shipping: {amount: 0, currency: "EUR"},
+            fetchedAt: new Date().toISOString()
+          }
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(newListing, [ebayMarket]);
+
+    expect(result.offers).toHaveLength(2);
+    expect(result.bestOffer).toMatchObject({
+      provider: "ebay_market",
+      condition: "new",
+      landedPrice: {amount: 300, currency: "EUR"}
+    });
+    expect(
+      result.providerStatus.find((status) => status.provider === "ebay_market")
+    ).toMatchObject({state: "ok"});
+  });
+
   it("isolates provider failures", async () => {
     const broken: PriceProvider = {
       id: "geizhals",
