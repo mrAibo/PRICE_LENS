@@ -299,6 +299,9 @@ function providerConfiguration(providers: PriceProvider[]): Record<string, strin
     amazon: configured.has("amazon") ? "configured" : "unconfigured"
   };
 
+  if (configured.has("ebay_market")) {
+    status.ebay_market = "configured";
+  }
   if (configured.has("fixture")) {
     status.fixture = "configured";
   }
