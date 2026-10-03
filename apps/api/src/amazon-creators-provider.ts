@@ -17,12 +17,52 @@ import {
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
 
+export const AMAZON_EU_MARKETPLACE_HOSTS = [
+  "www.amazon.de",
+  "www.amazon.pl",
+  "www.amazon.fr",
+  "www.amazon.it",
+  "www.amazon.es",
+  "www.amazon.nl",
+  "www.amazon.com.be"
+] as const;
+
+export type AmazonEuMarketplace =
+  typeof AMAZON_EU_MARKETPLACE_HOSTS[number];
+
+const AMAZON_MARKETPLACE_ROOTS: Record<AmazonEuMarketplace, string> = {
+  "www.amazon.de": "amazon.de",
+  "www.amazon.pl": "amazon.pl",
+  "www.amazon.fr": "amazon.fr",
+  "www.amazon.it": "amazon.it",
+  "www.amazon.es": "amazon.es",
+  "www.amazon.nl": "amazon.nl",
+  "www.amazon.com.be": "amazon.com.be"
+};
+
+const AMAZON_MARKETPLACE_CURRENCIES: Record<AmazonEuMarketplace, string> = {
+  "www.amazon.de": "EUR",
+  "www.amazon.pl": "PLN",
+  "www.amazon.fr": "EUR",
+  "www.amazon.it": "EUR",
+  "www.amazon.es": "EUR",
+  "www.amazon.nl": "EUR",
+  "www.amazon.com.be": "EUR"
+};
+
+export interface AmazonMarketplaceConfig {
+  marketplace: AmazonEuMarketplace;
+  partnerTag: string;
+}
+
 export interface AmazonCreatorsProviderOptions {
   credentialId: string;
   credentialSecret: string;
   credentialVersion: string;
-  partnerTag: string;
+  partnerTag?: string;
   marketplace?: string;
+  marketplacePartnerTags?: Record<string, string>;
+  marketplaceConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -46,8 +86,8 @@ export class AmazonCreatorsProvider implements PriceProvider {
   private readonly credentialId: string;
   private readonly credentialSecret: string;
   private readonly credentialVersion: string;
-  private readonly partnerTag: string;
-  private readonly marketplace: string;
+  private readonly marketplaces: AmazonMarketplaceConfig[];
+  private readonly marketplaceConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -68,9 +108,14 @@ export class AmazonCreatorsProvider implements PriceProvider {
       options.credentialVersion,
       "Amazon credential version"
     );
-    this.partnerTag = requireValue(options.partnerTag, "Amazon partner tag");
-    this.marketplace = normalizeAmazonMarketplace(
-      options.marketplace ?? "www.amazon.de"
+    this.marketplaces = normalizeMarketplaceConfigs(
+      options.marketplacePartnerTags,
+      options.marketplace,
+      options.partnerTag
+    );
+    this.marketplaceConcurrency = validatePositiveInteger(
+      options.marketplaceConcurrency ?? 2,
+      "Amazon marketplace concurrency"
     );
     this.timeoutMs = options.timeoutMs ?? 5000;
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "Amazon Creators");
