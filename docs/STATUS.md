@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `294e2263a54abb53bca8ad8fd0e65520381d684d` (PR #54). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `001fedfc63f6140276b7a9caef04aad5f1121040` (PR #55). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -279,6 +279,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #51 — same-product eBay fixed-price marketplace comparison — merged into `main`
 - PR #53 — on-demand compact-first comparison UX + cross-currency safety — merged into `main`
 - PR #54 — bounded eBay EU marketplace fan-out + Germany delivery context — merged into `main`
+- PR #55 — ECB reference FX normalization + provenance/fail-open ranking — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
