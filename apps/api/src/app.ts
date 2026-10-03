@@ -11,6 +11,7 @@ import type {
 } from "@price-lens/contracts";
 import {
   compareWithProviders,
+  type OfferNormalizer,
   type PriceProvider
 } from "@price-lens/core";
 import {
@@ -27,6 +28,7 @@ const ENRICHMENT_FALLBACK_WARNING =
 export interface PriceLensApiOptions {
   providers?: PriceProvider[];
   enrichListing?: (listing: EcommerceListing) => Promise<EcommerceListing>;
+  normalizeOffers?: OfferNormalizer;
   enrichmentStatus?: Record<string, string>;
   requestIdFactory?: () => string;
   diagnostics?: PriceLensDiagnosticSink;
@@ -165,7 +167,8 @@ export function createPriceLensServer(
         }
 
         const result = await compareWithProviders(listing, providers, {
-          requestId
+          requestId,
+          normalizeOffers: options.normalizeOffers
         });
         sendJson(response, 200, result);
         safeEmitDiagnostic(options.diagnostics, {
