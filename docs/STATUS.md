@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `8229ff6e40ec4a72481d720949416bda9af1944d` (PR #48). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `698550c8bbf47827ad2e8adae5b2f08263b082d5` (PR #49). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -246,6 +246,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #46 — validate requests before reserving comparison concurrency — merged into `main`
 - PR #47 — production release preflight + immutable Phase B inputs — merged into `main`
 - PR #48 — structured warning + match-decision aggregate diagnostics — merged into `main`
+- PR #49 — privacy-safe provider cache hit/miss/coalescing metrics — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
