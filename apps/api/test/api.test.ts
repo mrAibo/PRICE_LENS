@@ -271,7 +271,11 @@ describe("PriceLens HTTP API", () => {
     const response = await fetch(`${baseUrl}/v1/compare`, {
       method: "POST",
       headers: {"content-type": "application/json"},
-      body: JSON.stringify({listing})
+      body: JSON.stringify({
+        listing,
+        accessTier: "pilot",
+        restrictedProviders: []
+      })
     });
 
     expect(response.status).toBe(200);
