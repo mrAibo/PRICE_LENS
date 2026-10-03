@@ -823,11 +823,6 @@ function parseMarketplacePartnerTagsEnv(
     result[normalizeAmazonMarketplace(marketplace)] = value.trim();
   }
 
-  if (Object.keys(result).length === 0) {
-    throw new Error(
-      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must contain at least one marketplace."
-    );
-  }
   return result;
 }
 
