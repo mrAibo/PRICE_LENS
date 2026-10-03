@@ -4,6 +4,7 @@ import type {ComparisonResult} from "@price-lens/contracts";
 import {bootstrapPriceLens} from "../src/bootstrap.js";
 import type {CompareMessage, CompareResponse} from "../src/messages.js";
 import type {ComparisonConsentStore} from "../src/privacy-consent.js";
+import type {BuyerDestinationStore} from "../src/buyer-destination.js";
 
 function renderPage(): JSDOM {
   return new JSDOM(`
@@ -62,6 +63,30 @@ function consentStore(initial = false): {
       }
     },
     granted: () => enabled
+  };
+}
+
+function destinationStore(): {
+  store: BuyerDestinationStore;
+  current: () => {country: string; postalCode?: string} | undefined;
+} {
+  let value: {country: string; postalCode?: string} | undefined = {
+    country: "DE",
+    postalCode: "30159"
+  };
+  return {
+    store: {
+      async getDestination() {
+        return value;
+      },
+      async setDestination(destination) {
+        value = destination;
+      },
+      async clearDestination() {
+        value = undefined;
+      }
+    },
+    current: () => value
   };
 }
 
@@ -139,6 +164,60 @@ describe("privacy-gated PriceLens bootstrap", () => {
 
     await vi.waitFor(() => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    controller.stop();
+  });
+
+  it("loads, sends and persists the explicit buyer destination", async () => {
+    const dom = renderPage();
+    const consent = consentStore(true);
+    const destination = destinationStore();
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> =>
+        responseFor(message)
+    );
+
+    const controller = await bootstrapPriceLens({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      consentStore: consent.store,
+      destinationStore: destination.store,
+      sendMessage
+    });
+
+    await vi.waitFor(() => {
+      const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+      expect(
+        shadow?.querySelector<HTMLInputElement>("[data-price-lens-postal]")?.value
+      ).toBe("30159");
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const country = shadow?.querySelector<HTMLSelectElement>(
+      "[data-price-lens-country]"
+    );
+    const postal = shadow?.querySelector<HTMLInputElement>(
+      "[data-price-lens-postal]"
+    );
+    if (country) country.value = "PL";
+    if (postal) postal.value = "00-001";
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")?.click();
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    expect(sendMessage.mock.calls[0]?.[0]).toMatchObject({
+      destination: {
+        country: "PL",
+        postalCode: "00-001"
+      }
+    });
+    expect(destination.current()).toEqual({
+      country: "PL",
+      postalCode: "00-001"
     });
 
     controller.stop();
