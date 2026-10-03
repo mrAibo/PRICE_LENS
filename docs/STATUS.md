@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `698550c8bbf47827ad2e8adae5b2f08263b082d5` (PR #49). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `b5a124da156e6baa22db807dafc67579f1906a72` (PR #50). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -248,6 +248,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #47 — production release preflight + immutable Phase B inputs — merged into `main`
 - PR #48 — structured warning + match-decision aggregate diagnostics — merged into `main`
 - PR #49 — privacy-safe provider cache hit/miss/coalescing metrics — merged into `main`
+- PR #50 — durable application log metrics + overload alert IaC — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -260,7 +261,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — release-preflight and immutable runtime-input guards are implemented; remaining external work is Phase A apply, approved secret versions/image/domain, Phase B apply, DNS/TLS verification, Cloud Armor tuning and alert enablement before store packaging.
+9. Issue #33 — release-preflight, immutable runtime-input guards, durable application metrics and alert IaC are implemented; remaining work is external deployment: Phase A apply, approved secret versions/image/domain, Phase B apply, DNS/TLS verification, Cloud Armor tuning, notification-channel approval and alert enablement before store packaging.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
