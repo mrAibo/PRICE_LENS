@@ -30,6 +30,12 @@ deploy_runtime = false
 # amazon_creators_enabled = false
 # amazon_partner_tag      = "replace-only-after-approved-live-access"
 
+# Inbound Node HTTP reception limits. These bound request/header upload time only;
+# they do not impose a provider-response/socket inactivity timeout.
+http_request_timeout_ms = 15000
+http_headers_timeout_ms = 10000
+http_max_headers_count  = 64
+
 # Keep the first edge-rate-limit rule in preview until traffic is measured.
 cloud_armor_rate_limit_preview = true
 
