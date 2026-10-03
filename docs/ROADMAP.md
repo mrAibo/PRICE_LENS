@@ -263,7 +263,7 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] in-flight eBay/Amazon request coalescing
 - [x] stable HTTP/result request correlation id
 - [x] privacy-minimized structured request correlation logging
-- [ ] cache hit/miss metrics
+- [x] cache hit/miss/coalescing metrics without cache keys
 - [x] per-request provider latency diagnostics
 - [x] aggregate provider state/latency metrics snapshots
 - [ ] durable metrics persistence/alerting
