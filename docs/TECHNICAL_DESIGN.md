@@ -2,7 +2,7 @@
 
 Status: **active implementation baseline**
 
-Date: 2026-10-02
+Date: 2026-10-04
 
 This document is the implementation-oriented companion to [ARCHITECTURE.md](ARCHITECTURE.md). The architecture document explains the stable system shape and principles; this document records concrete module boundaries, runtime flows, contracts, configuration, testing gates and near-term implementation decisions.
 
@@ -132,8 +132,11 @@ The page lifecycle layer must:
 
 - debounce mutation bursts
 - re-extract after effective page/listing changes
-- fingerprint normalized listings to avoid duplicate requests
-- ignore stale asynchronous responses
+- fingerprint normalized listings to avoid duplicate UI work
+- render a ready/idle PriceLens control after safe local extraction
+- send **no comparison/API request until the user explicitly requests a report**
+- prevent duplicate requests after a report has already loaded for the current fingerprint
+- ignore stale asynchronous responses if the listing changes during a requested report
 - render an explicit unsupported state when an item page cannot be normalized safely
 - send no comparison/API request for an unsupported extraction state
 - automatically replace the unsupported state when later DOM data becomes safely extractable
@@ -222,10 +225,13 @@ landed_price = item_price + mandatory_shipping
 
 Rules:
 
-- MVP compares EUR only
 - unknown shipping is not silently treated as zero
 - incomplete landed prices remain visible as incomplete
 - the best market offer must have a complete landed price
+- raw numeric prices in different currencies must never be compared directly
+- until explicit FX normalization exists, headline best-price and savings ranking use
+  only offers in the current listing currency
+- original provider currency remains visible for future international-market support
 - coupons, financing, memberships and trade-ins are excluded until explicitly modelled
 
 ## 8. Provider interface
