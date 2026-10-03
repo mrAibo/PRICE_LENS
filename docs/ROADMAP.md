@@ -12,6 +12,7 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | 1 — eBay extraction vertical slice | **in progress** | measured labelled-fixture accuracy + safe unsupported state |
 | 2 — Matching/comparison engine | **complete (current labelled gate)** | zero known labelled hard-mismatch auto-matches |
 | 3 — eBay API enrichment | **implementation complete; live validation blocked** | enrichment improves coverage without becoming mandatory |
+| 3B — eBay same-product marketplace | **initial implementation complete; live validation blocked** | exact same-product alternatives remain condition-separated and trustworthy |
 | 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
 | 5 — First real provider | **not started** | one production-quality provider end to end |
 | 6 — Multi-provider comparison | **internal plumbing complete; live activation blocked** | partial failures + concurrency + approved freshness are production-safe |
@@ -122,6 +123,42 @@ Deliverables:
 - [ ] complete required Production approval / Growth Check
 
 Exit gate: enrichment improves coverage without becoming mandatory for page extraction.
+
+## Phase 3B — eBay same-product marketplace comparison
+
+Status: **initial implementation complete; live Browse/compliance validation blocked**
+
+Delivered:
+
+- [x] dedicated `ebay_market` provider behind an explicit runtime feature gate
+- [x] Browse `item_summary/search` by strongest GTIN/EAN/UPC
+- [x] fixed-price-only request + defensive local auction rejection
+- [x] current eBay listing exclusion
+- [x] no broad title-only search when a strong identifier is absent
+- [x] same-product matching reuses PriceLens hard identity/variant guards
+- [x] cross-condition matching only for this provider
+- [x] NEW / OPEN BOX / REFURBISHED / USED remain separate
+- [x] cross-condition offers cannot become the headline best price for the current condition
+- [x] landed-price completeness preserved; unknown shipping is never zero-filled
+- [x] seller feedback fields exposed when available
+- [x] UI shows per-condition cheapest offer, accepted count, range and median
+- [x] feature disabled by default in Terraform
+
+Still required:
+
+- [ ] live Sandbox/Production response validation
+- [ ] representative condition-id/category fixtures from live eBay.de data
+- [ ] approved shipping/delivery semantics for the intended buyer geography
+- [ ] EPID fallback where a trustworthy product ID is available
+- [ ] Brand + MPN fallback with candidate detail verification
+- [ ] controlled Brand + Model fallback with candidate detail verification
+- [ ] seller return/delivery context
+- [ ] production Buy API/Growth Check UX/compliance confirmation
+- [ ] measured same-product precision/recall on representative products
+
+Exit gate: PriceLens can surface alternate fixed-price eBay listings for the same
+product without mixing conditions, variants or incomplete shipping into a misleading
+best-price claim.
 
 ## Phase 4 — Provider access spikes
 

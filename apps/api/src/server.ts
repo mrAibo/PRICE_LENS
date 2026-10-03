@@ -1,7 +1,10 @@
 import {limitProviderConcurrency} from "@price-lens/core";
 import {createPriceLensServer} from "./app.js";
 import {createAmazonCreatorsProviderFromEnv} from "./amazon-creators-provider.js";
-import {createEbayBrowseEnricherFromEnv} from "./ebay-browse.js";
+import {
+  createEbayBrowseEnricherFromEnv,
+  createEbayMarketplaceProvider
+} from "./ebay-browse.js";
 import {
   createAggregatingDiagnosticSink,
   createJsonLineDiagnosticSink,
@@ -45,11 +48,16 @@ const cacheObserver: ProviderCacheObserver | undefined = diagnostics
 const ebayEnricher = createEbayBrowseEnricherFromEnv(process.env, {
   cacheObserver
 });
+const ebayMarketplaceProvider =
+  ebayEnricher && process.env.EBAY_MARKETPLACE_COMPARISON_ENABLED === "1"
+    ? createEbayMarketplaceProvider(ebayEnricher)
+    : undefined;
 const amazonProvider = createAmazonCreatorsProviderFromEnv(process.env, {
   cacheObserver
 });
 const providers = [
   ...(fixtureProviderEnabled ? [createFixtureProvider()] : []),
+  ...(ebayMarketplaceProvider ? [ebayMarketplaceProvider] : []),
   ...(amazonProvider ? [amazonProvider] : [])
 ].map((provider) =>
   limitProviderConcurrency(provider, providerMaxConcurrency)
@@ -73,6 +81,7 @@ server.listen(port, host, () => {
   const notes = [
     fixtureProviderEnabled ? "fixture provider enabled" : undefined,
     ebayEnricher ? "eBay Browse enrichment enabled" : undefined,
+    ebayMarketplaceProvider ? "eBay same-product market enabled" : undefined,
     amazonProvider ? "Amazon Creators provider enabled" : undefined,
     structuredDiagnosticsEnabled
       ? `JSON diagnostics enabled, metrics every ${metricsEmitEvery} events`

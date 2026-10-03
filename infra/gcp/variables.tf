@@ -204,6 +204,12 @@ variable "ebay_browse_enabled" {
   default     = false
 }
 
+variable "ebay_marketplace_comparison_enabled" {
+  description = "Enable same-product eBay fixed-price marketplace comparison after live Browse API validation. Requires ebay_browse_enabled=true."
+  type        = bool
+  default     = false
+}
+
 variable "ebay_environment" {
   description = "eBay API environment."
   type        = string

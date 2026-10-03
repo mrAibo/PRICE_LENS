@@ -24,10 +24,11 @@ locals {
     PRICE_LENS_MAX_CONCURRENT_COMPARISONS = tostring(var.max_concurrent_comparisons)
     PRICE_LENS_PROVIDER_MAX_CONCURRENCY   = tostring(var.provider_max_concurrency)
 
-    EBAY_BROWSE_ENABLED      = var.ebay_browse_enabled ? "1" : "0"
-    EBAY_ENVIRONMENT         = var.ebay_environment
-    EBAY_MARKETPLACE_ID      = var.ebay_marketplace_id
-    EBAY_BROWSE_CACHE_TTL_MS = tostring(var.ebay_browse_cache_ttl_ms)
+    EBAY_BROWSE_ENABLED                 = var.ebay_browse_enabled ? "1" : "0"
+    EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
+    EBAY_ENVIRONMENT                    = var.ebay_environment
+    EBAY_MARKETPLACE_ID                 = var.ebay_marketplace_id
+    EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
     AMAZON_CREATORS_ENABLED            = var.amazon_creators_enabled ? "1" : "0"
     AMAZON_CREATORS_CREDENTIAL_VERSION = var.amazon_credential_version
@@ -90,6 +91,11 @@ check "provider_enablement" {
       )
     )
     error_message = "eBay Browse requires pinned EBAY_CLIENT_ID and EBAY_CLIENT_SECRET secret versions."
+  }
+
+  assert {
+    condition     = !var.ebay_marketplace_comparison_enabled || var.ebay_browse_enabled
+    error_message = "eBay marketplace comparison requires ebay_browse_enabled=true so the same approved Browse credentials are used."
   }
 
   assert {

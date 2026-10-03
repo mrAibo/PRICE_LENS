@@ -46,7 +46,12 @@ export interface EcommerceListing {
   extractionWarnings: string[];
 }
 
-export type PriceProviderId = "idealo" | "geizhals" | "amazon" | "fixture";
+export type PriceProviderId =
+  | "ebay_market"
+  | "idealo"
+  | "geizhals"
+  | "amazon"
+  | "fixture";
 export type MatchMethod = "gtin" | "mpn" | "model" | "fuzzy" | "manual" | "unknown";
 
 export interface MarketOffer {
@@ -54,6 +59,8 @@ export interface MarketOffer {
   providerProductId?: string;
   productTitle: string;
   merchant?: string;
+  sellerFeedbackPercentage?: number;
+  sellerFeedbackScore?: number;
   url: string;
   condition: ListingCondition;
   itemPrice: Money;

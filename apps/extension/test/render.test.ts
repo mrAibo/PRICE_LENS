@@ -208,6 +208,128 @@ describe("PriceLens unsupported UI", () => {
     expect(text).not.toContain("Best available market price");
   });
 
+  it("groups same-product eBay alternatives by condition and shows seller/market stats", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "ebay-market",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "new-1",
+          productTitle: "Example Product New",
+          merchant: "top-shop",
+          sellerFeedbackPercentage: 99.8,
+          sellerFeedbackScore: 18000,
+          url: "https://www.ebay.de/itm/200000000001",
+          condition: "new",
+          itemPrice: {amount: 180, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 180, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-03T17:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "new-2",
+          productTitle: "Example Product New 2",
+          url: "https://www.ebay.de/itm/200000000002",
+          condition: "new",
+          itemPrice: {amount: 190, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 190, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-03T17:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "refurb-1",
+          productTitle: "Example Product Refurbished",
+          url: "https://www.ebay.de/itm/200000000003",
+          condition: "refurbished",
+          itemPrice: {amount: 150, currency: "EUR"},
+          shipping: {amount: 5, currency: "EUR"},
+          landedPrice: {amount: 155, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-03T17:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "used-1",
+          productTitle: "Example Product Used",
+          url: "https://www.ebay.de/itm/200000000004",
+          condition: "used",
+          itemPrice: {amount: 120, currency: "EUR"},
+          landedPrice: {amount: 120, currency: "EUR"},
+          landedPriceComplete: false,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-03T17:00:00Z"
+        }
+      ],
+      bestOffer: {
+        provider: "ebay_market",
+        providerProductId: "new-1",
+        productTitle: "Example Product New",
+        merchant: "top-shop",
+        sellerFeedbackPercentage: 99.8,
+        sellerFeedbackScore: 18000,
+        url: "https://www.ebay.de/itm/200000000001",
+        condition: "new",
+        itemPrice: {amount: 180, currency: "EUR"},
+        shipping: {amount: 0, currency: "EUR"},
+        landedPrice: {amount: 180, currency: "EUR"},
+        landedPriceComplete: true,
+        confidence: 1,
+        matchMethod: "gtin",
+        matchReason: "Exact EAN match.",
+        fetchedAt: "2026-10-03T17:00:00Z"
+      },
+      marketMinimum: {amount: 180, currency: "EUR"},
+      delta: {
+        absolute: {amount: 19, currency: "EUR"},
+        percentage: 10.56
+      },
+      providerStatus: [
+        {provider: "ebay_market", state: "ok"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-03T17:00:10Z"
+    };
+
+    view.renderComparison(result);
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+    expect(text).toContain("Same product on eBay");
+    expect(text).toContain("New");
+    expect(text).toContain("2 matched");
+    expect(text).toContain("median");
+    expect(text).toContain("19,00");
+    expect(text).toContain("cheaper");
+    expect(text).toContain("Refurbished");
+    expect(text).toContain("Used");
+    expect(text).toContain("shipping unknown");
+    expect(text).toContain("top-shop");
+    expect(text).toContain("99.8% positive");
+    expect(text).toContain("18000 feedback");
+    expect(text).toContain("eBay alternatives");
+  });
+
   it("formats offer freshness against the comparison generation time", () => {
     expect(
       formatFreshness(

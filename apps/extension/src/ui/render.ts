@@ -1,6 +1,9 @@
 import type {
   ComparisonResult,
   EcommerceListing,
+  ListingCondition,
+  MarketOffer,
+  PriceProviderId,
   ProviderStatus
 } from "@price-lens/contracts";
 
@@ -200,7 +203,7 @@ function renderResult(
         : "";
       return `
         <div class="row">
-          <span>${escapeHtml(capitalize(status.provider))}</span>
+          <span>${escapeHtml(providerLabel(status.provider))}</span>
           <span class="muted">${escapeHtml(providerStateLabel(status.state) + reviewSuffix)}</span>
         </div>
       `;
@@ -216,7 +219,7 @@ function renderResult(
         )}
       </div>
       <div class="muted source-meta">
-        ${escapeHtml(capitalize(bestOffer.provider))}
+        ${escapeHtml(providerLabel(bestOffer.provider))}
         ${bestOffer.merchant ? ` · ${escapeHtml(bestOffer.merchant)}` : ""}
         ${formatFreshness(bestOffer.fetchedAt, result.generatedAt)
           ? ` · ${escapeHtml(formatFreshness(bestOffer.fetchedAt, result.generatedAt)!)}`
@@ -231,7 +234,7 @@ function renderResult(
 
   const partialWarning = degraded.length > 0
     ? `<div class="warn">Some price sources are currently unavailable (${escapeHtml(
-        degraded.map((status) => capitalize(status.provider)).join(", ")
+        degraded.map((status) => providerLabel(status.provider)).join(", ")
       )}). Results are based only on the sources that responded.</div>`
     : "";
 
@@ -241,7 +244,125 @@ function renderResult(
 
   const reviewNotice = renderReviewCandidates(statuses);
 
-  return `${best}${delta}${partialWarning}${reviewNotice}<div class="providers">${providerRows}</div>`;
+  const ebayMarketplace = renderEbayMarketplace(result);
+
+  return `${ebayMarketplace}${best}${delta}${partialWarning}${reviewNotice}<div class="providers">${providerRows}</div>`;
+}
+
+function renderEbayMarketplace(result: ComparisonResult): string {
+  const offers = result.offers.filter(
+    (offer) => offer.provider === "ebay_market"
+  );
+  if (offers.length === 0) return "";
+
+  const conditions: ListingCondition[] = [
+    "new",
+    "open_box",
+    "refurbished",
+    "used",
+    "unknown"
+  ];
+  const rows = conditions
+    .map((condition) => {
+      const group = offers.filter((offer) => offer.condition === condition);
+      if (group.length === 0) return "";
+
+      const complete = group
+        .filter((offer) => offer.landedPriceComplete)
+        .slice()
+        .sort((left, right) => left.landedPrice.amount - right.landedPrice.amount);
+      const best = complete[0] ?? group[0]!;
+      const priceSummary = complete.length > 0
+        ? marketplacePriceSummary(complete)
+        : "shipping unknown";
+      const seller = marketplaceSellerSummary(best);
+      const savings =
+        condition === result.listing.condition &&
+        result.ebayLandedPriceComplete &&
+        best.landedPriceComplete &&
+        best.landedPrice.currency === result.ebayLandedPrice.currency &&
+        best.landedPrice.amount < result.ebayLandedPrice.amount
+          ? ` · ${escapeHtml(formatMoney(
+              result.ebayLandedPrice.amount - best.landedPrice.amount,
+              best.landedPrice.currency
+            ))} cheaper`
+          : "";
+
+      return `
+        <div class="market-row">
+          <div>
+            <strong>${escapeHtml(conditionLabel(condition))}</strong>
+            <span class="muted"> · ${group.length} matched</span>
+          </div>
+          <div>
+            <a class="offer-link" href="${escapeHtml(best.url)}" target="_blank" rel="noopener noreferrer">
+              ${best.landedPriceComplete
+                ? escapeHtml(formatMoney(best.landedPrice.amount, best.landedPrice.currency))
+                : escapeHtml(formatMoney(best.itemPrice.amount, best.itemPrice.currency)) + " + shipping"}
+            </a>
+            <span class="muted">${savings}</span>
+          </div>
+          <div class="muted">${escapeHtml(priceSummary)}${seller ? ` · ${escapeHtml(seller)}` : ""}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="market-box">
+      <div class="market-title">Same product on eBay</div>
+      <div class="muted">
+        Fixed-price listings only. New, open-box, refurbished and used offers are kept separate.
+      </div>
+      ${rows}
+    </div>
+  `;
+}
+
+function marketplacePriceSummary(offers: MarketOffer[]): string {
+  const amounts = offers
+    .map((offer) => offer.landedPrice.amount)
+    .sort((left, right) => left - right);
+  const currency = offers[0]!.landedPrice.currency;
+  const minimum = amounts[0]!;
+  const maximum = amounts[amounts.length - 1]!;
+  const middle = Math.floor(amounts.length / 2);
+  const median = amounts.length % 2 === 0
+    ? (amounts[middle - 1]! + amounts[middle]!) / 2
+    : amounts[middle]!;
+
+  if (amounts.length === 1) {
+    return "complete landed price";
+  }
+
+  return `${formatMoney(minimum, currency)}–${formatMoney(maximum, currency)} · median ${formatMoney(median, currency)}`;
+}
+
+function marketplaceSellerSummary(offer: MarketOffer): string {
+  const parts: string[] = [];
+  if (offer.merchant) parts.push(offer.merchant);
+  if (offer.sellerFeedbackPercentage !== undefined) {
+    parts.push(`${offer.sellerFeedbackPercentage.toFixed(1)}% positive`);
+  }
+  if (offer.sellerFeedbackScore !== undefined) {
+    parts.push(`${Math.round(offer.sellerFeedbackScore)} feedback`);
+  }
+  return parts.join(" · ");
+}
+
+function conditionLabel(condition: ListingCondition): string {
+  switch (condition) {
+    case "new":
+      return "New";
+    case "open_box":
+      return "Open box";
+    case "refurbished":
+      return "Refurbished";
+    case "used":
+      return "Used";
+    case "unknown":
+      return "Condition unknown";
+  }
 }
 
 function renderReviewCandidates(statuses: ProviderStatus[]): string {
@@ -266,7 +387,7 @@ function renderReviewCandidates(statuses: ProviderStatus[]): string {
       return `
         <div class="review-row">
           <div>
-            <strong>${escapeHtml(capitalize(group.provider))}</strong>:
+            <strong>${escapeHtml(providerLabel(group.provider))}</strong>:
             ${escapeHtml(best.productTitle)}
           </div>
           <div class="muted">
@@ -353,6 +474,17 @@ function baseStyles(): string {
         border-radius:8px;
         background:#fffaf0;
       }
+      .market-box {
+        margin-top:12px;
+        padding:10px;
+        border:1px solid #cdd8ff;
+        border-radius:8px;
+        background:#f7f9ff;
+      }
+      .market-title { font-weight:700; color:#243b7a; }
+      .market-row { margin-top:9px; }
+      .offer-link { color:#174ea6; font-weight:700; text-decoration:none; }
+      .offer-link:hover { text-decoration:underline; }
       .review-title { font-weight:700; color:#6f4d00; }
       .review-row { margin-top:8px; }
       .review-reason { margin-top:2px; }
@@ -398,8 +530,19 @@ function formatMoney(amount: number, currency: string): string {
   }
 }
 
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function providerLabel(provider: PriceProviderId): string {
+  switch (provider) {
+    case "ebay_market":
+      return "eBay alternatives";
+    case "idealo":
+      return "Idealo";
+    case "geizhals":
+      return "Geizhals";
+    case "amazon":
+      return "Amazon";
+    case "fixture":
+      return "Fixture";
+  }
 }
 
 function providerStateLabel(state: ProviderStatus["state"]): string {
