@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `335a9d86199e0d475d2615d6fe5f8bfc65da9d4d` (through PR #41)
+Current implementation checkpoint: `852e13a42473e54c3f5cdf0b14739e006ebc2326` (through PR #42)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -233,6 +233,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #39 — validated GCP Terraform production baseline — merged into `main`
 - PR #40 — reproducible npm lockfile + dependency-license release gate — merged into `main`
 - PR #41 — Firefox desktop compatibility baseline — merged into `main`
+- PR #42 — GCP operational observability baseline — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
