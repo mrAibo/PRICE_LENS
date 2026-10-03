@@ -14,7 +14,7 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | 3 — eBay API enrichment | **implementation complete; live validation blocked** | enrichment improves coverage without becoming mandatory |
 | 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
 | 5 — First real provider | **not started** | one production-quality provider end to end |
-| 6 — Multi-provider comparison | **not started** | partial failures + concurrency + freshness are production-safe |
+| 6 — Multi-provider comparison | **internal plumbing complete; live activation blocked** | partial failures + concurrency + approved freshness are production-safe |
 | 7 — eBay search-results augmentation | **deferred** | single-item correctness proven first |
 | 8 — Deal intelligence | **future** | explainable metrics built on trustworthy matching |
 
@@ -184,7 +184,7 @@ Exit gate: one real provider satisfies its contract and can fail independently w
 
 ## Phase 6 — Multi-provider comparison
 
-Status: **not started**
+Status: **internal orchestration/UI complete; live multi-provider activation blocked on approved provider access and freshness rules**
 
 Deliverables:
 
@@ -244,6 +244,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] production deployment topology selected: Cloud Run + external load balancer + Cloud Armor
 - [x] production API container + readiness/graceful shutdown contract
 - [x] validated Terraform definitions for Cloud Run + HTTPS LB + Cloud Armor
+- [x] Terraform Phase B rejects reserved/placeholder API hostnames
+- [x] Terraform Phase B requires an immutable git-SHA/digest image from the configured Artifact Registry
 - [x] Secret Manager container/IAM/pinned-version injection + rotation procedure in IaC
 - [ ] apply production HTTPS ingress/custom API hostname in the selected GCP project
 - [ ] extend outbound allowlists to future providers
@@ -279,6 +281,7 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] backend production runtime/environment contract
 - [ ] actual Terraform apply: Cloud Run/load-balancer/Cloud Armor/Secret Manager resources
 - [x] Chrome packaging workflow + CI ZIP smoke test
+- [x] Chrome/Firefox candidate release preflight rejects placeholder origins and requires live `/ready` + `/health`
 - [x] Firefox desktop compatibility evaluation + browser-specific build/package baseline
 - [ ] Firefox live desktop smoke test + AMO signing validation
 - [x] committed npm lockfile + CI-enforced dependency-license inventory for release
