@@ -8,6 +8,7 @@ import {
   safeEmitDiagnostic
 } from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
+import type {ProviderCacheObserver} from "./provider-cache.js";
 import {installGracefulShutdown} from "./shutdown.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
@@ -33,10 +34,8 @@ const diagnosticAggregator = structuredDiagnosticsEnabled
     )
   : undefined;
 const diagnostics = diagnosticAggregator?.sink;
-const cacheObserver = diagnostics
-  ? (event: Parameters<NonNullable<
-      Parameters<typeof createEbayBrowseEnricherFromEnv>[1]
-    >["cacheObserver"]>[0]) =>
+const cacheObserver: ProviderCacheObserver | undefined = diagnostics
+  ? (event) =>
       safeEmitDiagnostic(diagnostics, {
         type: "provider_cache",
         ...event
