@@ -91,9 +91,21 @@ describe("privacy-gated PriceLens bootstrap", () => {
     enable?.click();
 
     await vi.waitFor(() => {
+      expect(consent.granted()).toBe(true);
+      expect(
+        dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
+      ).toContain("Compare with PriceLens");
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    dom.window.document
+      .getElementById("price-lens-root")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")
+      ?.click();
+
+    await vi.waitFor(() => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
     });
-    expect(consent.granted()).toBe(true);
 
     controller.stop();
   });
@@ -114,11 +126,20 @@ describe("privacy-gated PriceLens bootstrap", () => {
     });
 
     await vi.waitFor(() => {
+      expect(
+        dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
+      ).toContain("Compare with PriceLens");
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    dom.window.document
+      .getElementById("price-lens-root")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")
+      ?.click();
+
+    await vi.waitFor(() => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
     });
-    expect(
-      dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
-    ).toContain("Sony WH-1000XM6");
 
     controller.stop();
   });
@@ -137,6 +158,18 @@ describe("privacy-gated PriceLens bootstrap", () => {
       consentStore: consent.store,
       sendMessage
     });
+
+    await vi.waitFor(() => {
+      expect(
+        dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
+      ).toContain("Compare with PriceLens");
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    dom.window.document
+      .getElementById("price-lens-root")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")
+      ?.click();
 
     await vi.waitFor(() => {
       expect(sendMessage).toHaveBeenCalledTimes(1);
