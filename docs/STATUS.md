@@ -260,7 +260,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 ## Current engineering priorities
 
 1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The capture/review pipeline is ready, but raw saved live-page HTML is still required; do not substitute search snippets or synthetic fixtures.
-2. Issue #12 — insert eBay Sandbox credentials and perform live Browse enrichment + same-product marketplace validation, then Production approval.
+2. Issue #12 — insert eBay Sandbox credentials and validate Browse enrichment; Issue #52 — live-validate same-product marketplace search/conditions/shipping, then Production approval.
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
