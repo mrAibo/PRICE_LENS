@@ -7,6 +7,10 @@ import {
   createJsonLineDiagnosticSink
 } from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
+import {
+  configureHttpServerReceptionLimits,
+  readHttpServerReceptionLimits
+} from "./http-hardening.js";
 import {installGracefulShutdown} from "./shutdown.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
@@ -41,6 +45,8 @@ const diagnostics = structuredDiagnosticsEnabled
     ).sink
   : undefined;
 
+const httpReceptionLimits = readHttpServerReceptionLimits();
+
 const server = createPriceLensServer({
   providers,
   diagnostics,
@@ -53,6 +59,7 @@ const server = createPriceLensServer({
   maxConcurrentComparisons
 });
 
+configureHttpServerReceptionLimits(server, httpReceptionLimits);
 installGracefulShutdown(server, {timeoutMs: 9_000});
 
 server.listen(port, host, () => {
@@ -64,7 +71,10 @@ server.listen(port, host, () => {
       ? `JSON diagnostics enabled, metrics every ${metricsEmitEvery} events`
       : undefined,
     `comparison concurrency ${maxConcurrentComparisons}`,
-    `provider concurrency ${providerMaxConcurrency}`
+    `provider concurrency ${providerMaxConcurrency}`,
+    `request timeout ${httpReceptionLimits.requestTimeoutMs} ms`,
+    `headers timeout ${httpReceptionLimits.headersTimeoutMs} ms`,
+    `max headers ${httpReceptionLimits.maxHeadersCount}`
   ].filter(Boolean);
   const suffix = notes.length > 0 ? ` (${notes.join(", ")})` : "";
   process.stdout.write(`PriceLens API listening on http://${host}:${port}${suffix}\n`);
