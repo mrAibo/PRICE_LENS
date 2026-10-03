@@ -49,6 +49,7 @@ Early non-goals:
 ┌─────────────────────────────────────────────────────────────┐
 │ PriceLens API                                               │
 │  - payload validation                                       │
+│  - server-owned provider entitlement resolution             │
 │  - provider orchestration                                   │
 │  - timeout/error isolation                                  │
 │  - future cache/observability                               │
@@ -102,6 +103,7 @@ docs/
   ROADMAP.md
   STATUS.md
   PROVIDER_ACCESS.md
+  PROVIDER_ACCESS_CONTROL.md
   OPEN_SOURCE_REUSE.md
 ```
 
@@ -115,6 +117,22 @@ product-matcher ---> no PriceLens package
 ```
 
 Provider adapters must depend inward on the contracts/core abstractions; core must not depend on provider implementations.
+
+## 3A. Provider access boundary
+
+The browser does not decide which commercial providers it is entitled to query.
+
+The API resolves a server-owned `ProviderAccessContext` before orchestration. Public
+anonymous/free access always restricts Idealo and Geizhals. Restricted providers are
+removed from the active provider set before `search()`, and the response reports
+`state: "restricted"` so the UI can render a Private beta placeholder.
+
+The comparison JSON contract contains no trusted tier or entitlement property. Future
+authentication should verify a short-lived session/token server-side and derive
+pilot/pro/admin capabilities from trusted account state. Resolver failures fail closed
+to the public policy.
+
+See [PROVIDER_ACCESS_CONTROL.md](PROVIDER_ACCESS_CONTROL.md).
 
 ## 4. eBay extraction pipeline
 
