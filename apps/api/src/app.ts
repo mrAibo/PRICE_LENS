@@ -237,6 +237,15 @@ function buildWarningCategories(
     "enrichment_fallback",
     enrichmentFallback ? 1 : 0
   );
+  setPositiveCount(
+    categories,
+    "fx_normalization",
+    result.warnings.filter(
+      (warning) =>
+        warning.startsWith("ECB reference rate") ||
+        warning.startsWith("Currency normalization")
+    ).length
+  );
   return categories;
 }
 
