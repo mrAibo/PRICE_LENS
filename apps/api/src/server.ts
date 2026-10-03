@@ -13,6 +13,7 @@ import {
 } from "./diagnostics.js";
 import {createFixtureProvider} from "./fixture-provider.js";
 import type {ProviderCacheObserver} from "./provider-cache.js";
+import type {ProviderFanoutObserver} from "./provider-fanout.js";
 import {installGracefulShutdown} from "./shutdown.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
@@ -46,8 +47,17 @@ const cacheObserver: ProviderCacheObserver | undefined = diagnostics
       })
   : undefined;
 
+const fanoutObserver: ProviderFanoutObserver | undefined = diagnostics
+  ? (event) =>
+      safeEmitDiagnostic(diagnostics, {
+        type: "provider_fanout",
+        ...event
+      })
+  : undefined;
+
 const ebayEnricher = createEbayBrowseEnricherFromEnv(process.env, {
-  cacheObserver
+  cacheObserver,
+  fanoutObserver
 });
 const ebayMarketplaceProvider =
   ebayEnricher && process.env.EBAY_MARKETPLACE_COMPARISON_ENABLED === "1"
@@ -55,7 +65,8 @@ const ebayMarketplaceProvider =
     : undefined;
 const fxNormalizer = createEcbFxNormalizerFromEnv(process.env);
 const amazonProvider = createAmazonCreatorsProviderFromEnv(process.env, {
-  cacheObserver
+  cacheObserver,
+  fanoutObserver
 });
 const providers = [
   ...(fixtureProviderEnabled ? [createFixtureProvider()] : []),

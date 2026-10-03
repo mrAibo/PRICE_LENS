@@ -13,6 +13,10 @@ import {
   safeObserveProviderCache,
   type ProviderCacheObserver
 } from "./provider-cache.js";
+import {
+  safeObserveProviderFanout,
+  type ProviderFanoutObserver
+} from "./provider-fanout.js";
 
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
@@ -68,6 +72,7 @@ export interface AmazonCreatorsProviderOptions {
   fetchImpl?: FetchLike;
   now?: () => number;
   cacheObserver?: ProviderCacheObserver;
+  fanoutObserver?: ProviderFanoutObserver;
 }
 
 interface CachedToken {
@@ -93,6 +98,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
   private readonly cacheObserver?: ProviderCacheObserver;
+  private readonly fanoutObserver?: ProviderFanoutObserver;
   private tokenCache?: CachedToken;
   private tokenInFlight?: Promise<string>;
   private readonly searchCache = new Map<string, CachedCandidates>();
@@ -122,9 +128,11 @@ export class AmazonCreatorsProvider implements PriceProvider {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
     this.cacheObserver = options.cacheObserver;
+    this.fanoutObserver = options.fanoutObserver;
   }
 
   async search(input: ProviderSearchInput): Promise<ProviderCandidate[]> {
+    const startedAt = this.now();
     const settled = await mapWithConcurrency(
       this.marketplaces,
       this.marketplaceConcurrency,
@@ -135,6 +143,16 @@ export class AmazonCreatorsProvider implements PriceProvider {
       (entry): entry is PromiseFulfilledResult<ProviderCandidate[]> =>
         entry.status === "fulfilled"
     );
+    const failed = settled.length - successful.length;
+
+    safeObserveProviderFanout(this.fanoutObserver, {
+      source: "amazon",
+      attempted: settled.length,
+      succeeded: successful.length,
+      failed,
+      durationMs: Math.max(0, this.now() - startedAt)
+    });
+
     if (successful.length === 0) {
       const firstFailure = settled.find(
         (entry): entry is PromiseRejectedResult => entry.status === "rejected"
@@ -395,7 +413,10 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
 export function createAmazonCreatorsProviderFromEnv(
   env: NodeJS.ProcessEnv = process.env,
-  runtimeOptions: Pick<AmazonCreatorsProviderOptions, "cacheObserver"> = {}
+  runtimeOptions: Pick<
+    AmazonCreatorsProviderOptions,
+    "cacheObserver" | "fanoutObserver"
+  > = {}
 ): AmazonCreatorsProvider | undefined {
   if (env.AMAZON_CREATORS_ENABLED !== "1") return undefined;
 
@@ -438,7 +459,8 @@ export function createAmazonCreatorsProviderFromEnv(
       env.AMAZON_CREATORS_CACHE_TTL_MS,
       "AMAZON_CREATORS_CACHE_TTL_MS"
     ),
-    cacheObserver: runtimeOptions.cacheObserver
+    cacheObserver: runtimeOptions.cacheObserver,
+    fanoutObserver: runtimeOptions.fanoutObserver
   });
 }
 

@@ -129,6 +129,7 @@ describe("structured diagnostics", () => {
       },
       enrichmentFallbackCount: 1,
       providerCaches: [],
+      providerFanouts: [],
       providers: [
         {
           provider: "amazon",
@@ -199,6 +200,92 @@ describe("structured diagnostics", () => {
 
     const serialized = JSON.stringify(aggregator.snapshot().providerCaches);
     expect(serialized).not.toMatch(/key|item|title|url|query|term/i);
+  });
+
+  it("aggregates fan-out call counts and latency without emitting per-report detail", () => {
+    const downstream = vi.fn();
+    const aggregator = createAggregatingDiagnosticSink(downstream, 100);
+
+    aggregator.sink({
+      type: "provider_fanout",
+      source: "ebay",
+      attempted: 8,
+      succeeded: 7,
+      failed: 1,
+      durationMs: 320
+    });
+    aggregator.sink({
+      type: "provider_fanout",
+      source: "ebay",
+      attempted: 4,
+      succeeded: 4,
+      failed: 0,
+      durationMs: 180
+    });
+    aggregator.sink({
+      type: "provider_fanout",
+      source: "amazon",
+      attempted: 2,
+      succeeded: 2,
+      failed: 0,
+      durationMs: 90
+    });
+
+    expect(downstream).not.toHaveBeenCalled();
+    expect(aggregator.snapshot().providerFanouts).toEqual([
+      {
+        source: "amazon",
+        reports: 1,
+        attemptedCalls: 2,
+        succeededCalls: 2,
+        failedCalls: 0,
+        callsPerReport: {
+          average: 2,
+          max: 2
+        },
+        latency: {
+          averageMs: 90,
+          maxMs: 90
+        }
+      },
+      {
+        source: "ebay",
+        reports: 2,
+        attemptedCalls: 12,
+        succeededCalls: 11,
+        failedCalls: 1,
+        callsPerReport: {
+          average: 6,
+          max: 8
+        },
+        latency: {
+          averageMs: 250,
+          maxMs: 320
+        }
+      }
+    ]);
+
+    const serialized = JSON.stringify(
+      aggregator.snapshot().providerFanouts
+    );
+    expect(serialized).not.toMatch(
+      /item|title|url|query|term|postal|country|user|account/i
+    );
+  });
+
+  it("ignores malformed fan-out observations", () => {
+    const aggregator = createAggregatingDiagnosticSink(() => {}, 100);
+
+    aggregator.sink({
+      type: "provider_fanout",
+      source: "ebay",
+      attempted: 2,
+      succeeded: 2,
+      failed: 1,
+      durationMs: 10
+    });
+
+    expect(aggregator.snapshot().providerFanouts).toEqual([]);
   });
 
   it.each([0, -1, 1.5])(

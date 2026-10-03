@@ -158,6 +158,7 @@ Accepted product direction:
 - [x] Amazon EU provider supports bounded DE/PL/FR/IT/ES/NL/BE fan-out with locale-specific Partner Tags
 - [x] Amazon mandatory shipping remains unknown, so Amazon cannot become delivered-price winner
 - [ ] Amazon EU live locale activation remains blocked on marketplace-specific Associates/Creators approval
+- [x] privacy-safe aggregate eBay/Amazon fan-out telemetry records calls/report, success/failure and latency without product/user/destination fields
 
 This phase is now the active implementation priority before broad search-results augmentation.
 
