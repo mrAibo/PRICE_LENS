@@ -47,8 +47,7 @@ export interface EbayBrowseEnricherOptions {
   marketplaceId?: string;
   marketplaceSearchIds?: string[];
   deliveryCountry?: string;
-  deliveryPostalCode?: string;
-  marketplaceSearchConcurrency?: number;
+   marketplaceSearchConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -73,8 +72,7 @@ export class EbayBrowseEnricher {
   private readonly marketplaceId: string;
   private readonly marketplaceSearchIds: EbayEuMarketplaceId[];
   private readonly deliveryCountry: string;
-  private readonly deliveryPostalCode?: string;
-  private readonly marketplaceSearchConcurrency: number;
+   private readonly marketplaceSearchConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -96,10 +94,6 @@ export class EbayBrowseEnricher {
     this.deliveryCountry = validateCountryCode(
       options.deliveryCountry ?? "DE",
       "eBay delivery country"
-    );
-    this.deliveryPostalCode = validatePostalCode(
-      options.deliveryPostalCode,
-      "eBay delivery postal code"
     );
     this.marketplaceSearchConcurrency = validatePositiveInteger(
       options.marketplaceSearchConcurrency ?? 3,
@@ -147,8 +141,7 @@ export class EbayBrowseEnricher {
 
     const effectiveDestination = normalizeDestination(
       destination,
-      this.deliveryCountry,
-      this.deliveryPostalCode
+      this.deliveryCountry
     );
 
     const settled = await mapWithConcurrency(
@@ -524,7 +517,6 @@ export function createEbayBrowseEnricherFromEnv(
       env.EBAY_MARKETPLACE_SEARCH_IDS
     ),
     deliveryCountry: env.EBAY_DELIVERY_COUNTRY?.trim() || "DE",
-    deliveryPostalCode: env.EBAY_DELIVERY_POSTAL_CODE?.trim() || undefined,
     marketplaceSearchConcurrency: parsePositiveIntegerEnv(
       env.EBAY_MARKETPLACE_SEARCH_CONCURRENCY,
       "EBAY_MARKETPLACE_SEARCH_CONCURRENCY",
@@ -767,15 +759,14 @@ function validateMarketplaceId(value: string): EbayEuMarketplaceId {
 
 function normalizeDestination(
   destination: BuyerDestination | undefined,
-  fallbackCountry: string,
-  fallbackPostalCode?: string
+  fallbackCountry: string
 ): BuyerDestination {
   const country = validateCountryCode(
     destination?.country ?? fallbackCountry,
     "eBay delivery country"
   );
   const postalCode = validatePostalCode(
-    destination?.postalCode ?? fallbackPostalCode,
+    destination?.postalCode,
     "eBay delivery postal code"
   );
 
