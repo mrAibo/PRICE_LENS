@@ -295,6 +295,98 @@ variable "lb_log_sample_rate" {
   }
 }
 
+variable "operational_monitoring_enabled" {
+  description = "Create the dedicated operational log bucket, HTTPS uptime check and Cloud Monitoring alert policies with the runtime."
+  type        = bool
+  default     = true
+}
+
+variable "monitoring_alerts_enabled" {
+  description = "Enable alert policies after the production DNS/TLS endpoint has been verified. Keep false during initial Phase-B provisioning."
+  type        = bool
+  default     = false
+}
+
+variable "monitoring_notification_channels" {
+  description = "Existing Cloud Monitoring notification-channel resource names. Keep empty until operational recipients are approved."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for channel in var.monitoring_notification_channels :
+      can(regex("^projects/[^/]+/notificationChannels/[^/]+$", channel))
+    ])
+    error_message = "monitoring_notification_channels entries must use projects/<project>/notificationChannels/<id> resource names."
+  }
+}
+
+variable "uptime_check_regions" {
+  description = "Cloud Monitoring public checker regions for the HTTPS /ready probe."
+  type        = list(string)
+  default     = ["EUROPE", "USA", "ASIA_PACIFIC"]
+
+  validation {
+    condition = length(var.uptime_check_regions) > 0 && alltrue([
+      for region in var.uptime_check_regions :
+      contains([
+        "USA",
+        "EUROPE",
+        "SOUTH_AMERICA",
+        "ASIA_PACIFIC",
+        "USA_OREGON",
+        "USA_IOWA",
+        "USA_VIRGINIA"
+      ], region)
+    ])
+    error_message = "uptime_check_regions must contain supported Cloud Monitoring uptime-check region identifiers."
+  }
+}
+
+variable "operational_log_location" {
+  description = "Cloud Logging bucket location for privacy-minimized PriceLens operational diagnostics."
+  type        = string
+  default     = "europe-west3"
+
+  validation {
+    condition     = length(trimspace(var.operational_log_location)) > 0
+    error_message = "operational_log_location must not be empty."
+  }
+}
+
+variable "operational_log_retention_days" {
+  description = "Retention period for the dedicated PriceLens operational log bucket."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.operational_log_retention_days >= 1 && var.operational_log_retention_days <= 3650
+    error_message = "operational_log_retention_days must be between 1 and 3650."
+  }
+}
+
+variable "cloud_run_5xx_requests_threshold" {
+  description = "Alert when the five-minute aligned Cloud Run 5xx request count stays above this threshold."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.cloud_run_5xx_requests_threshold >= 0
+    error_message = "cloud_run_5xx_requests_threshold must be zero or greater."
+  }
+}
+
+variable "cloud_run_p95_latency_ms" {
+  description = "Alert threshold for successful Cloud Run P95 request latency in milliseconds."
+  type        = number
+  default     = 5000
+
+  validation {
+    condition     = var.cloud_run_p95_latency_ms >= 100
+    error_message = "cloud_run_p95_latency_ms must be at least 100 ms."
+  }
+}
+
 variable "labels" {
   description = "Additional labels applied where supported."
   type        = map(string)
