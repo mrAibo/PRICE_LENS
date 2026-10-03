@@ -267,8 +267,8 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] per-request provider latency diagnostics
 - [x] aggregate provider state/latency metrics snapshots
 - [ ] durable metrics persistence/alerting
-- [ ] match-decision aggregate diagnostics
-- [ ] structured warning taxonomy
+- [x] match-decision aggregate diagnostics
+- [x] structured warning taxonomy
 
 ### Distribution
 

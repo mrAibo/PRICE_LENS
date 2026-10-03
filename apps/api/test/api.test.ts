@@ -367,6 +367,9 @@ describe("PriceLens HTTP API", () => {
       route: "/v1/compare",
       status: 200,
       offerCount: 1,
+      warningCategories: {},
+      acceptedMatchMethods: {gtin: 1},
+      reviewMatchMethods: {},
       enrichmentFallback: false,
       providers: expect.arrayContaining([
         expect.objectContaining({
@@ -380,6 +383,50 @@ describe("PriceLens HTTP API", () => {
     expect(serialized).not.toContain(listing.title);
     expect(serialized).not.toContain(listing.itemId);
     expect(serialized).not.toContain(listing.url);
+  });
+
+  it("classifies comparison warnings without parsing warning text", async () => {
+    const diagnostics: unknown[] = [];
+    const source = {
+      ...listing,
+      shipping: undefined
+    };
+
+    const server = createPriceLensServer({
+      enrichListing: async () => {
+        throw new Error("simulated eBay outage");
+      },
+      requestIdFactory: () => "req-warning-taxonomy-001",
+      diagnostics: (event) => diagnostics.push(event)
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({listing: source})
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({
+      type: "compare_completed",
+      requestId: "req-warning-taxonomy-001",
+      warningCount: 2,
+      warningCategories: {
+        enrichment_fallback: 1,
+        ebay_shipping_unknown: 1
+      },
+      acceptedMatchMethods: {},
+      reviewMatchMethods: {},
+      enrichmentFallback: true
+    });
   });
 
   it("diagnostic sink failures never break the request", async () => {

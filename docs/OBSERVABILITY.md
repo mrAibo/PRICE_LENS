@@ -38,6 +38,9 @@ Successful comparison diagnostics may contain:
 - total request duration
 - offer count
 - warning count
+- structured warning-category counts (`extraction_warning`, `ebay_shipping_unknown`, `enrichment_fallback`)
+- accepted match-method counts (`gtin`, `mpn`, `model`, `fuzzy`, etc.)
+- review-only match-method counts
 - whether optional eBay enrichment fell back
 - provider id
 - provider state
@@ -85,6 +88,8 @@ A `metrics_snapshot` contains:
 - completed and rejected request counts;
 - rejection counts by controlled reason;
 - offer and warning totals;
+- warning totals by controlled category;
+- accepted/review match-decision counts by method;
 - enrichment fallback count;
 - per-provider observation and state counts;
 - latency sample count, average and maximum;
@@ -125,7 +130,6 @@ Continue extending aggregate signals rather than richer per-product logs:
 
 - cache hit/miss counters where provider policy permits persistent caches;
 - provider/rate-limit-specific counters;
-- match-decision counts;
 - unsupported-extraction counts;
 - production dashboards after the first live deployment;
 - threshold tuning from real traffic rather than guessed request rates.

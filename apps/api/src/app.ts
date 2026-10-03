@@ -4,6 +4,7 @@ import type {
   ComparisonRequest,
   EcommerceListing,
   ListingCondition,
+  MatchMethod,
   Money,
   ProductIdentity,
   ProductVariant
@@ -14,7 +15,9 @@ import {
 } from "@price-lens/core";
 import {
   safeEmitDiagnostic,
-  type PriceLensDiagnosticSink
+  type MatchMethodCounts,
+  type PriceLensDiagnosticSink,
+  type WarningCategoryCounts
 } from "./diagnostics.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -173,6 +176,12 @@ export function createPriceLensServer(
           durationMs: elapsedMs(startedAt, now),
           offerCount: result.offers.length,
           warningCount: result.warnings.length,
+          warningCategories: buildWarningCategories(
+            result,
+            enrichmentFallback
+          ),
+          acceptedMatchMethods: countAcceptedMatchMethods(result),
+          reviewMatchMethods: countReviewMatchMethods(result),
           enrichmentFallback,
           providers: result.providerStatus.map((status) => ({
             provider: status.provider,
@@ -203,6 +212,62 @@ export function createPriceLensServer(
       durationMs: elapsedMs(startedAt, now)
     });
   });
+}
+
+function buildWarningCategories(
+  result: Awaited<ReturnType<typeof compareWithProviders>>,
+  enrichmentFallback: boolean
+): WarningCategoryCounts {
+  const categories: WarningCategoryCounts = {};
+  const extractionWarnings = Math.max(
+    0,
+    result.listing.extractionWarnings.length - (enrichmentFallback ? 1 : 0)
+  );
+  setPositiveCount(categories, "extraction_warning", extractionWarnings);
+  setPositiveCount(
+    categories,
+    "ebay_shipping_unknown",
+    result.ebayLandedPriceComplete ? 0 : 1
+  );
+  setPositiveCount(
+    categories,
+    "enrichment_fallback",
+    enrichmentFallback ? 1 : 0
+  );
+  return categories;
+}
+
+function countAcceptedMatchMethods(
+  result: Awaited<ReturnType<typeof compareWithProviders>>
+): MatchMethodCounts {
+  return countMatchMethods(result.offers.map((offer) => offer.matchMethod));
+}
+
+function countReviewMatchMethods(
+  result: Awaited<ReturnType<typeof compareWithProviders>>
+): MatchMethodCounts {
+  return countMatchMethods(
+    result.providerStatus.flatMap(
+      (status) =>
+        status.reviewCandidates?.map((candidate) => candidate.matchMethod) ?? []
+    )
+  );
+}
+
+function countMatchMethods(methods: MatchMethod[]): MatchMethodCounts {
+  const counts: MatchMethodCounts = {};
+  for (const method of methods) {
+    counts[method] = (counts[method] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function setPositiveCount<Key extends string>(
+  target: Partial<Record<Key, number>>,
+  key: Key,
+  value: number
+): void {
+  if (value > 0) target[key] = value;
 }
 
 function hasJsonContentType(request: IncomingMessage): boolean {
