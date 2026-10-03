@@ -99,6 +99,15 @@ export type ProviderState =
   | "no_match"
   | "error";
 
+export type ProviderFailureCategory =
+  | "timeout"
+  | "rate_limit"
+  | "auth"
+  | "concurrency"
+  | "aborted"
+  | "http"
+  | "unknown";
+
 export interface ProviderReviewCandidate {
   providerProductId?: string;
   productTitle: string;
@@ -112,6 +121,7 @@ export interface ProviderStatus {
   state: ProviderState;
   message?: string;
   latencyMs?: number;
+  failureCategory?: ProviderFailureCategory;
   reviewCandidates?: ProviderReviewCandidate[];
 }
 
