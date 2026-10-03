@@ -91,7 +91,13 @@ export interface MarketOffer {
   fetchedAt: string;
 }
 
-export type ProviderState = "ok" | "unconfigured" | "unavailable" | "no_match" | "error";
+export type ProviderState =
+  | "ok"
+  | "unconfigured"
+  | "restricted"
+  | "unavailable"
+  | "no_match"
+  | "error";
 
 export interface ProviderReviewCandidate {
   providerProductId?: string;
