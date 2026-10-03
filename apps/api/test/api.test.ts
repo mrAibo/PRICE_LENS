@@ -291,6 +291,68 @@ describe("PriceLens HTTP API", () => {
     );
   });
 
+  it("passes an explicit buyer destination to providers without logging it", async () => {
+    let receivedDestination: unknown;
+    const diagnostics: unknown[] = [];
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search(input) {
+        receivedDestination = input.destination;
+        return [];
+      }
+    };
+
+    const server = createPriceLensServer({
+      providers: [provider],
+      diagnostics: (event) => diagnostics.push(event),
+      requestIdFactory: () => "req-destination-001"
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          listing,
+          destination: {country: "DE", postalCode: "30159"}
+        })
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(receivedDestination).toEqual({
+      country: "DE",
+      postalCode: "30159"
+    });
+
+    const serialized = JSON.stringify(diagnostics);
+    expect(serialized).not.toContain("30159");
+  });
+
+  it.each([
+    [{country: "de"}, "lowercase country"],
+    [{country: "DE", postalCode: ""}, "empty postal code"],
+    [{country: "DE", postalCode: "30159,zip=99999"}, "unsafe postal code"],
+    [{country: "GER", postalCode: "30159"}, "invalid country code"]
+  ])("rejects invalid buyer destination: %s", async (destination) => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing, destination})
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_request"
+    });
+  });
+
   it("can run a complete local comparison with the explicit fixture provider", async () => {
     const baseUrl = await startServer([createFixtureProvider({discountRatio: 0.1})]);
 
