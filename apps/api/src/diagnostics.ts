@@ -1,7 +1,18 @@
 import type {
+  MatchMethod,
   PriceProviderId,
   ProviderState
 } from "@price-lens/contracts";
+
+export type ComparisonWarningCategory =
+  | "extraction_warning"
+  | "ebay_shipping_unknown"
+  | "enrichment_fallback"
+  | "provider_error"
+  | "review_candidate";
+
+export type MatchMethodCounts = Partial<Record<MatchMethod, number>>;
+export type WarningCategoryCounts = Partial<Record<ComparisonWarningCategory, number>>;
 
 export interface ProviderDiagnostic {
   provider: PriceProviderId;
@@ -18,6 +29,9 @@ export interface CompareCompletedDiagnostic {
   durationMs: number;
   offerCount: number;
   warningCount: number;
+  warningCategories: WarningCategoryCounts;
+  acceptedMatchMethods: MatchMethodCounts;
+  reviewMatchMethods: MatchMethodCounts;
   enrichmentFallback: boolean;
   providers: ProviderDiagnostic[];
 }
@@ -57,6 +71,9 @@ export interface OperationalMetricsSnapshot {
   rejectionReasons: Partial<Record<RequestRejectedDiagnostic["reason"], number>>;
   offerCount: number;
   warningCount: number;
+  warningCategories: WarningCategoryCounts;
+  acceptedMatchMethods: MatchMethodCounts;
+  reviewMatchMethods: MatchMethodCounts;
   enrichmentFallbackCount: number;
   providers: ProviderMetricsSnapshot[];
 }
@@ -69,7 +86,6 @@ export type PriceLensDiagnosticEvent =
 export type PriceLensDiagnosticSink = (
   event: PriceLensDiagnosticEvent
 ) => void;
-
 
 export interface DiagnosticAggregator {
   sink: PriceLensDiagnosticSink;
@@ -91,6 +107,9 @@ export function createAggregatingDiagnosticSink(
   let warningCount = 0;
   let enrichmentFallbackCount = 0;
   const rejectionReasons = new Map<RequestRejectedDiagnostic["reason"], number>();
+  const warningCategories = new Map<ComparisonWarningCategory, number>();
+  const acceptedMatchMethods = new Map<MatchMethod, number>();
+  const reviewMatchMethods = new Map<MatchMethod, number>();
   const providerMetrics = new Map<
     PriceProviderId,
     {
@@ -112,6 +131,9 @@ export function createAggregatingDiagnosticSink(
       rejectionReasons: Object.fromEntries(rejectionReasons),
       offerCount,
       warningCount,
+      warningCategories: Object.fromEntries(warningCategories),
+      acceptedMatchMethods: Object.fromEntries(acceptedMatchMethods),
+      reviewMatchMethods: Object.fromEntries(reviewMatchMethods),
       enrichmentFallbackCount,
       providers: [...providerMetrics.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
@@ -142,15 +164,16 @@ export function createAggregatingDiagnosticSink(
 
     if (event.type === "request_rejected") {
       requestRejected += 1;
-      rejectionReasons.set(
-        event.reason,
-        (rejectionReasons.get(event.reason) ?? 0) + 1
-      );
+      incrementMap(rejectionReasons, event.reason, 1);
     } else {
       compareCompleted += 1;
       offerCount += event.offerCount;
       warningCount += event.warningCount;
       if (event.enrichmentFallback) enrichmentFallbackCount += 1;
+
+      incrementFromRecord(warningCategories, event.warningCategories);
+      incrementFromRecord(acceptedMatchMethods, event.acceptedMatchMethods);
+      incrementFromRecord(reviewMatchMethods, event.reviewMatchMethods);
 
       for (const provider of event.providers) {
         const current = providerMetrics.get(provider.provider) ?? {
@@ -163,10 +186,7 @@ export function createAggregatingDiagnosticSink(
         };
 
         current.observations += 1;
-        current.stateCounts.set(
-          provider.state,
-          (current.stateCounts.get(provider.state) ?? 0) + 1
-        );
+        incrementMap(current.stateCounts, provider.state, 1);
         current.reviewCandidateCount += provider.reviewCandidateCount;
 
         if (provider.latencyMs !== undefined) {
@@ -189,6 +209,24 @@ export function createAggregatingDiagnosticSink(
   };
 
   return {sink, snapshot};
+}
+
+function incrementFromRecord<Key extends string>(
+  target: Map<Key, number>,
+  values: Partial<Record<Key, number>>
+): void {
+  for (const [key, value] of Object.entries(values) as Array<[Key, number]>) {
+    if (!Number.isFinite(value) || value <= 0) continue;
+    incrementMap(target, key, value);
+  }
+}
+
+function incrementMap<Key>(
+  target: Map<Key, number>,
+  key: Key,
+  increment: number
+): void {
+  target.set(key, (target.get(key) ?? 0) + increment);
 }
 
 function roundMetric(value: number): number {
