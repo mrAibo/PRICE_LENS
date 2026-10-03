@@ -96,6 +96,7 @@ describe("eBay Browse enrichment", () => {
   });
 
   it("coalesces concurrent identical legacy-item lookups", async () => {
+    const cacheObserver = vi.fn();
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -111,7 +112,8 @@ describe("eBay Browse enrichment", () => {
     const enricher = new EbayBrowseEnricher({
       clientId: "id",
       clientSecret: "secret",
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     const [first, second] = await Promise.all([
@@ -122,9 +124,14 @@ describe("eBay Browse enrichment", () => {
     expect(first.identity.ean).toBe("4548736162657");
     expect(second.identity.ean).toBe("4548736162657");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "coalesced"
+    ]);
   });
 
   it("does not cache eBay product data between sequential requests by default", async () => {
+    const cacheObserver = vi.fn();
     const itemResponse = {
       brand: "Sony",
       localizedAspects: [{name: "EAN", value: "4548736162657"}]
@@ -140,16 +147,22 @@ describe("eBay Browse enrichment", () => {
     const enricher = new EbayBrowseEnricher({
       clientId: "id",
       clientSecret: "secret",
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     await enricher.enrich(baseListing);
     await enricher.enrich(baseListing);
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "miss"
+    ]);
   });
 
   it("caches legacy-item data only when an explicit TTL is configured", async () => {
+    const cacheObserver = vi.fn();
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -166,13 +179,18 @@ describe("eBay Browse enrichment", () => {
       clientId: "id",
       clientSecret: "secret",
       cacheTtlMs: 60_000,
-      fetchImpl
+      fetchImpl,
+      cacheObserver
     });
 
     await enricher.enrich(baseListing);
     await enricher.enrich(baseListing);
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(cacheObserver.mock.calls.map(([event]) => event.outcome)).toEqual([
+      "miss",
+      "hit"
+    ]);
   });
 
   it("keeps page identity when Browse enrichment conflicts", async () => {
