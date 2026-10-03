@@ -125,7 +125,33 @@ export class AmazonCreatorsProvider implements PriceProvider {
   }
 
   async search(input: ProviderSearchInput): Promise<ProviderCandidate[]> {
-    const cacheKey = listingCacheKey(input);
+    const settled = await mapWithConcurrency(
+      this.marketplaces,
+      this.marketplaceConcurrency,
+      (config) => this.searchMarketplace(input, config)
+    );
+
+    const successful = settled.filter(
+      (entry): entry is PromiseFulfilledResult<ProviderCandidate[]> =>
+        entry.status === "fulfilled"
+    );
+    if (successful.length === 0) {
+      const firstFailure = settled.find(
+        (entry): entry is PromiseRejectedResult => entry.status === "rejected"
+      );
+      throw firstFailure?.reason instanceof Error
+        ? firstFailure.reason
+        : new Error("All configured Amazon marketplace searches failed.");
+    }
+
+    return successful.flatMap((entry) => entry.value);
+  }
+
+  private async searchMarketplace(
+    input: ProviderSearchInput,
+    config: AmazonMarketplaceConfig
+  ): Promise<ProviderCandidate[]> {
+    const cacheKey = `${config.marketplace}|${listingCacheKey(input)}`;
     const cached = this.searchCache.get(cacheKey);
     if (cached && cached.expiresAt > this.now()) {
       safeObserveProviderCache(this.cacheObserver, {
@@ -155,7 +181,11 @@ export class AmazonCreatorsProvider implements PriceProvider {
       source: "amazon",
       outcome: "miss"
     });
-    const pending = this.fetchAndCacheSearch(input.listing, cacheKey).finally(() => {
+    const pending = this.fetchAndCacheSearch(
+      input.listing,
+      cacheKey,
+      config
+    ).finally(() => {
       if (this.searchInFlight.get(cacheKey) === pending) {
         this.searchInFlight.delete(cacheKey);
       }
@@ -171,12 +201,13 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
   private async fetchAndCacheSearch(
     listing: EcommerceListing,
-    cacheKey: string
+    cacheKey: string,
+    config: AmazonMarketplaceConfig
   ): Promise<ProviderCandidate[]> {
-    let response = await this.searchItems(listing, false);
+    let response = await this.searchItems(listing, false, config);
     if (response.status === 401) {
       this.tokenCache = undefined;
-      response = await this.searchItems(listing, true);
+      response = await this.searchItems(listing, true, config);
     }
 
     if (response.status === 404) {
@@ -184,17 +215,26 @@ export class AmazonCreatorsProvider implements PriceProvider {
     }
 
     if (response.status === 429) {
-      throw new Error("Amazon Creators API rate limit reached.");
+      throw new Error(
+        `Amazon Creators API rate limit reached for ${config.marketplace}.`
+      );
     }
 
     if (!response.ok) {
       throw new Error(
-        `Amazon Creators API request failed with HTTP ${response.status}.`
+        `Amazon Creators API request failed for ${config.marketplace} with HTTP ${response.status}.`
       );
     }
 
-    const payload = await readJsonRecord(response, "Amazon Creators API");
-    const candidates = parseSearchItems(payload, this.now(), this.marketplace);
+    const payload = await readJsonRecord(
+      response,
+      `Amazon Creators API (${config.marketplace})`
+    );
+    const candidates = parseSearchItems(
+      payload,
+      this.now(),
+      config.marketplace
+    );
     if (this.cacheTtlMs > 0) {
       this.searchCache.set(cacheKey, {
         candidates,
@@ -206,7 +246,8 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
   private async searchItems(
     listing: EcommerceListing,
-    forceTokenRefresh: boolean
+    forceTokenRefresh: boolean,
+    config: AmazonMarketplaceConfig
   ): Promise<Response> {
     const token = await this.getToken(forceTokenRefresh);
     const searchTerms = [
@@ -219,11 +260,12 @@ export class AmazonCreatorsProvider implements PriceProvider {
       .trim();
 
     const body: Record<string, unknown> = {
-      partnerTag: this.partnerTag,
-      marketplace: this.marketplace,
+      partnerTag: config.partnerTag,
+      marketplace: config.marketplace,
       keywords: searchTerms || listing.title,
       itemCount: 10,
-      currencyOfPreference: "EUR",
+      currencyOfPreference:
+        AMAZON_MARKETPLACE_CURRENCIES[config.marketplace],
       resources: [
         "itemInfo.title",
         "itemInfo.byLineInfo",
@@ -253,7 +295,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
           accept: "application/json",
-          "x-marketplace": this.marketplace
+          "x-marketplace": config.marketplace
         },
         body: JSON.stringify(body)
       }
