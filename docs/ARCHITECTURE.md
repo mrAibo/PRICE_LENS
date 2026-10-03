@@ -282,6 +282,7 @@ Negative results should also be cached briefly to prevent repeated expensive loo
 - validate extension payloads server-side
 - strict outbound provider allowlist
 - request timeout and size limits
+- JSON-only comparison POST media type; no permissive browser CORS surface
 - no arbitrary URL fetch endpoint
 - no collection of eBay account identifiers
 - no purchase automation
