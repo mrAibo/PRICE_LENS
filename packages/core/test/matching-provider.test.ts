@@ -526,6 +526,76 @@ describe("provider orchestration", () => {
     ).toMatchObject({state: "ok"});
   });
 
+  it("runs FX normalization after matching and before best-offer selection", async () => {
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({
+            providerProductId: "pln-offer",
+            itemPrice: {amount: 1200, currency: "PLN"},
+            shipping: {amount: 40, currency: "PLN"}
+          })
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider], {
+      requestId: "req-normalized",
+      normalizeOffers: async (_listing, offers) => ({
+        offers: offers.map((offer) => ({
+          ...offer,
+          comparisonLandedPrice: {amount: 280, currency: "EUR"},
+          fx: {
+            source: "ecb_reference",
+            rateDate: "2026-10-02",
+            fetchedAt: "2026-10-04T00:00:00Z",
+            fromCurrency: "PLN",
+            toCurrency: "EUR",
+            rate: 0.2258064516
+          }
+        }))
+      })
+    });
+
+    expect(result.offers[0]).toMatchObject({
+      landedPrice: {amount: 1240, currency: "PLN"},
+      comparisonLandedPrice: {amount: 280, currency: "EUR"}
+    });
+    expect(result.bestOffer?.providerProductId).toBe("pln-offer");
+    expect(result.marketMinimum).toEqual({amount: 280, currency: "EUR"});
+  });
+
+  it("fails open when the FX normalizer is unavailable", async () => {
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({
+            providerProductId: "pln-offer",
+            itemPrice: {amount: 1200, currency: "PLN"},
+            shipping: {amount: 40, currency: "PLN"}
+          })
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider], {
+      normalizeOffers: async () => {
+        throw new Error("ECB unavailable");
+      }
+    });
+
+    expect(result.offers[0]?.landedPrice).toEqual({
+      amount: 1240,
+      currency: "PLN"
+    });
+    expect(result.bestOffer).toBeUndefined();
+    expect(result.warnings).toContain(
+      "Currency normalization is unavailable; cross-currency offers were not ranked."
+    );
+  });
+
   it("isolates provider failures", async () => {
     const broken: PriceProvider = {
       id: "geizhals",
