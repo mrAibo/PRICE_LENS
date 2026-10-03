@@ -24,6 +24,27 @@ describe("provider access context", () => {
     });
   });
 
+  it("never lets anonymous/free tiers remove private-beta restrictions", () => {
+    expect(
+      normalizeProviderAccessContext({
+        tier: "free",
+        restrictedProviders: []
+      })
+    ).toEqual({
+      tier: "free",
+      restrictedProviders: ["idealo", "geizhals"]
+    });
+  });
+
+  it("fails closed when a resolver returns an unknown provider", () => {
+    expect(
+      normalizeProviderAccessContext({
+        tier: "pilot",
+        restrictedProviders: ["not-a-provider" as never]
+      })
+    ).toBe(PUBLIC_PROVIDER_ACCESS);
+  });
+
   it("deduplicates valid provider restrictions", () => {
     expect(
       normalizeProviderAccessContext({
