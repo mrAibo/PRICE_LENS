@@ -1,4 +1,5 @@
 import type {
+  BuyerDestination,
   ComparisonRequest,
   ComparisonResult,
   EcommerceListing
@@ -16,6 +17,7 @@ export interface ComparisonClientOptions {
   apiUrl?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  destination?: BuyerDestination;
 }
 
 export async function requestComparison(
@@ -28,7 +30,10 @@ export async function requestComparison(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const body: ComparisonRequest = {listing};
+  const body: ComparisonRequest = {
+    listing,
+    ...(options.destination ? {destination: options.destination} : {})
+  };
 
   try {
     const response = await fetchImpl(`${apiUrl}/v1/compare`, {
