@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `852e13a42473e54c3f5cdf0b14739e006ebc2326` (through PR #42)
+Current implementation checkpoint: `a3e2255040078e7b6832890335ee9aa877e3efcb` (through PR #43)
 
 Bootstrap PR #1 is **merged**. New implementation branches should start from the current `main`.
 
@@ -98,6 +98,7 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] periodic cumulative operational metrics snapshots (provider states + avg/max latency + rejection reasons)
 - [x] GCP IaC for dedicated privacy-minimized operational-log retention
 - [x] GCP HTTPS readiness uptime check + Cloud Run 5xx/P95 alert-policy baseline
+- [x] credential-free Terraform Phase A/Phase B safety-invariant tests in CI
 - [x] provider product/price caches disabled by default until approved freshness rules are known
 - [x] explicit TTL-only provider caching with configuration validation
 - [x] deep inbound eBay payload validation at the API trust boundary
@@ -234,6 +235,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #40 — reproducible npm lockfile + dependency-license release gate — merged into `main`
 - PR #41 — Firefox desktop compatibility baseline — merged into `main`
 - PR #42 — GCP operational observability baseline — merged into `main`
+- PR #43 — Terraform deployment safety-invariant tests — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
