@@ -490,6 +490,83 @@ describe("PriceLens HTTP API", () => {
     });
   });
 
+  it.each([
+    ["text/plain", "text/plain"],
+    ["form encoding", "application/x-www-form-urlencoded"]
+  ])("rejects %s comparison requests before provider work", async (_label, contentType) => {
+    let providerCalls = 0;
+    const diagnostics: unknown[] = [];
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        providerCalls += 1;
+        return [];
+      }
+    };
+
+    const server = createPriceLensServer({
+      providers: [provider],
+      requestIdFactory: () => "req-media-type-001",
+      diagnostics: (event) => diagnostics.push(event)
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": contentType},
+        body: JSON.stringify({listing})
+      }
+    );
+
+    expect(response.status).toBe(415);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    await expect(response.json()).resolves.toMatchObject({
+      error: "unsupported_media_type",
+      message: "Content-Type must be application/json.",
+      requestId: "req-media-type-001"
+    });
+    expect(providerCalls).toBe(0);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        type: "request_rejected",
+        status: 415,
+        reason: "unsupported_media_type"
+      })
+    ]);
+  });
+
+  it("accepts application/json with a charset parameter", async () => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json; charset=UTF-8"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("does not expose a permissive CORS preflight for comparison requests", async () => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://example.test",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    expect(response.headers.get("access-control-allow-methods")).toBeNull();
+  });
+
   it("rejects malformed comparison requests", async () => {
     const baseUrl = await startServer();
     const response = await fetch(`${baseUrl}/v1/compare`, {
