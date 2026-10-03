@@ -304,6 +304,7 @@ function renderResult(
 
   return `
     ${compact}
+    ${renderRestrictedSources(statuses)}
     ${expandable ? `
       <button type="button" class="expand-button" data-price-lens-expand>
         + Show full report${result.offers.length > 0 ? ` (${result.offers.length} matched offers)` : ""}
@@ -459,6 +460,22 @@ function renderCompactOffer(
         · ${savingPercent.toFixed(1)}%
       </div>
       ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderRestrictedSources(statuses: ProviderStatus[]): string {
+  const restricted = statuses.filter((status) => status.state === "restricted");
+  if (restricted.length === 0) return "";
+
+  return `
+    <div class="restricted-box">
+      <strong>Private beta sources</strong>
+      <div class="muted">
+        ${escapeHtml(
+          restricted.map((status) => providerLabel(status.provider)).join(" · ")
+        )} — not available in the public plan yet.
+      </div>
     </div>
   `;
 }
@@ -935,6 +952,13 @@ function baseStyles(): string {
       .price { margin-top:10px; font-size:20px; font-weight:750; }
       .muted { color:#5c5f62; }
       .warn { margin-top:10px; color:#8a4b00; }
+      .restricted-box {
+        margin-top:10px;
+        padding:9px 10px;
+        border:1px dashed #c9ccd1;
+        border-radius:8px;
+        background:#fafbfc;
+      }
       .error { margin-top:10px; color:#a40000; }
       .report-action { margin-top:12px; }
       .destination-box {
@@ -1092,7 +1116,6 @@ function offerSourceLabel(offer: MarketOffer): string {
     EBAY_BE: "eBay Belgium",
     "www.amazon.de": "Amazon Germany",
     "www.amazon.pl": "Amazon Poland",
-    "www.amazon.at": "Amazon Austria",
     "www.amazon.fr": "Amazon France",
     "www.amazon.it": "Amazon Italy",
     "www.amazon.es": "Amazon Spain",
@@ -1124,6 +1147,8 @@ function providerStateLabel(state: ProviderStatus["state"]): string {
       return "available";
     case "unconfigured":
       return "not configured";
+    case "restricted":
+      return "private beta";
     case "unavailable":
       return "unavailable";
     case "no_match":
