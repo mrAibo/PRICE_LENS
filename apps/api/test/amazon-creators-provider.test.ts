@@ -155,6 +155,7 @@ describe("Amazon Creators provider", () => {
         providerProductId: "B0EXAMPLE01",
         productTitle: "Sony WH-1000XM6 Wireless Headphones Black",
         merchant: "Amazon.de",
+        marketplace: "www.amazon.de",
         url: "https://www.amazon.de/dp/B0EXAMPLE01?tag=price-lens-21",
         condition: "new",
         identity: {
