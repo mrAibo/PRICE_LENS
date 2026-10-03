@@ -27,15 +27,21 @@ export const PRICE_LENS_MATCH_THRESHOLDS = {
   review: 0.7
 } as const;
 
+export interface ProviderMatchOptions {
+  ignoreCondition?: boolean;
+}
+
 export function evaluateProviderCandidate(
   listing: EcommerceListing,
-  candidate: ProviderCandidate
+  candidate: ProviderCandidate,
+  options: ProviderMatchOptions = {}
 ): PriceLensMatchResult {
   const hardMismatch = findHardMismatch(
     listing.condition,
     listing.identity,
     candidate.condition,
-    candidate.identity
+    candidate.identity,
+    options
   );
 
   if (hardMismatch) {
@@ -134,9 +140,11 @@ export function findHardMismatch(
   listingCondition: ListingCondition,
   listingIdentity: ProductIdentity,
   candidateCondition: ListingCondition,
-  candidateIdentity: ProductIdentity
+  candidateIdentity: ProductIdentity,
+  options: ProviderMatchOptions = {}
 ): string | undefined {
   if (
+    !options.ignoreCondition &&
     listingCondition !== "unknown" &&
     candidateCondition !== "unknown" &&
     listingCondition !== candidateCondition
