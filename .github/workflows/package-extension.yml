@@ -35,16 +35,8 @@ jobs:
       - name: Verify dependency licenses
         run: npm run licenses:check
 
-      - name: Require production HTTPS origin
-        shell: bash
-        run: |
-          case "$PRICE_LENS_API_ORIGIN" in
-            https://*) ;;
-            *)
-              echo "api_origin must use HTTPS for a release package." >&2
-              exit 1
-              ;;
-          esac
+      - name: Verify production API release origin
+        run: npm run release:preflight -- --origin "$PRICE_LENS_API_ORIGIN" --probe
 
       - name: Build extension
         run: npm run build -w @price-lens/extension
