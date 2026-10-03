@@ -49,6 +49,14 @@ export async function bootstrapPriceLens(
     lifecycle?.stop();
     lifecycle = undefined;
     await options.consentStore.revokeConsent();
+    if (options.destinationStore) {
+      try {
+        await options.destinationStore.clearDestination();
+      } catch {
+        // Revocation still succeeds if local preference cleanup is unavailable.
+      }
+    }
+    buyerDestination = {country: "DE"};
     if (!stopped) showConsent();
   }
 
