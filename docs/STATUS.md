@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `70cdedcf40adab263a5e68735699a5e243b46b5c` (PRs #42–#45)ntation branches should start from the current `main`.
+Current implementation checkpoint: `4e2b02623155e83c9db4f92f36ebb6714ae03b38` (PR #46). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -99,6 +99,8 @@ Current implementation checkpoint: `70cdedcf40adab263a5e68735699a5e243b46b5c` (P
 - [x] GCP HTTPS readiness uptime check + Cloud Run 5xx/P95 alert-policy baseline
 - [x] credential-free Terraform Phase A/Phase B safety-invariant tests in CI
 - [x] Terraform alert enablement guard requires runtime monitoring + explicit approved notification channel
+- [x] Terraform Phase B rejects reserved/placeholder API domains and mutable/wrong-registry runtime images
+- [x] Chrome/Firefox candidate packaging rejects placeholder release origins and live-probes `/ready` + `/health` before building
 - [x] provider product/price caches disabled by default until approved freshness rules are known
 - [x] explicit TTL-only provider caching with configuration validation
 - [x] deep inbound eBay payload validation at the API trust boundary
@@ -238,6 +240,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #43 — Terraform deployment safety-invariant tests — merged into `main`
 - PR #44 — alert enablement requires approved notification recipient — merged into `main`
 - PR #45 — JSON-only comparison media-type / non-CORS abuse boundary — merged into `main`
+- PR #46 — validate requests before reserving comparison concurrency — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
@@ -250,7 +253,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — Terraform definitions are ready; apply Phase A, add approved secret versions/image/domain, apply Phase B, verify DNS/TLS, then tune Cloud Armor and enable/tune the predeclared observability alerts before packaging Chrome against the verified HTTPS origin.
+9. Issue #33 — release-preflight and immutable runtime-input guards are implemented; remaining external work is Phase A apply, approved secret versions/image/domain, Phase B apply, DNS/TLS verification, Cloud Armor tuning and alert enablement before store packaging.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification
