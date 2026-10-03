@@ -8,12 +8,18 @@ import type {
 } from "@price-lens/contracts";
 
 export interface PriceLensView {
+  renderLoading(): void;
   renderComparison(result: ComparisonResult): void;
   renderError(message: string): void;
 }
 
+export interface PriceLensReportActions {
+  onRequestComparison: () => void | Promise<void>;
+}
+
 export interface PriceLensUiOptions {
   onDisableSharing?: () => void | Promise<void>;
+  onRequestComparison?: () => void | Promise<void>;
 }
 
 export interface PriceLensConsentOptions {
@@ -27,9 +33,12 @@ export function mountPriceLens(
   options: PriceLensUiOptions = {}
 ): PriceLensView {
   const shadow = mountHost(document);
-  render(shadow, listing, "loading", undefined, undefined, options);
+  render(shadow, listing, "idle", undefined, undefined, options);
 
   return {
+    renderLoading() {
+      render(shadow, listing, "loading", undefined, undefined, options);
+    },
     renderComparison(result) {
       render(shadow, listing, "result", result, undefined, options);
     },
@@ -74,10 +83,9 @@ export function mountPrivacyConsent(
       </div>
       <div class="consent-title">Enable price comparison?</div>
       <div class="muted consent-copy">
-        To compare this eBay item, PriceLens sends the current item ID and URL,
-        title, price and shipping, condition, product identifiers and detected
-        variant details to the PriceLens API. The API may use the product identity
-        to query price providers that are enabled by the operator.
+        PriceLens can recognize supported eBay item details locally. It sends the
+        current item to the PriceLens API only after you explicitly request a report.
+        The report may query price providers enabled by the operator.
       </div>
       <div class="muted consent-copy">
         PriceLens does not need your eBay cookies, password, account identifier,
@@ -85,7 +93,7 @@ export function mountPrivacyConsent(
       </div>
       <div class="actions">
         <button type="button" class="primary" data-price-lens-enable>
-          Enable price comparison
+          Enable PriceLens
         </button>
         <button type="button" class="secondary" data-price-lens-not-now>
           Not now
@@ -162,7 +170,7 @@ function findMountPoint(document: Document): Element {
 function render(
   root: ShadowRoot,
   listing: EcommerceListing,
-  state: "loading" | "result" | "error",
+  state: "idle" | "loading" | "result" | "error",
   result?: ComparisonResult,
   errorMessage?: string,
   options: PriceLensUiOptions = {}
@@ -173,17 +181,58 @@ function render(
     <div class="card">
       <div class="head">
         <div class="brand">PriceLens</div>
-        <div class="badge">MVP</div>
+        <div class="badge">${state === "result" ? "Report" : "Ready"}</div>
       </div>
       <div class="price">${escapeHtml(formatMoney(listing.price.amount, listing.price.currency))}</div>
       <div class="muted">${escapeHtml(listing.title)}</div>
-      ${state === "loading" ? '<div class="muted" style="margin-top:10px">Preparing comparison…</div>' : ""}
-      ${state === "error" ? `<div class="error">${escapeHtml(errorMessage ?? "Comparison failed.")}</div>` : ""}
+      ${state === "idle" ? renderIdleAction() : ""}
+      ${state === "loading" ? renderLoadingState() : ""}
+      ${state === "error" ? renderErrorState(errorMessage) : ""}
       ${state === "result" ? renderResult(result, statuses) : ""}
       ${privacyControlMarkup(options)}
     </div>
   `;
+
+  wireRequestComparison(root, options);
+  wireFullExpansion(root);
   wireDisableSharing(root, options);
+}
+
+function renderIdleAction(): string {
+  return `
+    <div class="report-action">
+      <button type="button" class="primary compare-button" data-price-lens-compare>
+        <span class="lens-icon" aria-hidden="true">◉</span>
+        Compare with PriceLens
+      </button>
+      <div class="muted action-note">
+        No provider request has been sent. The report starts only when you press this button.
+      </div>
+    </div>
+  `;
+}
+
+function renderLoadingState(): string {
+  return `
+    <div class="report-action">
+      <button type="button" class="primary compare-button" disabled>
+        <span class="lens-icon loading-lens" aria-hidden="true">◌</span>
+        Comparing…
+      </button>
+      <div class="muted action-note">Finding trustworthy alternatives and delivered prices.</div>
+    </div>
+  `;
+}
+
+function renderErrorState(errorMessage: string | undefined): string {
+  return `
+    <div class="error">${escapeHtml(errorMessage ?? "Comparison failed.")}</div>
+    <div class="report-action">
+      <button type="button" class="secondary compare-button" data-price-lens-compare>
+        Try again
+      </button>
+    </div>
+  `;
 }
 
 function renderResult(
@@ -192,6 +241,170 @@ function renderResult(
 ): string {
   if (!result) return "";
 
+  const compactOffers = selectCompactOffers(result);
+  const compact = renderCompactReport(result, compactOffers);
+  const full = renderFullReport(result, statuses);
+  const expandable =
+    result.offers.length > compactOffers.length ||
+    statuses.some((status) => status.reviewCandidates?.length) ||
+    statuses.some((status) => status.state !== "ok");
+
+  return `
+    ${compact}
+    ${expandable ? `
+      <button type="button" class="expand-button" data-price-lens-expand>
+        + Show full report${result.offers.length > 0 ? ` (${result.offers.length} matched offers)` : ""}
+      </button>
+      <div data-price-lens-full-report hidden>
+        ${full}
+      </div>
+    ` : full}
+  `;
+}
+
+export function selectCompactOffers(
+  result: ComparisonResult,
+  maxOffers = 5
+): MarketOffer[] {
+  if (
+    !Number.isInteger(maxOffers) ||
+    maxOffers < 1 ||
+    !result.ebayLandedPriceComplete
+  ) {
+    return [];
+  }
+
+  const currency = result.ebayLandedPrice.currency.toUpperCase();
+  const cheaper = result.offers.filter(
+    (offer) =>
+      offer.landedPriceComplete &&
+      offer.landedPrice.currency.toUpperCase() === currency &&
+      Number.isFinite(offer.landedPrice.amount) &&
+      offer.landedPrice.amount < result.ebayLandedPrice.amount
+  );
+
+  const byPrice = (left: MarketOffer, right: MarketOffer) =>
+    left.landedPrice.amount - right.landedPrice.amount ||
+    right.confidence - left.confidence;
+
+  const selected: MarketOffer[] = [];
+  const seen = new Set<string>();
+  const add = (offer: MarketOffer | undefined) => {
+    if (!offer || selected.length >= maxOffers) return;
+    const key = `${offer.provider}:${offer.providerProductId ?? offer.url}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    selected.push(offer);
+  };
+
+  cheaper
+    .filter((offer) => offer.condition === result.listing.condition)
+    .sort(byPrice)
+    .slice(0, 3)
+    .forEach(add);
+
+  const alternateConditions: ListingCondition[] = [
+    "open_box",
+    "refurbished",
+    "used",
+    "unknown"
+  ];
+
+  for (const condition of alternateConditions) {
+    if (condition === result.listing.condition) continue;
+    add(
+      cheaper
+        .filter((offer) => offer.condition === condition)
+        .sort(byPrice)[0]
+    );
+  }
+
+  cheaper
+    .slice()
+    .sort(byPrice)
+    .forEach(add);
+
+  return selected;
+}
+
+function renderCompactReport(
+  result: ComparisonResult,
+  offers: MarketOffer[]
+): string {
+  if (!result.ebayLandedPriceComplete) {
+    return `
+      <div class="compact-report">
+        <div class="compact-title">PriceLens report</div>
+        <div class="warn">
+          The current delivered price is incomplete, so savings cannot be ranked safely yet.
+        </div>
+      </div>
+    `;
+  }
+
+  if (offers.length === 0) {
+    const otherCurrency = result.offers.some(
+      (offer) =>
+        offer.landedPriceComplete &&
+        offer.landedPrice.currency.toUpperCase() !==
+          result.ebayLandedPrice.currency.toUpperCase()
+    );
+    return `
+      <div class="compact-report">
+        <div class="compact-title">PriceLens report</div>
+        <div class="muted">No cheaper complete offer was found in this report.</div>
+        ${otherCurrency
+          ? '<div class="muted compact-note">Offers in other currencies are not ranked until explicit FX normalization is enabled.</div>'
+          : ""}
+      </div>
+    `;
+  }
+
+  const rows = offers.map((offer) => renderCompactOffer(result, offer)).join("");
+  return `
+    <div class="compact-report">
+      <div class="compact-title">Cheaper options found</div>
+      <div class="muted compact-note">
+        Best actionable results first. Different conditions stay clearly labelled.
+      </div>
+      <div class="compact-offers">${rows}</div>
+    </div>
+  `;
+}
+
+function renderCompactOffer(
+  result: ComparisonResult,
+  offer: MarketOffer
+): string {
+  const saving = result.ebayLandedPrice.amount - offer.landedPrice.amount;
+  const savingPercent =
+    result.ebayLandedPrice.amount > 0
+      ? (saving / result.ebayLandedPrice.amount) * 100
+      : 0;
+  const seller = marketplaceSellerSummary(offer);
+
+  return `
+    <div class="compact-offer">
+      <div class="offer-head">
+        <strong>${escapeHtml(conditionLabel(offer.condition))}</strong>
+        <span class="muted">${escapeHtml(providerLabel(offer.provider))}</span>
+      </div>
+      <a class="offer-link offer-price" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
+        ${escapeHtml(formatMoney(offer.landedPrice.amount, offer.landedPrice.currency))}
+      </a>
+      <div class="saving">
+        ${escapeHtml(formatMoney(saving, offer.landedPrice.currency))} cheaper
+        · ${savingPercent.toFixed(1)}%
+      </div>
+      ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderFullReport(
+  result: ComparisonResult,
+  statuses: ProviderStatus[]
+): string {
   const degraded = statuses.filter(
     (status) => status.state === "error" || status.state === "unavailable"
   );
@@ -214,7 +427,7 @@ function renderResult(
   const best = bestOffer
     ? `
       <div class="delta">
-        Best available market price: ${escapeHtml(
+        Best comparable market price: ${escapeHtml(
           formatMoney(bestOffer.landedPrice.amount, bestOffer.landedPrice.currency)
         )}
       </div>
@@ -227,7 +440,7 @@ function renderResult(
       </div>
     `
     : result.offers.length > 0
-      ? '<div class="warn">Offers were found, but mandatory shipping is unavailable, so no complete landed-price comparison is shown.</div>'
+      ? '<div class="warn">Offers were found, but no complete same-currency landed-price comparison is available.</div>'
       : statuses.some((status) => status.state !== "unconfigured")
         ? '<div class="warn">No complete comparable market offer was found.</div>'
         : '<div class="warn">Price providers are not configured yet.</div>';
@@ -239,14 +452,76 @@ function renderResult(
     : "";
 
   const delta = result.delta
-    ? `<div class="muted">eBay vs available market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
+    ? `<div class="muted">eBay vs comparable market: ${result.delta.percentage > 0 ? "+" : ""}${result.delta.percentage.toFixed(2)}%</div>`
     : "";
 
-  const reviewNotice = renderReviewCandidates(statuses);
+  return `
+    <div class="full-report">
+      <div class="full-title">Full report</div>
+      ${renderAllOffers(result)}
+      ${renderEbayMarketplace(result)}
+      ${best}
+      ${delta}
+      ${partialWarning}
+      ${renderReviewCandidates(statuses)}
+      <div class="providers">${providerRows}</div>
+    </div>
+  `;
+}
 
-  const ebayMarketplace = renderEbayMarketplace(result);
+function renderAllOffers(result: ComparisonResult): string {
+  if (result.offers.length === 0) return "";
 
-  return `${ebayMarketplace}${best}${delta}${partialWarning}${reviewNotice}<div class="providers">${providerRows}</div>`;
+  const conditionRank = new Map<ListingCondition, number>([
+    ["new", 0],
+    ["open_box", 1],
+    ["refurbished", 2],
+    ["used", 3],
+    ["unknown", 4]
+  ]);
+
+  const sorted = result.offers
+    .slice()
+    .sort((left, right) => {
+      const conditionDifference =
+        (conditionRank.get(left.condition) ?? 99) -
+        (conditionRank.get(right.condition) ?? 99);
+      if (conditionDifference !== 0) return conditionDifference;
+      const currencyDifference = left.landedPrice.currency.localeCompare(
+        right.landedPrice.currency
+      );
+      if (currencyDifference !== 0) return currencyDifference;
+      if (left.landedPriceComplete !== right.landedPriceComplete) {
+        return left.landedPriceComplete ? -1 : 1;
+      }
+      return left.landedPrice.amount - right.landedPrice.amount;
+    });
+
+  const rows = sorted.map((offer) => {
+    const seller = marketplaceSellerSummary(offer);
+    const price = offer.landedPriceComplete
+      ? formatMoney(offer.landedPrice.amount, offer.landedPrice.currency)
+      : `${formatMoney(offer.itemPrice.amount, offer.itemPrice.currency)} + shipping unknown`;
+    return `
+      <div class="all-offer-row">
+        <div class="offer-head">
+          <strong>${escapeHtml(conditionLabel(offer.condition))}</strong>
+          <span class="muted">${escapeHtml(providerLabel(offer.provider))}</span>
+        </div>
+        <a class="offer-link" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
+          ${escapeHtml(price)}
+        </a>
+        ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="all-offers">
+      <div class="section-title">All accepted offers</div>
+      ${rows}
+    </div>
+  `;
 }
 
 function renderEbayMarketplace(result: ComparisonResult): string {
@@ -268,39 +543,25 @@ function renderEbayMarketplace(result: ComparisonResult): string {
       if (group.length === 0) return "";
 
       const complete = group
-        .filter((offer) => offer.landedPriceComplete)
+        .filter(
+          (offer) =>
+            offer.landedPriceComplete &&
+            offer.landedPrice.currency.toUpperCase() ===
+              result.ebayLandedPrice.currency.toUpperCase()
+        )
         .slice()
         .sort((left, right) => left.landedPrice.amount - right.landedPrice.amount);
       const best = complete[0] ?? group[0]!;
       const priceSummary = complete.length > 0
         ? marketplacePriceSummary(complete)
-        : "shipping unknown";
+        : "no complete comparable landed price";
       const seller = marketplaceSellerSummary(best);
-      const savings =
-        condition === result.listing.condition &&
-        result.ebayLandedPriceComplete &&
-        best.landedPriceComplete &&
-        best.landedPrice.currency === result.ebayLandedPrice.currency &&
-        best.landedPrice.amount < result.ebayLandedPrice.amount
-          ? ` · ${escapeHtml(formatMoney(
-              result.ebayLandedPrice.amount - best.landedPrice.amount,
-              best.landedPrice.currency
-            ))} cheaper`
-          : "";
 
       return `
         <div class="market-row">
           <div>
             <strong>${escapeHtml(conditionLabel(condition))}</strong>
             <span class="muted"> · ${group.length} matched</span>
-          </div>
-          <div>
-            <a class="offer-link" href="${escapeHtml(best.url)}" target="_blank" rel="noopener noreferrer">
-              ${best.landedPriceComplete
-                ? escapeHtml(formatMoney(best.landedPrice.amount, best.landedPrice.currency))
-                : escapeHtml(formatMoney(best.itemPrice.amount, best.itemPrice.currency)) + " + shipping"}
-            </a>
-            <span class="muted">${savings}</span>
           </div>
           <div class="muted">${escapeHtml(priceSummary)}${seller ? ` · ${escapeHtml(seller)}` : ""}</div>
         </div>
@@ -310,9 +571,9 @@ function renderEbayMarketplace(result: ComparisonResult): string {
 
   return `
     <div class="market-box">
-      <div class="market-title">Same product on eBay</div>
+      <div class="market-title">eBay market summary</div>
       <div class="muted">
-        Fixed-price listings only. New, open-box, refurbished and used offers are kept separate.
+        Fixed-price listings only. Conditions remain separate.
       </div>
       ${rows}
     </div>
@@ -332,7 +593,7 @@ function marketplacePriceSummary(offers: MarketOffer[]): string {
     : amounts[middle]!;
 
   if (amounts.length === 1) {
-    return "complete landed price";
+    return formatMoney(minimum, currency);
   }
 
   return `${formatMoney(minimum, currency)}–${formatMoney(maximum, currency)} · median ${formatMoney(median, currency)}`;
@@ -405,7 +666,7 @@ function renderReviewCandidates(statuses: ProviderStatus[]): string {
       <div class="review-title">Possible matches excluded from price comparison</div>
       <div class="muted">
         These candidates did not meet the automatic-match threshold, so their prices
-        are not used for the best-price or eBay-delta calculation.
+        are not used for the best-price calculation.
       </div>
       ${rows}
     </div>
@@ -421,6 +682,46 @@ function privacyControlMarkup(options: PriceLensUiOptions): string {
       </button>
     </div>
   `;
+}
+
+function wireRequestComparison(
+  root: ShadowRoot,
+  options: PriceLensUiOptions
+): void {
+  if (!options.onRequestComparison) return;
+  const button = root.querySelector<HTMLButtonElement>(
+    "[data-price-lens-compare]"
+  );
+  button?.addEventListener("click", () => {
+    if (!button) return;
+    button.disabled = true;
+    Promise.resolve(options.onRequestComparison?.()).catch(() => {
+      button.disabled = false;
+    });
+  });
+}
+
+function wireFullExpansion(root: ShadowRoot): void {
+  const button = root.querySelector<HTMLButtonElement>(
+    "[data-price-lens-expand]"
+  );
+  const full = root.querySelector<HTMLElement>(
+    "[data-price-lens-full-report]"
+  );
+  if (!button || !full) return;
+
+  button.addEventListener("click", () => {
+    const willOpen = full.hidden;
+    full.hidden = !willOpen;
+    button.textContent = willOpen
+      ? "− Hide full report"
+      : `+ Show full report${fullOfferCount(root)}`;
+  });
+}
+
+function fullOfferCount(root: ShadowRoot): string {
+  const count = root.querySelectorAll(".all-offer-row").length;
+  return count > 0 ? ` (${count} matched offers)` : "";
 }
 
 function wireDisableSharing(
@@ -454,15 +755,48 @@ function baseStyles(): string {
         color: #191919;
         font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-shadow: 0 2px 8px rgba(0,0,0,.06);
-        max-width: 420px;
+        max-width: 440px;
       }
-      .head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .head, .offer-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
       .brand { font-weight:750; font-size:16px; }
       .badge { border-radius:999px; padding:3px 8px; background:#f1f3f5; font-size:12px; }
       .price { margin-top:10px; font-size:20px; font-weight:750; }
       .muted { color:#5c5f62; }
       .warn { margin-top:10px; color:#8a4b00; }
       .error { margin-top:10px; color:#a40000; }
+      .report-action { margin-top:12px; }
+      .action-note, .compact-note { margin-top:6px; }
+      .compare-button { display:inline-flex; align-items:center; gap:8px; }
+      .lens-icon { font-size:17px; line-height:1; }
+      .compact-report {
+        margin-top:12px;
+        padding:11px;
+        border:1px solid #c7d6cc;
+        border-radius:9px;
+        background:#f7fbf8;
+      }
+      .compact-title, .full-title, .section-title { font-weight:750; }
+      .compact-offers { margin-top:8px; display:grid; gap:8px; }
+      .compact-offer {
+        padding-top:8px;
+        border-top:1px solid #e2ebe5;
+      }
+      .compact-offer:first-child { border-top:0; padding-top:0; }
+      .offer-price { display:inline-block; margin-top:2px; font-size:16px; }
+      .saving { color:#176b35; font-weight:700; }
+      .expand-button {
+        width:100%;
+        margin-top:10px;
+        border:1px solid #c9ccd1;
+        border-radius:8px;
+        padding:8px 10px;
+        background:#fff;
+        color:#263238;
+        text-align:left;
+      }
+      .full-report { margin-top:12px; padding-top:10px; border-top:1px solid #e5e7eb; }
+      .all-offers { margin-top:10px; }
+      .all-offer-row { margin-top:8px; padding-top:8px; border-top:1px solid #eceef0; }
       .providers { margin-top:12px; display:grid; gap:6px; }
       .row { display:flex; justify-content:space-between; gap:12px; }
       .delta { margin-top:10px; font-weight:650; }
@@ -491,10 +825,7 @@ function baseStyles(): string {
       .consent-title { margin-top:12px; font-size:16px; font-weight:700; }
       .consent-copy { margin-top:8px; }
       .actions { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
-      button {
-        font: inherit;
-        cursor: pointer;
-      }
+      button { font: inherit; cursor: pointer; }
       button:disabled { cursor: default; opacity: .65; }
       .primary, .secondary {
         border-radius:8px;
