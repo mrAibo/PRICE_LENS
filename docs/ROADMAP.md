@@ -248,6 +248,25 @@ Run independent access spikes before production adapters.
 
 Exit gate: each enabled production provider has an explicit permitted data-access path.
 
+## Phase 4A — Provider entitlement gating
+
+Status: **public/private-beta foundation implemented; authenticated identity pending**
+
+- [x] represent restricted providers separately from unconfigured/error states
+- [x] default anonymous/free access restricts Idealo and Geizhals
+- [x] skip restricted adapters before any provider network request
+- [x] ignore client-supplied tier/entitlement claims
+- [x] fail closed when server access resolution is missing, malformed or unavailable
+- [x] expose a Private beta placeholder in the extension UI
+- [x] keep pilot/pro/admin access as a server-resolved context
+- [ ] connect an authenticated identity/session provider
+- [ ] issue/verify short-lived user sessions or tokens
+- [ ] persist pilot/pro entitlements in trusted server-side account data
+- [ ] enable Idealo/Geizhals only after both entitlement and provider-contract gates pass
+
+Exit gate: public users cannot invoke restricted provider adapters, while an authenticated
+pilot can be granted access without embedding a shared secret in the extension.
+
 ## Phase 5 — First real provider
 
 Status: **provider scaffold available; live provider gate not yet passed**
