@@ -88,6 +88,7 @@ export interface ProviderOrchestratorOptions {
   requestId?: string;
   normalizeOffers?: OfferNormalizer;
   destination?: BuyerDestination;
+  restrictedProviders?: readonly PriceProviderId[];
 }
 
 export async function compareWithProviders(
@@ -96,8 +97,12 @@ export async function compareWithProviders(
   options: ProviderOrchestratorOptions = {}
 ): Promise<ComparisonResult> {
   const timeoutMs = options.timeoutMs ?? 5000;
+  const restrictedProviders = new Set(options.restrictedProviders ?? []);
+  const activeProviders = providers.filter(
+    (provider) => !restrictedProviders.has(provider.id)
+  );
   const results = await Promise.all(
-    providers.map((provider) =>
+    activeProviders.map((provider) =>
       runProvider(
         provider,
         listing,
@@ -126,21 +131,29 @@ export async function compareWithProviders(
   const statusByProvider = new Map(
     results.map((result) => [result.status.provider, result.status] as const)
   );
-  const allProviderIds: PriceProviderId[] = ["idealo", "geizhals", "amazon"];
-  if (statusByProvider.has("ebay_market")) {
-    allProviderIds.push("ebay_market");
-  }
-  if (statusByProvider.has("fixture")) {
-    allProviderIds.push("fixture");
-  }
+  const allProviderIds = new Set<PriceProviderId>([
+    "idealo",
+    "geizhals",
+    "amazon",
+    ...providers.map((provider) => provider.id),
+    ...restrictedProviders
+  ]);
 
-  const statuses: ProviderStatus[] = allProviderIds.map((provider) =>
-    statusByProvider.get(provider) ?? {
+  const statuses: ProviderStatus[] = [...allProviderIds].map((provider) => {
+    if (restrictedProviders.has(provider)) {
+      return {
+        provider,
+        state: "restricted",
+        message: "This source is currently available only in the PriceLens private beta."
+      };
+    }
+
+    return statusByProvider.get(provider) ?? {
       provider,
       state: "unconfigured",
       message: "Provider adapter is not configured."
-    }
-  );
+    };
+  });
 
   return createComparisonResult(
     listing,

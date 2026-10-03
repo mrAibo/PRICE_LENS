@@ -37,8 +37,11 @@ afterEach(async () => {
   );
 });
 
-async function startServer(providers: PriceProvider[] = []): Promise<string> {
-  const server = createPriceLensServer({providers});
+async function startServer(
+  providers: PriceProvider[] = [],
+  options: Parameters<typeof createPriceLensServer>[0] = {}
+): Promise<string> {
+  const server = createPriceLensServer({...options, providers});
   servers.push(server);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -246,6 +249,77 @@ describe("PriceLens HTTP API", () => {
     }
   );
 
+  it("keeps Idealo and Geizhals restricted for anonymous public requests", async () => {
+    let idealoCalls = 0;
+    let geizhalsCalls = 0;
+    const idealo: PriceProvider = {
+      id: "idealo",
+      async search() {
+        idealoCalls += 1;
+        return [];
+      }
+    };
+    const geizhals: PriceProvider = {
+      id: "geizhals",
+      async search() {
+        geizhalsCalls += 1;
+        return [];
+      }
+    };
+
+    const baseUrl = await startServer([idealo, geizhals]);
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        listing,
+        accessTier: "pilot",
+        restrictedProviders: []
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(idealoCalls).toBe(0);
+    expect(geizhalsCalls).toBe(0);
+    expect(result.providerStatus).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({provider: "idealo", state: "restricted"}),
+        expect.objectContaining({provider: "geizhals", state: "restricted"})
+      ])
+    );
+  });
+
+  it("fails closed to public restrictions if access resolution fails", async () => {
+    let idealoCalls = 0;
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        idealoCalls += 1;
+        return [];
+      }
+    };
+
+    const baseUrl = await startServer([provider], {
+      resolveProviderAccess: () => {
+        throw new Error("identity service unavailable");
+      }
+    });
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({listing})
+    });
+
+    expect(response.status).toBe(200);
+    expect(idealoCalls).toBe(0);
+    await expect(response.json()).resolves.toMatchObject({
+      providerStatus: expect.arrayContaining([
+        expect.objectContaining({provider: "idealo", state: "restricted"})
+      ])
+    });
+  });
+
   it("routes comparisons through the provider orchestrator", async () => {
     const provider: PriceProvider = {
       id: "idealo",
@@ -269,7 +343,12 @@ describe("PriceLens HTTP API", () => {
       }
     };
 
-    const baseUrl = await startServer([provider]);
+    const baseUrl = await startServer([provider], {
+      resolveProviderAccess: () => ({
+        tier: "pilot",
+        restrictedProviders: []
+      })
+    });
     const response = await fetch(`${baseUrl}/v1/compare`, {
       method: "POST",
       headers: {"content-type": "application/json"},
@@ -305,7 +384,11 @@ describe("PriceLens HTTP API", () => {
     const server = createPriceLensServer({
       providers: [provider],
       diagnostics: (event) => diagnostics.push(event),
-      requestIdFactory: () => "req-destination-001"
+      requestIdFactory: () => "req-destination-001",
+      resolveProviderAccess: () => ({
+        tier: "pilot",
+        restrictedProviders: []
+      })
     });
     servers.push(server);
     server.listen(0, "127.0.0.1");

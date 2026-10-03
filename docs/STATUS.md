@@ -163,6 +163,16 @@ This phase is now the active implementation priority before broad search-results
 
 
 
+### Provider entitlement foundation
+
+- [x] anonymous/free policy marks Idealo and Geizhals as restricted/private beta
+- [x] restricted providers are skipped before adapter/network execution
+- [x] comparison payload cannot self-assign pilot/pro/admin access
+- [x] access resolver failures and malformed contexts fail closed to public restrictions
+- [x] UI shows restricted providers as Private beta rather than outage/unconfigured
+- [ ] authenticated login/session integration is still required before real pilot entitlements
+- [ ] Idealo/Geizhals live adapters remain separately blocked on provider approval/contracts
+
 ### Phase 1 — eBay extraction gate
 
 Still required:

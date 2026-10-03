@@ -405,6 +405,29 @@ describe("provider concurrency limits", () => {
 });
 
 describe("provider orchestration", () => {
+  it("does not call providers that are restricted by server-owned access policy", async () => {
+    let idealoCalls = 0;
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        idealoCalls += 1;
+        return [candidate()];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider], {
+      restrictedProviders: ["idealo"]
+    });
+
+    expect(idealoCalls).toBe(0);
+    expect(result.offers).toEqual([]);
+    expect(
+      result.providerStatus.find((status) => status.provider === "idealo")
+    ).toMatchObject({
+      state: "restricted"
+    });
+  });
+
   it("converts only automatic matches into comparable market offers", async () => {
     const provider: PriceProvider = {
       id: "idealo",
