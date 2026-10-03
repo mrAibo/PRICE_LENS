@@ -94,7 +94,11 @@ describe("structured diagnostics", () => {
           provider: "amazon",
           state: "error",
           latencyMs: 30,
-          reviewCandidateCount: 2
+          failureCategory: "rate_limit",
+          reviewCandidateCount: 2,
+          failureCategories: {
+            rate_limit: 1
+          }
         }
       ]
     });
@@ -155,6 +159,39 @@ describe("structured diagnostics", () => {
     expect(serialized).not.toMatch(
       /requestId|route|title|itemId|url|credential|secret/i
     );
+  });
+
+  it("serializes only bounded provider failure categories, never raw provider errors", () => {
+    const write = vi.fn<(line: string) => void>();
+    const sink = createJsonLineDiagnosticSink(
+      write,
+      () => "2026-10-04T00:00:00.000Z"
+    );
+
+    sink({
+      type: "compare_completed",
+      requestId: "req-failure",
+      route: "/v1/compare",
+      status: 200,
+      durationMs: 20,
+      offerCount: 0,
+      warningCount: 0,
+      warningCategories: {},
+      acceptedMatchMethods: {},
+      reviewMatchMethods: {},
+      enrichmentFallback: false,
+      providers: [{
+        provider: "amazon",
+        state: "error",
+        latencyMs: 12,
+        failureCategory: "auth",
+        reviewCandidateCount: 0
+      }]
+    });
+
+    const line = write.mock.calls[0]![0];
+    expect(line).toContain('"failureCategory":"auth"');
+    expect(line).not.toMatch(/bearer|oauth token response|raw body|credential/i);
   });
 
   it("aggregates cache hit/miss/coalesced events without logging cache keys", () => {
