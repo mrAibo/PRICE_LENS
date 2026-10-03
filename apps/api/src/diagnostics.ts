@@ -12,7 +12,8 @@ import type {
 export type ComparisonWarningCategory =
   | "extraction_warning"
   | "ebay_shipping_unknown"
-  | "enrichment_fallback";
+  | "enrichment_fallback"
+  | "fx_normalization";
 
 export type MatchMethodCounts = Partial<Record<MatchMethod, number>>;
 export type WarningCategoryCounts = Partial<Record<ComparisonWarningCategory, number>>;

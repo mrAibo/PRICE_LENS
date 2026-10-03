@@ -34,6 +34,10 @@ deploy_runtime = false
 #   "EBAY_DE", "EBAY_PL", "EBAY_AT", "EBAY_FR",
 #   "EBAY_IT", "EBAY_ES", "EBAY_NL", "EBAY_BE"
 # ]
+# ecb_fx_enabled           = false
+# ecb_fx_cache_ttl_ms      = 21600000
+# ecb_fx_max_rate_age_days = 7
+# ecb_fx_timeout_ms        = 2000
 # amazon_creators_enabled = false
 # amazon_partner_tag      = "replace-only-after-approved-live-access"
 

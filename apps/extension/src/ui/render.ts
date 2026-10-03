@@ -275,16 +275,18 @@ export function selectCompactOffers(
   }
 
   const currency = result.ebayLandedPrice.currency.toUpperCase();
-  const cheaper = result.offers.filter(
-    (offer) =>
-      offer.landedPriceComplete &&
-      offer.landedPrice.currency.toUpperCase() === currency &&
-      Number.isFinite(offer.landedPrice.amount) &&
-      offer.landedPrice.amount < result.ebayLandedPrice.amount
-  );
+  const cheaper = result.offers.filter((offer) => {
+    const price = comparableOfferPrice(offer, currency);
+    return (
+      price !== undefined &&
+      Number.isFinite(price.amount) &&
+      price.amount < result.ebayLandedPrice.amount
+    );
+  });
 
   const byPrice = (left: MarketOffer, right: MarketOffer) =>
-    left.landedPrice.amount - right.landedPrice.amount ||
+    comparableOfferPrice(left, currency)!.amount -
+      comparableOfferPrice(right, currency)!.amount ||
     right.confidence - left.confidence;
 
   const selected: MarketOffer[] = [];
@@ -346,8 +348,10 @@ function renderCompactReport(
     const otherCurrency = result.offers.some(
       (offer) =>
         offer.landedPriceComplete &&
-        offer.landedPrice.currency.toUpperCase() !==
-          result.ebayLandedPrice.currency.toUpperCase()
+        comparableOfferPrice(
+          offer,
+          result.ebayLandedPrice.currency
+        ) === undefined
     );
     return `
       <div class="compact-report">
@@ -376,7 +380,11 @@ function renderCompactOffer(
   result: ComparisonResult,
   offer: MarketOffer
 ): string {
-  const saving = result.ebayLandedPrice.amount - offer.landedPrice.amount;
+  const comparisonPrice = comparableOfferPrice(
+    offer,
+    result.ebayLandedPrice.currency
+  )!;
+  const saving = result.ebayLandedPrice.amount - comparisonPrice.amount;
   const savingPercent =
     result.ebayLandedPrice.amount > 0
       ? (saving / result.ebayLandedPrice.amount) * 100
@@ -390,10 +398,11 @@ function renderCompactOffer(
         <span class="muted">${escapeHtml(offerSourceLabel(offer))}</span>
       </div>
       <a class="offer-link offer-price" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
-        ${escapeHtml(formatMoney(offer.landedPrice.amount, offer.landedPrice.currency))}
+        ${offer.fx ? "≈ " : ""}${escapeHtml(formatMoney(comparisonPrice.amount, comparisonPrice.currency))}
       </a>
+      ${renderFxOriginalPrice(offer)}
       <div class="saving">
-        ${escapeHtml(formatMoney(saving, offer.landedPrice.currency))} cheaper
+        ${escapeHtml(formatMoney(saving, comparisonPrice.currency))} cheaper
         · ${savingPercent.toFixed(1)}%
       </div>
       ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
@@ -427,9 +436,11 @@ function renderFullReport(
   const best = bestOffer
     ? `
       <div class="delta">
-        Best comparable market price: ${escapeHtml(
-          formatMoney(bestOffer.landedPrice.amount, bestOffer.landedPrice.currency)
-        )}
+        Best comparable market price: ${result.marketMinimum
+          ? `${bestOffer.fx ? "≈ " : ""}${escapeHtml(
+              formatMoney(result.marketMinimum.amount, result.marketMinimum.currency)
+            )}`
+          : "unavailable"}
       </div>
       <div class="muted source-meta">
         ${escapeHtml(offerSourceLabel(bestOffer))}
@@ -487,6 +498,20 @@ function renderAllOffers(result: ComparisonResult): string {
         (conditionRank.get(left.condition) ?? 99) -
         (conditionRank.get(right.condition) ?? 99);
       if (conditionDifference !== 0) return conditionDifference;
+      const leftComparable = comparableOfferPrice(
+        left,
+        result.ebayLandedPrice.currency
+      );
+      const rightComparable = comparableOfferPrice(
+        right,
+        result.ebayLandedPrice.currency
+      );
+      if (leftComparable && rightComparable) {
+        return leftComparable.amount - rightComparable.amount;
+      }
+      if (leftComparable !== undefined || rightComparable !== undefined) {
+        return leftComparable ? -1 : 1;
+      }
       const currencyDifference = left.landedPrice.currency.localeCompare(
         right.landedPrice.currency
       );
@@ -499,8 +524,17 @@ function renderAllOffers(result: ComparisonResult): string {
 
   const rows = sorted.map((offer) => {
     const seller = marketplaceSellerSummary(offer);
+    const comparisonPrice = comparableOfferPrice(
+      offer,
+      result.ebayLandedPrice.currency
+    );
     const price = offer.landedPriceComplete
-      ? formatMoney(offer.landedPrice.amount, offer.landedPrice.currency)
+      ? comparisonPrice
+        ? `${offer.fx ? "≈ " : ""}${formatMoney(
+            comparisonPrice.amount,
+            comparisonPrice.currency
+          )}`
+        : formatMoney(offer.landedPrice.amount, offer.landedPrice.currency)
       : `${formatMoney(offer.itemPrice.amount, offer.itemPrice.currency)} + shipping unknown`;
     return `
       <div class="all-offer-row">
@@ -511,6 +545,7 @@ function renderAllOffers(result: ComparisonResult): string {
         <a class="offer-link" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
           ${escapeHtml(price)}
         </a>
+        ${renderFxOriginalPrice(offer)}
         ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
       </div>
     `;
@@ -545,15 +580,23 @@ function renderEbayMarketplace(result: ComparisonResult): string {
       const complete = group
         .filter(
           (offer) =>
-            offer.landedPriceComplete &&
-            offer.landedPrice.currency.toUpperCase() ===
-              result.ebayLandedPrice.currency.toUpperCase()
+            comparableOfferPrice(
+              offer,
+              result.ebayLandedPrice.currency
+            ) !== undefined
         )
         .slice()
-        .sort((left, right) => left.landedPrice.amount - right.landedPrice.amount);
+        .sort(
+          (left, right) =>
+            comparableOfferPrice(left, result.ebayLandedPrice.currency)!.amount -
+            comparableOfferPrice(right, result.ebayLandedPrice.currency)!.amount
+        );
       const best = complete[0] ?? group[0]!;
       const priceSummary = complete.length > 0
-        ? marketplacePriceSummary(complete)
+        ? marketplacePriceSummary(
+            complete,
+            result.ebayLandedPrice.currency
+          )
         : "no complete comparable landed price";
       const seller = marketplaceSellerSummary(best);
 
@@ -580,11 +623,17 @@ function renderEbayMarketplace(result: ComparisonResult): string {
   `;
 }
 
-function marketplacePriceSummary(offers: MarketOffer[]): string {
-  const amounts = offers
-    .map((offer) => offer.landedPrice.amount)
+function marketplacePriceSummary(
+  offers: MarketOffer[],
+  comparisonCurrency: string
+): string {
+  const prices = offers
+    .map((offer) => comparableOfferPrice(offer, comparisonCurrency))
+    .filter((price): price is {amount: number; currency: string} => price !== undefined);
+  const amounts = prices
+    .map((price) => price.amount)
     .sort((left, right) => left - right);
-  const currency = offers[0]!.landedPrice.currency;
+  const currency = comparisonCurrency;
   const minimum = amounts[0]!;
   const maximum = amounts[amounts.length - 1]!;
   const middle = Math.floor(amounts.length / 2);
@@ -597,6 +646,37 @@ function marketplacePriceSummary(offers: MarketOffer[]): string {
   }
 
   return `${formatMoney(minimum, currency)}–${formatMoney(maximum, currency)} · median ${formatMoney(median, currency)}`;
+}
+
+function comparableOfferPrice(
+  offer: MarketOffer,
+  comparisonCurrency: string
+): {amount: number; currency: string} | undefined {
+  if (!offer.landedPriceComplete) return undefined;
+  const target = comparisonCurrency.trim().toUpperCase();
+
+  if (
+    offer.comparisonLandedPrice &&
+    offer.comparisonLandedPrice.currency.trim().toUpperCase() === target
+  ) {
+    return offer.comparisonLandedPrice;
+  }
+
+  if (offer.landedPrice.currency.trim().toUpperCase() === target) {
+    return offer.landedPrice;
+  }
+
+  return undefined;
+}
+
+function renderFxOriginalPrice(offer: MarketOffer): string {
+  if (!offer.fx || !offer.comparisonLandedPrice) return "";
+  return `
+    <div class="muted fx-meta">
+      ${escapeHtml(formatMoney(offer.landedPrice.amount, offer.landedPrice.currency))}
+      delivered · ECB reference ${escapeHtml(offer.fx.rateDate)}
+    </div>
+  `;
 }
 
 function marketplaceSellerSummary(offer: MarketOffer): string {
@@ -784,6 +864,7 @@ function baseStyles(): string {
       .compact-offer:first-child { border-top:0; padding-top:0; }
       .offer-price { display:inline-block; margin-top:2px; font-size:16px; }
       .saving { color:#176b35; font-weight:700; }
+      .fx-meta { margin-top:2px; font-size:12px; }
       .expand-button {
         width:100%;
         margin-top:10px;

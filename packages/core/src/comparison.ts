@@ -85,33 +85,58 @@ export function calculateDelta(ebay: Money, market: Money): ComparisonDelta {
   };
 }
 
+export function comparableLandedPrice(
+  offer: MarketOffer,
+  comparisonCurrency?: string
+): Money | undefined {
+  if (!offer.landedPriceComplete) return undefined;
+
+  if (!comparisonCurrency) return offer.landedPrice;
+  const normalizedComparisonCurrency = normalizeCurrency(comparisonCurrency);
+
+  if (
+    offer.comparisonLandedPrice &&
+    normalizeCurrency(offer.comparisonLandedPrice.currency) ===
+      normalizedComparisonCurrency
+  ) {
+    return offer.comparisonLandedPrice;
+  }
+
+  if (
+    normalizeCurrency(offer.landedPrice.currency) ===
+    normalizedComparisonCurrency
+  ) {
+    return offer.landedPrice;
+  }
+
+  return undefined;
+}
+
 export function selectBestOffer(
   offers: MarketOffer[],
   comparisonCurrency?: string
 ): MarketOffer | undefined {
-  const normalizedComparisonCurrency = comparisonCurrency
-    ? normalizeCurrency(comparisonCurrency)
-    : undefined;
-
   return offers
-    .filter((offer) =>
-      offer.landedPriceComplete &&
-      Number.isFinite(offer.landedPrice.amount) &&
-      offer.landedPrice.amount >= 0 &&
-      (
-        normalizedComparisonCurrency === undefined ||
-        normalizeCurrency(offer.landedPrice.currency) === normalizedComparisonCurrency
-      )
+    .map((offer) => ({
+      offer,
+      price: comparableLandedPrice(offer, comparisonCurrency)
+    }))
+    .filter(
+      (entry): entry is {offer: MarketOffer; price: Money} =>
+        entry.price !== undefined &&
+        Number.isFinite(entry.price.amount) &&
+        entry.price.amount >= 0
     )
-    .slice()
-    .sort((a, b) => a.landedPrice.amount - b.landedPrice.amount)[0];
+    .sort((a, b) => a.price.amount - b.price.amount)[0]
+    ?.offer;
 }
 
 export function createComparisonResult(
   listing: EcommerceListing,
   offers: MarketOffer[],
   providerStatus: ProviderStatus[],
-  requestId = createRequestId()
+  requestId = createRequestId(),
+  additionalWarnings: string[] = []
 ): ComparisonResult {
   const ebay = calculateLandedPrice(listing.price, listing.shipping);
   const bestOffer = selectBestOffer(
@@ -123,7 +148,7 @@ export function createComparisonResult(
     ),
     ebay.value.currency
   );
-  const warnings = [...listing.extractionWarnings];
+  const warnings = [...listing.extractionWarnings, ...additionalWarnings];
 
   if (!ebay.complete) warnings.push("eBay shipping is unknown; landed price is incomplete.");
 
@@ -140,7 +165,14 @@ export function createComparisonResult(
     };
   }
 
-  const delta = ebay.complete ? calculateDelta(ebay.value, bestOffer.landedPrice) : undefined;
+  const bestComparablePrice = comparableLandedPrice(
+    bestOffer,
+    ebay.value.currency
+  );
+  const delta =
+    ebay.complete && bestComparablePrice
+      ? calculateDelta(ebay.value, bestComparablePrice)
+      : undefined;
 
   return {
     requestId,
@@ -149,7 +181,7 @@ export function createComparisonResult(
     ebayLandedPriceComplete: ebay.complete,
     offers,
     bestOffer,
-    marketMinimum: bestOffer.landedPrice,
+    marketMinimum: bestComparablePrice,
     delta,
     providerStatus,
     warnings,

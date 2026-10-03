@@ -54,6 +54,15 @@ export type PriceProviderId =
   | "fixture";
 export type MatchMethod = "gtin" | "mpn" | "model" | "fuzzy" | "manual" | "unknown";
 
+export interface FxConversion {
+  source: "ecb_reference";
+  rateDate: string;
+  fetchedAt: string;
+  fromCurrency: string;
+  toCurrency: string;
+  rate: number;
+}
+
 export interface MarketOffer {
   provider: PriceProviderId;
   providerProductId?: string;
@@ -69,6 +78,8 @@ export interface MarketOffer {
   shipping?: Money;
   landedPrice: Money;
   landedPriceComplete: boolean;
+  comparisonLandedPrice?: Money;
+  fx?: FxConversion;
   confidence: number;
   matchMethod: MatchMethod;
   matchReason: string;

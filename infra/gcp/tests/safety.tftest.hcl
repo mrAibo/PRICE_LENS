@@ -64,6 +64,16 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.ECB_FX_ENABLED == "0"
+    error_message = "ECB FX normalization must remain opt-in until live deployment validation."
+  }
+
+  assert {
+    condition     = local.literal_env.ECB_FX_CACHE_TTL_MS == "21600000" && local.literal_env.ECB_FX_MAX_RATE_AGE_DAYS == "7" && local.literal_env.ECB_FX_TIMEOUT_MS == "2000"
+    error_message = "ECB FX cache, freshness and timeout defaults must remain bounded."
+  }
+
+  assert {
     condition     = local.literal_env.AMAZON_CREATORS_ENABLED == "0"
     error_message = "Amazon Creators must remain opt-in by default."
   }

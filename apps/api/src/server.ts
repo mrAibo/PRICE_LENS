@@ -5,6 +5,7 @@ import {
   createEbayBrowseEnricherFromEnv,
   createEbayMarketplaceProvider
 } from "./ebay-browse.js";
+import {createEcbFxNormalizerFromEnv} from "./ecb-fx.js";
 import {
   createAggregatingDiagnosticSink,
   createJsonLineDiagnosticSink,
@@ -52,6 +53,7 @@ const ebayMarketplaceProvider =
   ebayEnricher && process.env.EBAY_MARKETPLACE_COMPARISON_ENABLED === "1"
     ? createEbayMarketplaceProvider(ebayEnricher)
     : undefined;
+const fxNormalizer = createEcbFxNormalizerFromEnv(process.env);
 const amazonProvider = createAmazonCreatorsProviderFromEnv(process.env, {
   cacheObserver
 });
@@ -69,8 +71,12 @@ const server = createPriceLensServer({
   enrichListing: ebayEnricher
     ? (listing) => ebayEnricher.enrich(listing)
     : undefined,
+  normalizeOffers: fxNormalizer
+    ? (listing, offers) => fxNormalizer.normalize(listing, offers)
+    : undefined,
   enrichmentStatus: {
-    ebay: ebayEnricher ? "configured" : "unconfigured"
+    ebay: ebayEnricher ? "configured" : "unconfigured",
+    fx: fxNormalizer ? "configured" : "unconfigured"
   },
   maxConcurrentComparisons
 });
@@ -82,6 +88,7 @@ server.listen(port, host, () => {
     fixtureProviderEnabled ? "fixture provider enabled" : undefined,
     ebayEnricher ? "eBay Browse enrichment enabled" : undefined,
     ebayMarketplaceProvider ? "eBay same-product market enabled" : undefined,
+    fxNormalizer ? "ECB reference FX enabled" : undefined,
     amazonProvider ? "Amazon Creators provider enabled" : undefined,
     structuredDiagnosticsEnabled
       ? `JSON diagnostics enabled, metrics every ${metricsEmitEvery} events`

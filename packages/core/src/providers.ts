@@ -71,9 +71,20 @@ export function limitProviderConcurrency(
   };
 }
 
+export interface OfferNormalizationResult {
+  offers: MarketOffer[];
+  warnings?: string[];
+}
+
+export type OfferNormalizer = (
+  listing: EcommerceListing,
+  offers: MarketOffer[]
+) => Promise<OfferNormalizationResult>;
+
 export interface ProviderOrchestratorOptions {
   timeoutMs?: number;
   requestId?: string;
+  normalizeOffers?: OfferNormalizer;
 }
 
 export async function compareWithProviders(
@@ -86,7 +97,22 @@ export async function compareWithProviders(
     providers.map((provider) => runProvider(provider, listing, timeoutMs))
   );
 
-  const offers = results.flatMap((result) => result.offers);
+  const rawOffers = results.flatMap((result) => result.offers);
+  let offers = rawOffers;
+  let normalizationWarnings: string[] = [];
+
+  if (options.normalizeOffers && rawOffers.length > 0) {
+    try {
+      const normalized = await options.normalizeOffers(listing, rawOffers);
+      offers = normalized.offers;
+      normalizationWarnings = normalized.warnings ?? [];
+    } catch {
+      normalizationWarnings = [
+        "Currency normalization is unavailable; cross-currency offers were not ranked."
+      ];
+    }
+  }
+
   const statusByProvider = new Map(
     results.map((result) => [result.status.provider, result.status] as const)
   );
@@ -106,7 +132,13 @@ export async function compareWithProviders(
     }
   );
 
-  return createComparisonResult(listing, offers, statuses, options.requestId);
+  return createComparisonResult(
+    listing,
+    offers,
+    statuses,
+    options.requestId,
+    normalizationWarnings
+  );
 }
 
 async function runProvider(

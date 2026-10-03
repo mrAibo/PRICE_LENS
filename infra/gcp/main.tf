@@ -33,6 +33,11 @@ locals {
     EBAY_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.ebay_marketplace_search_concurrency)
     EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
+    ECB_FX_ENABLED           = var.ecb_fx_enabled ? "1" : "0"
+    ECB_FX_CACHE_TTL_MS      = tostring(var.ecb_fx_cache_ttl_ms)
+    ECB_FX_MAX_RATE_AGE_DAYS = tostring(var.ecb_fx_max_rate_age_days)
+    ECB_FX_TIMEOUT_MS        = tostring(var.ecb_fx_timeout_ms)
+
     AMAZON_CREATORS_ENABLED            = var.amazon_creators_enabled ? "1" : "0"
     AMAZON_CREATORS_CREDENTIAL_VERSION = var.amazon_credential_version
     AMAZON_PARTNER_TAG                 = var.amazon_partner_tag
