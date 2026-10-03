@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `da0fbe74260e1c824a3fd257fd859f16abc0582b` (PR #47). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `8229ff6e40ec4a72481d720949416bda9af1944d` (PR #48). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -244,11 +244,12 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #45 — JSON-only comparison media-type / non-CORS abuse boundary — merged into `main`
 - PR #46 — validate requests before reserving comparison concurrency — merged into `main`
 - PR #47 — production release preflight + immutable Phase B inputs — merged into `main`
+- PR #48 — structured warning + match-decision aggregate diagnostics — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics.
+1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The capture/review pipeline is ready, but raw saved live-page HTML is still required; do not substitute search snippets or synthetic fixtures.
 2. Issue #12 — insert eBay Sandbox credentials and perform live Browse validation, then Production approval.
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
