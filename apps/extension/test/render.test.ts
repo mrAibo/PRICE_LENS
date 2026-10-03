@@ -509,6 +509,65 @@ describe("PriceLens unsupported UI", () => {
     ]);
   });
 
+  it("shows an FX-normalized Polish offer in the compact report while preserving PLN provenance", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "fx-polish",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "pl-1",
+          productTitle: "Example Product Polska",
+          marketplace: "EBAY_PL",
+          itemLocationCountry: "PL",
+          url: "https://www.ebay.pl/itm/400000000001",
+          condition: "new",
+          itemPrice: {amount: 850, currency: "PLN"},
+          shipping: {amount: 25, currency: "PLN"},
+          landedPrice: {amount: 875, currency: "PLN"},
+          landedPriceComplete: true,
+          comparisonLandedPrice: {amount: 199 - 10, currency: "EUR"},
+          fx: {
+            source: "ecb_reference",
+            rateDate: "2026-10-02",
+            fetchedAt: "2026-10-04T00:00:00Z",
+            fromCurrency: "PLN",
+            toCurrency: "EUR",
+            rate: 0.216
+          },
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        }
+      ],
+      bestOffer: undefined,
+      marketMinimum: undefined,
+      providerStatus: [{provider: "ebay_market", state: "ok"}],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:10Z"
+    };
+
+    view.renderComparison(result);
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+    expect(text).toContain("Cheaper options found");
+    expect(text).toContain("eBay Poland");
+    expect(text).toContain("≈");
+    expect(text).toContain("189,00");
+    expect(text).toContain("875,00");
+    expect(text).toContain("PLN");
+    expect(text).toContain("ECB reference 2026-10-02");
+    expect(text).toContain("10,00");
+    expect(text).toContain("cheaper");
+  });
+
   it("formats offer freshness against the comparison generation time", () => {
     expect(
       formatFreshness(
