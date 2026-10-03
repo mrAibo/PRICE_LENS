@@ -103,6 +103,59 @@ describe("comparison", () => {
     expect(result.marketMinimum).toEqual({amount: 950, currency: "EUR"});
   });
 
+  it("uses an explicit FX-normalized comparison price without losing the original price", () => {
+    const polish: MarketOffer = {
+      provider: "ebay_market",
+      productTitle: "Polish offer",
+      marketplace: "EBAY_PL",
+      url: "https://www.ebay.pl/itm/1",
+      condition: "new",
+      itemPrice: {amount: 1244, currency: "PLN"},
+      shipping: {amount: 0, currency: "PLN"},
+      landedPrice: {amount: 1244, currency: "PLN"},
+      landedPriceComplete: true,
+      comparisonLandedPrice: {amount: 284.18, currency: "EUR"},
+      fx: {
+        source: "ecb_reference",
+        rateDate: "2026-10-02",
+        fetchedAt: "2026-10-04T00:00:00Z",
+        fromCurrency: "PLN",
+        toCurrency: "EUR",
+        rate: 0.22844089
+      },
+      confidence: 1,
+      matchMethod: "gtin",
+      matchReason: "exact GTIN",
+      fetchedAt: "2026-10-04T00:00:00Z"
+    };
+    const german: MarketOffer = {
+      ...polish,
+      marketplace: "EBAY_DE",
+      url: "https://www.ebay.de/itm/2",
+      itemPrice: {amount: 300, currency: "EUR"},
+      shipping: {amount: 0, currency: "EUR"},
+      landedPrice: {amount: 300, currency: "EUR"},
+      comparisonLandedPrice: undefined,
+      fx: undefined
+    };
+
+    expect(selectBestOffer([german, polish], "EUR")).toBe(polish);
+
+    const result = createComparisonResult(
+      {...listing, condition: "new"},
+      [german, polish],
+      [{provider: "ebay_market", state: "ok"}],
+      "req-fx"
+    );
+
+    expect(result.bestOffer?.landedPrice).toEqual({
+      amount: 1244,
+      currency: "PLN"
+    });
+    expect(result.marketMinimum).toEqual({amount: 284.18, currency: "EUR"});
+    expect(result.delta?.absolute.currency).toBe("EUR");
+  });
+
   it("selects the cheapest complete landed offer", () => {
     const offers: MarketOffer[] = [
       {
