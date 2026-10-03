@@ -387,7 +387,7 @@ function renderCompactOffer(
     <div class="compact-offer">
       <div class="offer-head">
         <strong>${escapeHtml(conditionLabel(offer.condition))}</strong>
-        <span class="muted">${escapeHtml(providerLabel(offer.provider))}</span>
+        <span class="muted">${escapeHtml(offerSourceLabel(offer))}</span>
       </div>
       <a class="offer-link offer-price" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
         ${escapeHtml(formatMoney(offer.landedPrice.amount, offer.landedPrice.currency))}
@@ -432,7 +432,7 @@ function renderFullReport(
         )}
       </div>
       <div class="muted source-meta">
-        ${escapeHtml(providerLabel(bestOffer.provider))}
+        ${escapeHtml(offerSourceLabel(bestOffer))}
         ${bestOffer.merchant ? ` · ${escapeHtml(bestOffer.merchant)}` : ""}
         ${formatFreshness(bestOffer.fetchedAt, result.generatedAt)
           ? ` · ${escapeHtml(formatFreshness(bestOffer.fetchedAt, result.generatedAt)!)}`
@@ -506,7 +506,7 @@ function renderAllOffers(result: ComparisonResult): string {
       <div class="all-offer-row">
         <div class="offer-head">
           <strong>${escapeHtml(conditionLabel(offer.condition))}</strong>
-          <span class="muted">${escapeHtml(providerLabel(offer.provider))}</span>
+          <span class="muted">${escapeHtml(offerSourceLabel(offer))}</span>
         </div>
         <a class="offer-link" href="${escapeHtml(offer.url)}" target="_blank" rel="noopener noreferrer">
           ${escapeHtml(price)}
@@ -859,6 +859,32 @@ function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
+}
+
+function offerSourceLabel(offer: MarketOffer): string {
+  const marketplace = offer.marketplace?.trim();
+  if (!marketplace) return providerLabel(offer.provider);
+
+  const labels: Record<string, string> = {
+    EBAY_DE: "eBay Germany",
+    EBAY_PL: "eBay Poland",
+    EBAY_AT: "eBay Austria",
+    EBAY_FR: "eBay France",
+    EBAY_IT: "eBay Italy",
+    EBAY_ES: "eBay Spain",
+    EBAY_NL: "eBay Netherlands",
+    EBAY_BE: "eBay Belgium",
+    "www.amazon.de": "Amazon Germany",
+    "www.amazon.pl": "Amazon Poland",
+    "www.amazon.at": "Amazon Austria",
+    "www.amazon.fr": "Amazon France",
+    "www.amazon.it": "Amazon Italy",
+    "www.amazon.es": "Amazon Spain",
+    "www.amazon.nl": "Amazon Netherlands",
+    "www.amazon.com.be": "Amazon Belgium"
+  };
+
+  return labels[marketplace] ?? `${providerLabel(offer.provider)} · ${marketplace}`;
 }
 
 function providerLabel(provider: PriceProviderId): string {
