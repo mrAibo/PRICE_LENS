@@ -116,7 +116,13 @@ export class EbayBrowseEnricher {
       response,
       "eBay Browse marketplace search"
     );
-    return extractMarketplaceCandidates(payload, listing, gtin, this.now());
+    return extractMarketplaceCandidates(
+      payload,
+      listing,
+      gtin,
+      this.now(),
+      this.marketplaceId
+    );
   }
 
   private async getItemByLegacyId(
@@ -400,7 +406,8 @@ function extractMarketplaceCandidates(
   payload: JsonRecord,
   listing: EcommerceListing,
   gtin: string,
-  fetchedAtMs: number
+  fetchedAtMs: number,
+  marketplaceId: string
 ): ProviderCandidate[] {
   const summaries = Array.isArray(payload.itemSummaries)
     ? payload.itemSummaries
@@ -443,6 +450,8 @@ function extractMarketplaceCandidates(
       providerProductId: itemId,
       productTitle: title,
       merchant: readString(seller?.username),
+      marketplace: marketplaceId,
+      itemLocationCountry: readString(readRecord(item.itemLocation)?.country),
       sellerFeedbackPercentage: readFiniteNumber(seller?.feedbackPercentage),
       sellerFeedbackScore: readFiniteNumber(seller?.feedbackScore),
       url,

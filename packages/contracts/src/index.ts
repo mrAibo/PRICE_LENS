@@ -59,6 +59,8 @@ export interface MarketOffer {
   providerProductId?: string;
   productTitle: string;
   merchant?: string;
+  marketplace?: string;
+  itemLocationCountry?: string;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
   url: string;

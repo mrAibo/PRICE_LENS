@@ -85,12 +85,23 @@ export function calculateDelta(ebay: Money, market: Money): ComparisonDelta {
   };
 }
 
-export function selectBestOffer(offers: MarketOffer[]): MarketOffer | undefined {
+export function selectBestOffer(
+  offers: MarketOffer[],
+  comparisonCurrency?: string
+): MarketOffer | undefined {
+  const normalizedComparisonCurrency = comparisonCurrency
+    ? normalizeCurrency(comparisonCurrency)
+    : undefined;
+
   return offers
     .filter((offer) =>
       offer.landedPriceComplete &&
       Number.isFinite(offer.landedPrice.amount) &&
-      offer.landedPrice.amount >= 0
+      offer.landedPrice.amount >= 0 &&
+      (
+        normalizedComparisonCurrency === undefined ||
+        normalizeCurrency(offer.landedPrice.currency) === normalizedComparisonCurrency
+      )
     )
     .slice()
     .sort((a, b) => a.landedPrice.amount - b.landedPrice.amount)[0];
@@ -109,7 +120,8 @@ export function createComparisonResult(
         offer.provider !== "ebay_market" ||
         listing.condition === "unknown" ||
         offer.condition === listing.condition
-    )
+    ),
+    ebay.value.currency
   );
   const warnings = [...listing.extractionWarnings];
 

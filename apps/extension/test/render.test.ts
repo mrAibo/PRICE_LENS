@@ -7,6 +7,7 @@ import type {
 import {
   formatFreshness,
   mountPriceLens,
+  selectCompactOffers,
   mountUnsupportedPriceLens
 } from "../src/ui/render.js";
 
@@ -41,6 +42,26 @@ describe("PriceLens unsupported UI", () => {
     expect(host?.shadowRoot?.textContent).toContain(
       "No market lookup was sent"
     );
+  });
+
+  it("starts idle and only invokes the report action when the lens button is pressed", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let calls = 0;
+    mountPriceLens(dom.window.document, listing, {
+      async onRequestComparison() {
+        calls += 1;
+      }
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    expect(shadow?.textContent).toContain("Compare with PriceLens");
+    expect(shadow?.textContent).toContain("No provider request has been sent");
+    expect(calls).toBe(0);
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")?.click();
+    await Promise.resolve();
+
+    expect(calls).toBe(1);
   });
 
   it("explains incomplete landed-price offers instead of saying providers are unconfigured", () => {
@@ -84,7 +105,7 @@ describe("PriceLens unsupported UI", () => {
 
     const text = dom.window.document.getElementById("price-lens-root")
       ?.shadowRoot?.textContent ?? "";
-    expect(text).toContain("mandatory shipping is unavailable");
+    expect(text).toContain("no complete same-currency landed-price comparison is available");
     expect(text).not.toContain("Price providers are not configured yet");
   });
 
@@ -149,12 +170,12 @@ describe("PriceLens unsupported UI", () => {
 
     const text = dom.window.document.getElementById("price-lens-root")
       ?.shadowRoot?.textContent ?? "";
-    expect(text).toContain("Best available market price");
+    expect(text).toContain("Best comparable market price");
     expect(text).toContain("Amazon.de");
     expect(text).toContain("fetched 5 min ago");
     expect(text).toContain("Some price sources are currently unavailable");
     expect(text).toContain("Idealo, Geizhals");
-    expect(text).toContain("eBay vs available market");
+    expect(text).toContain("eBay vs comparable market");
     expect(text).toContain("temporarily unavailable");
   });
 
@@ -205,7 +226,7 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("+1 more");
     expect(text).toContain("not used for the best-price");
     expect(text).toContain("2 need review");
-    expect(text).not.toContain("Best available market price");
+    expect(text).not.toContain("Best comparable market price");
   });
 
   it("groups same-product eBay alternatives by condition and shows seller/market stats", () => {
@@ -315,7 +336,7 @@ describe("PriceLens unsupported UI", () => {
 
     const text = dom.window.document.getElementById("price-lens-root")
       ?.shadowRoot?.textContent ?? "";
-    expect(text).toContain("Same product on eBay");
+    expect(text).toContain("eBay market summary");
     expect(text).toContain("New");
     expect(text).toContain("2 matched");
     expect(text).toContain("median");
@@ -328,6 +349,163 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("99.8% positive");
     expect(text).toContain("18000 feedback");
     expect(text).toContain("eBay alternatives");
+  });
+
+  it("keeps the compact cheaper-first report collapsed until the user expands it", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let comparisonRequests = 0;
+    const view = mountPriceLens(dom.window.document, listing, {
+      onRequestComparison() {
+        comparisonRequests += 1;
+      }
+    });
+
+    const result: ComparisonResult = {
+      requestId: "compact-report",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "new-cheaper",
+          productTitle: "Example Product New",
+          marketplace: "EBAY_DE",
+          url: "https://www.ebay.de/itm/300000000001",
+          condition: "new",
+          itemPrice: {amount: 180, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 180, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "refurb-cheaper",
+          productTitle: "Example Product Refurbished",
+          marketplace: "EBAY_DE",
+          url: "https://www.ebay.de/itm/300000000002",
+          condition: "refurbished",
+          itemPrice: {amount: 150, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 150, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        },
+        {
+          provider: "amazon",
+          providerProductId: "B0MOREEXPENSIVE",
+          productTitle: "Example Product",
+          marketplace: "www.amazon.de",
+          url: "https://www.amazon.de/dp/B0MOREEXPENSIVE",
+          condition: "new",
+          itemPrice: {amount: 220, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 220, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        }
+      ],
+      providerStatus: [
+        {provider: "ebay_market", state: "ok"},
+        {provider: "amazon", state: "ok"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:10Z"
+    };
+
+    view.renderComparison(result);
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const full = shadow?.querySelector<HTMLElement>("[data-price-lens-full-report]");
+    const expand = shadow?.querySelector<HTMLButtonElement>("[data-price-lens-expand]");
+    const text = shadow?.textContent ?? "";
+
+    expect(text).toContain("Cheaper options found");
+    expect(text).toContain("19,00");
+    expect(text).toContain("49,00");
+    expect(full?.hidden).toBe(true);
+    expect(expand?.textContent).toContain("+ Show full report");
+    expect(comparisonRequests).toBe(0);
+
+    expand?.click();
+
+    expect(full?.hidden).toBe(false);
+    expect(expand?.textContent).toContain("− Hide full report");
+    expect(comparisonRequests).toBe(0);
+  });
+
+  it("prioritizes same-condition cheaper offers and excludes raw cross-currency prices", () => {
+    const result: ComparisonResult = {
+      requestId: "compact-selection",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "pln",
+          productTitle: "Polish numeric-cheap offer",
+          url: "https://www.ebay.pl/itm/1",
+          condition: "new",
+          itemPrice: {amount: 99, currency: "PLN"},
+          shipping: {amount: 0, currency: "PLN"},
+          landedPrice: {amount: 99, currency: "PLN"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "new",
+          productTitle: "New cheaper",
+          url: "https://www.ebay.de/itm/2",
+          condition: "new",
+          itemPrice: {amount: 190, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 190, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        },
+        {
+          provider: "ebay_market",
+          providerProductId: "used",
+          productTitle: "Used much cheaper",
+          url: "https://www.ebay.de/itm/3",
+          condition: "used",
+          itemPrice: {amount: 120, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 120, currency: "EUR"},
+          landedPriceComplete: true,
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        }
+      ],
+      providerStatus: [{provider: "ebay_market", state: "ok"}],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    };
+
+    expect(selectCompactOffers(result).map((offer) => offer.providerProductId)).toEqual([
+      "new",
+      "used"
+    ]);
   });
 
   it("formats offer freshness against the comparison generation time", () => {

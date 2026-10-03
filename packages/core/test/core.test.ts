@@ -56,6 +56,53 @@ describe("lookup identity", () => {
 });
 
 describe("comparison", () => {
+  it("does not compare raw numeric prices across currencies", () => {
+    const offers: MarketOffer[] = [
+      {
+        provider: "ebay_market",
+        productTitle: "Polish offer",
+        url: "https://www.ebay.pl/itm/1",
+        condition: "new",
+        itemPrice: {amount: 899, currency: "PLN"},
+        shipping: {amount: 0, currency: "PLN"},
+        landedPrice: {amount: 899, currency: "PLN"},
+        landedPriceComplete: true,
+        confidence: 1,
+        matchMethod: "gtin",
+        matchReason: "exact GTIN",
+        fetchedAt: "2026-10-04T00:00:00Z"
+      },
+      {
+        provider: "ebay_market",
+        productTitle: "German offer",
+        url: "https://www.ebay.de/itm/2",
+        condition: "new",
+        itemPrice: {amount: 950, currency: "EUR"},
+        shipping: {amount: 0, currency: "EUR"},
+        landedPrice: {amount: 950, currency: "EUR"},
+        landedPriceComplete: true,
+        confidence: 1,
+        matchMethod: "gtin",
+        matchReason: "exact GTIN",
+        fetchedAt: "2026-10-04T00:00:00Z"
+      }
+    ];
+
+    expect(selectBestOffer(offers, "EUR")?.landedPrice).toEqual({
+      amount: 950,
+      currency: "EUR"
+    });
+
+    const result = createComparisonResult(
+      listing,
+      offers,
+      [{provider: "ebay_market", state: "ok"}],
+      "req-currency"
+    );
+    expect(result.bestOffer?.landedPrice.currency).toBe("EUR");
+    expect(result.marketMinimum).toEqual({amount: 950, currency: "EUR"});
+  });
+
   it("selects the cheapest complete landed offer", () => {
     const offers: MarketOffer[] = [
       {

@@ -4,6 +4,7 @@ import type {CompareMessage, CompareResponse} from "./messages.js";
 import {
   mountPriceLens,
   mountUnsupportedPriceLens,
+  type PriceLensReportActions,
   type PriceLensView
 } from "./ui/render.js";
 
@@ -12,7 +13,11 @@ export interface PriceLensLifecycleOptions {
   window: Window & typeof globalThis;
   getPageUrl?: () => string;
   sendMessage: (message: CompareMessage) => Promise<CompareResponse | undefined>;
-  mount?: (document: Document, listing: EcommerceListing) => PriceLensView;
+  mount?: (
+    document: Document,
+    listing: EcommerceListing,
+    actions: PriceLensReportActions
+  ) => PriceLensView;
   mountUnsupported?: (document: Document, message: string) => void;
   debounceMs?: number;
 }
@@ -86,32 +91,55 @@ export function createPriceLensLifecycle(
     lastItemId = listing.itemId;
     generation += 1;
     const refreshGeneration = generation;
+    let requestInFlight = false;
+    let reportLoaded = false;
 
-    const view = mount(options.document, listing);
-    const message: CompareMessage = {
-      type: "PRICE_LENS_COMPARE",
-      listing
+    let view!: PriceLensView;
+    const requestComparison = async (): Promise<void> => {
+      if (
+        stopped ||
+        generation !== refreshGeneration ||
+        requestInFlight ||
+        reportLoaded
+      ) {
+        return;
+      }
+
+      requestInFlight = true;
+      view.renderLoading();
+
+      const message: CompareMessage = {
+        type: "PRICE_LENS_COMPARE",
+        listing
+      };
+
+      try {
+        const response = await options.sendMessage(message);
+        if (stopped || generation !== refreshGeneration) return;
+
+        if (!response) {
+          view.renderError("No comparison response was returned.");
+          return;
+        }
+
+        if (!response.ok) {
+          view.renderError(response.error);
+          return;
+        }
+
+        reportLoaded = true;
+        view.renderComparison(response.result);
+      } catch {
+        if (stopped || generation !== refreshGeneration) return;
+        view.renderError("Comparison service is unavailable.");
+      } finally {
+        requestInFlight = false;
+      }
     };
 
-    try {
-      const response = await options.sendMessage(message);
-      if (stopped || generation !== refreshGeneration) return;
-
-      if (!response) {
-        view.renderError("No comparison response was returned.");
-        return;
-      }
-
-      if (!response.ok) {
-        view.renderError(response.error);
-        return;
-      }
-
-      view.renderComparison(response.result);
-    } catch {
-      if (stopped || generation !== refreshGeneration) return;
-      view.renderError("Comparison service is unavailable.");
-    }
+    view = mount(options.document, listing, {
+      onRequestComparison: requestComparison
+    });
   }
 
   function scheduleRefresh(): void {

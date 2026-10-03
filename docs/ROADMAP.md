@@ -1,6 +1,6 @@
 # PriceLens Roadmap
 
-Updated: **2026-10-03**
+Updated: **2026-10-04**
 
 This roadmap is evidence-gated. Later phases do not require pretending an earlier external integration is solved.
 
@@ -13,6 +13,7 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | 2 — Matching/comparison engine | **complete (current labelled gate)** | zero known labelled hard-mismatch auto-matches |
 | 3 — eBay API enrichment | **implementation complete; live validation blocked** | enrichment improves coverage without becoming mandatory |
 | 3B — eBay same-product marketplace | **initial implementation complete; live validation blocked** | exact same-product alternatives remain condition-separated and trustworthy |
+| 3C — On-demand international comparison UX | **in progress** | explicit user action produces a compact best-value report; full list is optional |
 | 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
 | 5 — First real provider | **not started** | one production-quality provider end to end |
 | 6 — Multi-provider comparison | **internal plumbing complete; live activation blocked** | partial failures + concurrency + approved freshness are production-safe |
@@ -160,6 +161,54 @@ Exit gate: PriceLens can surface alternate fixed-price eBay listings for the sam
 product without mixing conditions, variants or incomplete shipping into a misleading
 best-price claim.
 
+## Phase 3C — On-demand international comparison UX
+
+Status: **in progress**
+
+Product rule:
+
+> Opening or scrolling an eBay page must not automatically fan out provider searches.
+> A comparison report is generated only after the user explicitly requests it.
+
+Compact-first UX:
+
+- [ ] render an idle PriceLens lens/eye control after safe local extraction
+- [ ] send zero comparison/provider requests until the user presses the control
+- [ ] show a loading state only after explicit request
+- [ ] show only materially useful cheaper offers in the initial report
+- [ ] prioritize cheaper offers in the same condition as the current listing
+- [ ] show refurbished/used alternatives separately
+- [ ] cap the compact report to a small number of actionable offers
+- [ ] add a `+` control to expand the complete returned offer list
+- [ ] collapsing/reopening the already loaded report must not trigger a new provider request
+- [ ] add an explicit refresh action later when report caching is introduced
+
+International foundation:
+
+- [ ] add marketplace/source-country metadata to normalized offers
+- [ ] make comparison currency-safe before multi-currency marketplace fan-out
+- [ ] model buyer destination country and optional postal code without IP inference
+- [ ] add eBay EU marketplace fan-out, starting with DE/PL/AT/FR/IT/ES/NL/BE
+- [ ] pass buyer destination context where the provider supports shipping calculation
+- [ ] deduplicate the same eBay item returned by multiple marketplaces
+- [ ] preserve original currency and add explicit FX normalization before cross-currency ranking
+- [ ] distinguish EU from non-EU landed-cost semantics
+- [ ] add Amazon EU marketplace fan-out only where approved Partner Tags/access exist
+- [ ] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
+
+Traffic/scale rules:
+
+- [x] provider concurrency and API overload caps already exist
+- [x] provider caches default off pending approved freshness terms
+- [ ] no eager per-card provider calls on eBay search-result pages
+- [ ] future search-result augmentation is user-triggered per card by default
+- [ ] add report/session reuse before enabling broad international fan-out at scale
+- [ ] measure provider-call count and latency for compact reports
+
+Exit gate: a user can explicitly request one PriceLens report, immediately see the few
+offers that can actually save money, optionally expand the full list, and do so without
+automatic page-load provider traffic or unsafe cross-currency ranking.
+
 ## Phase 4 — Provider access spikes
 
 Status: **research complete; access/onboarding pending**
@@ -243,14 +292,17 @@ Exit gate: partial outages and rate limits degrade gracefully and never produce 
 
 Status: **deferred until single-item gates pass**
 
+Default interaction: **user-triggered per result card; no eager provider lookup while scrolling.**
+
 Deliverables:
 
-- [ ] detect eBay result cards
-- [ ] batch/debounce comparisons
-- [ ] visible result limit
+- [ ] detect eBay result cards locally
+- [ ] render a small PriceLens lens/eye action per eligible card
+- [ ] send a comparison request only for a card the user explicitly opens
 - [ ] request deduplication
-- [ ] cache-aware scrolling
+- [ ] cache/session-aware reopening
 - [ ] no excessive provider traffic
+- [ ] compact cheaper-first result with optional full expansion
 - [ ] per-card uncertainty state
 
 ## Phase 8 — Deal intelligence

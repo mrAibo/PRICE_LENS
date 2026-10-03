@@ -1,6 +1,6 @@
 # PriceLens Project Status
 
-Updated: **2026-10-03**
+Updated: **2026-10-04**
 
 Overall status: **active implementation / early MVP**
 
@@ -138,6 +138,24 @@ Current implementation checkpoint: `2fff1130b61a3a5ad88d2d0a0833a7aac90a1609` (P
 - [x] scraping explicitly limited to research/fallback evaluation
 
 ## In progress
+
+### Phase 3C — on-demand / compact-first comparison
+
+Accepted product direction:
+
+- [ ] safe page extraction may run locally, but provider/API lookup waits for explicit user action
+- [ ] lens/eye control triggers the first comparison
+- [ ] initial report shows only a bounded set of cheaper/actionable offers
+- [ ] same-condition savings are prioritized over used/refurbished alternatives
+- [ ] full returned offer list is hidden behind a `+` expansion control
+- [ ] UI expansion/collapse must not create another provider request
+- [ ] international comparison starts with EU marketplaces and delivered-price semantics
+- [ ] multi-currency ranking remains blocked until explicit FX normalization exists
+- [ ] buyer delivery country/postal-code model is explicit and not inferred from IP
+
+This phase is now the active implementation priority before broad search-results augmentation.
+
+
 
 ### Phase 1 — eBay extraction gate
 

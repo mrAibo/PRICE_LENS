@@ -45,9 +45,10 @@ export async function bootstrapPriceLens(
       document: options.document,
       window: options.window,
       sendMessage: options.sendMessage,
-      mount(document: Document, listing: EcommerceListing) {
+      mount(document: Document, listing: EcommerceListing, actions) {
         return mountPriceLens(document, listing, {
-          onDisableSharing: disableSharing
+          onDisableSharing: disableSharing,
+          onRequestComparison: actions.onRequestComparison
         });
       },
       mountUnsupported(document: Document, message: string) {

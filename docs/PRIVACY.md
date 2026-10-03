@@ -2,7 +2,7 @@
 
 Status: **release draft — technical behavior verified, publisher/legal fields still required**
 
-Updated: **2026-10-02**
+Updated: **2026-10-04**
 
 This document describes the privacy behavior implemented by PriceLens. It is the source
 for the future public privacy policy and Chrome Web Store privacy disclosures.
@@ -23,8 +23,8 @@ analytics, resale, credit decisions, or behavioral targeting.
 
 ## Consent before comparison data leaves the page
 
-The production extension requires an explicit first-use choice before the comparison
-lifecycle starts.
+The production extension requires an explicit first-use choice before the PriceLens
+item-page lifecycle starts.
 
 Before consent, PriceLens:
 
@@ -32,10 +32,16 @@ Before consent, PriceLens:
 - does not send a comparison request to the PriceLens API;
 - does not contact price providers.
 
-The disclosure explains the categories of eBay item data required for comparison.
+After consent, PriceLens may normalize the supported item locally in the browser and
+render an idle **Compare with PriceLens** control. Local recognition alone sends no
+comparison request.
 
-When the user selects **Enable price comparison**, the extension stores only a local
-boolean consent flag in `chrome.storage.local`.
+The normalized listing leaves the page only when the user explicitly presses the
+PriceLens report control. Provider lookups happen only as part of that requested
+report.
+
+When the user selects **Enable PriceLens**, the extension stores only a local boolean
+consent flag in `chrome.storage.local`.
 
 The user can select **Disable PriceLens data sharing** in the PriceLens card. That:
 
@@ -181,10 +187,15 @@ updated disclosure before collection begins.
 
 Current controls:
 
-- **Enable price comparison** — grants local consent and starts the comparison feature.
+- **Enable PriceLens** — grants local consent for supported item recognition and
+  user-requested comparison.
+- **Compare with PriceLens** — explicitly sends the current normalized item to request
+  a report; simply opening the item page does not do so.
+- **+ Show full report** — expands results already returned to the extension and does
+  not trigger another provider/API request.
 - **Not now** — performs no comparison and stores no consent.
-- **Disable PriceLens data sharing** — revokes the local consent flag and stops
-  comparison on the page.
+- **Disable PriceLens data sharing** — revokes the local consent flag and stops the
+  PriceLens lifecycle on the page.
 
 Uninstalling the extension also removes its local extension storage according to browser
 behavior.

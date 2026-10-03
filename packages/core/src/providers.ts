@@ -17,6 +17,8 @@ export interface ProviderCandidate {
   providerProductId?: string;
   productTitle: string;
   merchant?: string;
+  marketplace?: string;
+  itemLocationCountry?: string;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
   url: string;
@@ -158,6 +160,8 @@ async function runProvider(
         providerProductId: candidate.providerProductId,
         productTitle: candidate.productTitle,
         merchant: candidate.merchant,
+        marketplace: candidate.marketplace,
+        itemLocationCountry: candidate.itemLocationCountry,
         sellerFeedbackPercentage: candidate.sellerFeedbackPercentage,
         sellerFeedbackScore: candidate.sellerFeedbackScore,
         url: candidate.url,
