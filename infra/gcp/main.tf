@@ -41,12 +41,27 @@ locals {
     env_name => version
     if contains(keys(var.provider_secret_ids), env_name)
   }
+
+  expected_api_image_prefix = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository_id}/"
+  api_image_is_immutable = (
+    length(trimspace(var.api_image)) > 0 &&
+    startswith(var.api_image, local.expected_api_image_prefix) &&
+    (
+      can(regex(":[0-9a-fA-F]{7,64}$", var.api_image)) ||
+      can(regex("@sha256:[0-9a-fA-F]{64}$", var.api_image))
+    )
+  )
 }
 
 check "runtime_inputs" {
   assert {
     condition     = !var.deploy_runtime || (length(trimspace(var.api_image)) > 0 && length(trimspace(var.api_domain)) > 0)
     error_message = "api_image and api_domain are required when deploy_runtime=true."
+  }
+
+  assert {
+    condition     = !var.deploy_runtime || local.api_image_is_immutable
+    error_message = "Phase B api_image must come from this deployment's Artifact Registry repository and use an immutable 7-64 hex git-SHA tag or sha256 digest."
   }
 
   assert {
