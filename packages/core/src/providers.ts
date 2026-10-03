@@ -7,6 +7,7 @@ import type {
   Money,
   PriceProviderId,
   ProductIdentity,
+  ProviderFailureCategory,
   ProviderReviewCandidate,
   ProviderStatus
 } from "@price-lens/contracts";
@@ -266,17 +267,71 @@ async function runProvider(
       }
     };
   } catch (error) {
+    const failureCategory = classifyProviderFailure(error);
     return {
       offers: [],
       status: {
         provider: provider.id,
         state: "error",
         latencyMs: Date.now() - started,
-        message: error instanceof Error ? error.message : "Provider failed."
+        failureCategory,
+        message: providerFailureMessage(failureCategory)
       }
     };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export function classifyProviderFailure(
+  error: unknown
+): ProviderFailureCategory {
+  if (!(error instanceof Error)) return "unknown";
+
+  const message = error.message.toLowerCase();
+
+  if (message.includes("concurrency limit")) return "concurrency";
+  if (message.includes("timed out") || message.includes("timeout")) {
+    return "timeout";
+  }
+  if (message.includes("rate limit") || /http\s+429\b/.test(message)) {
+    return "rate_limit";
+  }
+  if (
+    message.includes("aborted") ||
+    error.name.toLowerCase() === "aborterror"
+  ) {
+    return "aborted";
+  }
+  if (
+    message.includes("oauth") ||
+    /http\s+(401|403)\b/.test(message)
+  ) {
+    return "auth";
+  }
+  if (/http\s+[45]\d\d\b/.test(message)) return "http";
+
+  return "unknown";
+}
+
+export function providerFailureMessage(
+  category: ProviderFailureCategory
+): string {
+  switch (category) {
+    case "timeout":
+      return "This price source took too long to respond.";
+    case "rate_limit":
+      return "This price source is temporarily rate-limited.";
+    case "auth":
+      return "This price source is temporarily unavailable because provider authorization failed.";
+    case "concurrency":
+      return "This price source is busy; try the report again shortly.";
+    case "aborted":
+      return "This price-source request was cancelled.";
+    case "http":
+      return "This price source returned an unexpected service response.";
+    case "unknown":
+      return "This price source is temporarily unavailable.";
   }
 }
 
