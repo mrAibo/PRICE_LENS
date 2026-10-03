@@ -32,13 +32,26 @@ variable "deploy_runtime" {
 }
 
 variable "api_image" {
-  description = "Immutable PriceLens API image reference. Required when deploy_runtime=true; prefer a digest or git-SHA tag."
+  description = "Immutable PriceLens API image reference. Required when deploy_runtime=true; use an Artifact Registry digest or git-SHA tag."
   type        = string
   default     = ""
+
+  validation {
+    condition = (
+      var.api_image == "" ||
+      (
+        trimspace(var.api_image) == var.api_image &&
+        !endswith(lower(var.api_image), ":latest") &&
+        !strcontains(lower(var.api_image), "replace-with") &&
+        !strcontains(lower(var.api_image), "placeholder")
+      )
+    )
+    error_message = "api_image must not use :latest, surrounding whitespace, or placeholder text."
+  }
 }
 
 variable "api_domain" {
-  description = "Production API DNS name without scheme or path, for example api.pricelens.example. Required when deploy_runtime=true."
+  description = "Production API DNS name without scheme or path. Required when deploy_runtime=true and must be a real public hostname, not an example/test placeholder."
   type        = string
   default     = ""
 
@@ -46,12 +59,21 @@ variable "api_domain" {
     condition = (
       var.api_domain == "" ||
       (
-        !strcontains(var.api_domain, "://") &&
-        !strcontains(var.api_domain, "/") &&
-        can(regex("^[A-Za-z0-9.-]+$", var.api_domain))
+        trimspace(var.api_domain) == var.api_domain &&
+        can(regex("^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$", var.api_domain)) &&
+        !contains(["example.com", "example.net", "example.org", "localhost"], lower(var.api_domain)) &&
+        !endswith(lower(var.api_domain), ".invalid") &&
+        !endswith(lower(var.api_domain), ".test") &&
+        !endswith(lower(var.api_domain), ".example") &&
+        !endswith(lower(var.api_domain), ".localhost") &&
+        !endswith(lower(var.api_domain), ".example.com") &&
+        !endswith(lower(var.api_domain), ".example.net") &&
+        !endswith(lower(var.api_domain), ".example.org") &&
+        !strcontains(lower(var.api_domain), "replace-with") &&
+        !strcontains(lower(var.api_domain), "placeholder")
       )
     )
-    error_message = "api_domain must be a hostname only, without scheme, path, query or fragment."
+    error_message = "api_domain must be a real fully-qualified public DNS hostname without scheme/path and must not use reserved example/test/placeholder names."
   }
 }
 
