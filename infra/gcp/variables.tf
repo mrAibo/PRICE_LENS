@@ -305,6 +305,18 @@ variable "monitoring_alerts_enabled" {
   description = "Enable alert policies after the production DNS/TLS endpoint has been verified. Keep false during initial Phase-B provisioning."
   type        = bool
   default     = false
+
+  validation {
+    condition = (
+      !var.monitoring_alerts_enabled ||
+      (
+        var.deploy_runtime &&
+        var.operational_monitoring_enabled &&
+        length(var.monitoring_notification_channels) > 0
+      )
+    )
+    error_message = "monitoring_alerts_enabled=true requires deploy_runtime=true, operational_monitoring_enabled=true, and at least one approved monitoring_notification_channels entry."
+  }
 }
 
 variable "monitoring_notification_channels" {
