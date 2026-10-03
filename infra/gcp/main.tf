@@ -28,6 +28,9 @@ locals {
     EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
     EBAY_ENVIRONMENT                    = var.ebay_environment
     EBAY_MARKETPLACE_ID                 = var.ebay_marketplace_id
+    EBAY_MARKETPLACE_SEARCH_IDS         = join(",", var.ebay_marketplace_search_ids)
+    EBAY_DELIVERY_COUNTRY               = var.ebay_delivery_country
+    EBAY_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.ebay_marketplace_search_concurrency)
     EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
     AMAZON_CREATORS_ENABLED            = var.amazon_creators_enabled ? "1" : "0"

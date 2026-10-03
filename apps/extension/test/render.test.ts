@@ -431,6 +431,7 @@ describe("PriceLens unsupported UI", () => {
     const text = shadow?.textContent ?? "";
 
     expect(text).toContain("Cheaper options found");
+    expect(text).toContain("eBay Germany");
     expect(text).toContain("19,00");
     expect(text).toContain("49,00");
     expect(full?.hidden).toBe(true);

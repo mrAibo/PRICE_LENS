@@ -143,15 +143,16 @@ Current implementation checkpoint: `2fff1130b61a3a5ad88d2d0a0833a7aac90a1609` (P
 
 Accepted product direction:
 
-- [ ] safe page extraction may run locally, but provider/API lookup waits for explicit user action
-- [ ] lens/eye control triggers the first comparison
-- [ ] initial report shows only a bounded set of cheaper/actionable offers
-- [ ] same-condition savings are prioritized over used/refurbished alternatives
-- [ ] full returned offer list is hidden behind a `+` expansion control
-- [ ] UI expansion/collapse must not create another provider request
-- [ ] international comparison starts with EU marketplaces and delivered-price semantics
-- [ ] multi-currency ranking remains blocked until explicit FX normalization exists
-- [ ] buyer delivery country/postal-code model is explicit and not inferred from IP
+- [x] safe page extraction may run locally, but provider/API lookup waits for explicit user action
+- [x] lens/eye control triggers the first comparison
+- [x] initial report shows only a bounded set of cheaper/actionable offers
+- [x] same-condition savings are prioritized over used/refurbished alternatives
+- [x] full returned offer list is hidden behind a `+` expansion control
+- [x] UI expansion/collapse must not create another provider request
+- [x] eBay international comparison fans out across configurable EU marketplaces with deliveryCountry=DE and bounded concurrency
+- [x] multi-currency ranking remains blocked until explicit FX normalization exists
+- [x] backend delivery country is explicit and not inferred from IP
+- [ ] user-controlled destination postal code/country preference remains to be added
 
 This phase is now the active implementation priority before broad search-results augmentation.
 

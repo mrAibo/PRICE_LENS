@@ -394,6 +394,7 @@ describe("eBay same-product marketplace search", () => {
       provider: "ebay_market",
       providerProductId: "v1|223456789012|0",
       merchant: "trusted-shop",
+      marketplace: "EBAY_DE",
       sellerFeedbackPercentage: 99.8,
       sellerFeedbackScore: 18000,
       identity: {gtin: "4548736162657"},
@@ -408,8 +409,296 @@ describe("eBay same-product marketplace search", () => {
     expect(searchUrl.searchParams.get("gtin")).toBe("4548736162657");
     expect(searchUrl.searchParams.get("limit")).toBe("25");
     expect(searchUrl.searchParams.get("filter")).toBe(
-      "buyingOptions:{FIXED_PRICE}"
+      "buyingOptions:{FIXED_PRICE},deliveryCountry:DE"
     );
+    const searchHeaders = new Headers(fetchImpl.mock.calls[1]![1]?.headers);
+    expect(searchHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
+    expect(searchHeaders.get("x-ebay-c-enduserctx")).toBe(
+      "contextualLocation=country=DE"
+    );
+  });
+
+  it("fans exact-GTIN search across configured EU marketplaces and keeps market metadata", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "eu-token", expires_in: 7200});
+      }
+
+      const marketplace = new Headers(init?.headers).get(
+        "x-ebay-c-marketplace-id"
+      );
+      if (marketplace === "EBAY_DE") {
+        return jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|600000000001|0",
+              title: "Sony WH-1000XM6 Deutschland",
+              itemWebUrl: "https://www.ebay.de/itm/600000000001",
+              price: {value: "309.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000",
+              itemLocation: {country: "DE"},
+              shippingOptions: [
+                {shippingCost: {value: "0.00", currency: "EUR"}}
+              ]
+            }
+          ]
+        });
+      }
+      if (marketplace === "EBAY_PL") {
+        return jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|600000000002|0",
+              title: "Sony WH-1000XM6 Polska",
+              itemWebUrl: "https://www.ebay.pl/itm/600000000002",
+              price: {value: "1199.00", currency: "PLN"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000",
+              itemLocation: {country: "PL"},
+              shippingOptions: [
+                {shippingCost: {value: "45.00", currency: "PLN"}}
+              ]
+            }
+          ]
+        });
+      }
+      return jsonResponse({itemSummaries: []});
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE", "EBAY_PL"],
+      deliveryCountry: "DE",
+      marketplaceSearchConcurrency: 2,
+      fetchImpl
+    });
+
+    const candidates = await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(candidates).toHaveLength(2);
+    expect(candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          providerProductId: "v1|600000000001|0",
+          marketplace: "EBAY_DE",
+          itemLocationCountry: "DE",
+          itemPrice: {amount: 309, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"}
+        }),
+        expect.objectContaining({
+          providerProductId: "v1|600000000002|0",
+          marketplace: "EBAY_PL",
+          itemLocationCountry: "PL",
+          itemPrice: {amount: 1199, currency: "PLN"},
+          shipping: {amount: 45, currency: "PLN"}
+        })
+      ])
+    );
+
+    const marketCalls = fetchImpl.mock.calls.filter(([input]) =>
+      String(input).includes("/buy/browse/v1/item_summary/search")
+    );
+    expect(marketCalls).toHaveLength(2);
+    expect(
+      marketCalls.map(([, init]) =>
+        new Headers(init?.headers).get("x-ebay-c-marketplace-id")
+      )
+    ).toEqual(expect.arrayContaining(["EBAY_DE", "EBAY_PL"]));
+    for (const [input, init] of marketCalls) {
+      const url = new URL(String(input));
+      expect(url.searchParams.get("filter")).toBe(
+        "buyingOptions:{FIXED_PRICE},deliveryCountry:DE"
+      );
+      expect(new Headers(init?.headers).get("x-ebay-c-enduserctx")).toBe(
+        "contextualLocation=country=DE"
+      );
+    }
+  });
+
+  it("keeps successful EU marketplace results when another market fails", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "partial-token", expires_in: 7200});
+      }
+      const marketplace = new Headers(init?.headers).get(
+        "x-ebay-c-marketplace-id"
+      );
+      if (marketplace === "EBAY_DE") {
+        return jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|610000000001|0",
+              title: "Sony WH-1000XM6",
+              itemWebUrl: "https://www.ebay.de/itm/610000000001",
+              price: {value: "300.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000"
+            }
+          ]
+        });
+      }
+      return jsonResponse({errors: [{message: "temporary"}]}, 503);
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE", "EBAY_PL"],
+      fetchImpl
+    });
+
+    await expect(
+      enricher.searchMarketplace({
+        ...baseListing,
+        identity: {ean: "4548736162657"}
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        providerProductId: "v1|610000000001|0",
+        marketplace: "EBAY_DE"
+      })
+    ]);
+  });
+
+  it("deduplicates one eBay item returned through multiple marketplaces and prefers complete shipping", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "dedupe-token", expires_in: 7200});
+      }
+      const marketplace = new Headers(init?.headers).get(
+        "x-ebay-c-marketplace-id"
+      );
+      if (marketplace === "EBAY_DE") {
+        return jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|620000000001|0",
+              title: "Sony WH-1000XM6",
+              itemWebUrl: "https://www.ebay.de/itm/620000000001",
+              price: {value: "299.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000"
+            }
+          ]
+        });
+      }
+      return jsonResponse({
+        itemSummaries: [
+          {
+            itemId: "v1|620000000001|0",
+            title: "Sony WH-1000XM6",
+            itemWebUrl: "https://www.ebay.pl/itm/620000000001",
+            price: {value: "299.00", currency: "EUR"},
+            buyingOptions: ["FIXED_PRICE"],
+            conditionId: "1000",
+            shippingOptions: [
+              {shippingCost: {value: "9.90", currency: "EUR"}}
+            ]
+          }
+        ]
+      });
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE", "EBAY_PL"],
+      fetchImpl
+    });
+    const candidates = await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      providerProductId: "v1|620000000001|0",
+      marketplace: "EBAY_PL",
+      shipping: {amount: 9.9, currency: "EUR"}
+    });
+  });
+
+  it("rejects a result whose item URL does not match the queried eBay marketplace", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "host-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|630000000001|0",
+              title: "Unexpected host",
+              itemWebUrl: "https://www.ebay.de/itm/630000000001",
+              price: {value: "1000.00", currency: "PLN"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000"
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_PL"],
+      fetchImpl
+    });
+
+    await expect(
+      enricher.searchMarketplace({
+        ...baseListing,
+        identity: {ean: "4548736162657"}
+      })
+    ).resolves.toEqual([]);
+  });
+
+  it("bounds concurrent marketplace calls inside one explicit report", async () => {
+    let activeSearches = 0;
+    let maxActiveSearches = 0;
+
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "bounded-token", expires_in: 7200});
+      }
+
+      activeSearches += 1;
+      maxActiveSearches = Math.max(maxActiveSearches, activeSearches);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeSearches -= 1;
+      return jsonResponse({itemSummaries: []});
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: [
+        "EBAY_DE",
+        "EBAY_PL",
+        "EBAY_AT",
+        "EBAY_FR",
+        "EBAY_IT"
+      ],
+      marketplaceSearchConcurrency: 2,
+      fetchImpl
+    });
+
+    await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(maxActiveSearches).toBe(2);
   });
 
   it("does not issue a broad title search when no strong trade identifier exists", async () => {
@@ -452,6 +741,37 @@ describe("eBay Browse environment configuration", () => {
         EBAY_BROWSE_CACHE_TTL_MS: "-1"
       })
     ).toThrow("EBAY_BROWSE_CACHE_TTL_MS");
+  });
+
+  it("rejects unsupported EU marketplace search IDs", () => {
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_MARKETPLACE_SEARCH_IDS: "EBAY_DE,EBAY_US"
+      })
+    ).toThrow("Unsupported eBay marketplace ID");
+  });
+
+  it("rejects invalid delivery-country and marketplace-concurrency configuration", () => {
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_DELIVERY_COUNTRY: "GER"
+      })
+    ).toThrow("two-letter ISO country code");
+
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_MARKETPLACE_SEARCH_CONCURRENCY: "0"
+      })
+    ).toThrow("positive");
   });
 
   it("accepts an explicit production configuration", () => {

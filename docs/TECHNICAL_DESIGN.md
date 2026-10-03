@@ -55,7 +55,7 @@ Early non-goals:
 │      │                                                      │
 │      +--> product matcher / hard mismatch rules             │
 │      │                                                      │
-│      +--> eBay Browse enricher (implemented, access-gated) │
+│      +--> eBay Browse enricher + EU market fan-out (implemented, access-gated) │
 │      +--> IdealoProvider       (planned, docs/access-gated) │
 │      +--> GeizhalsProvider     (planned, docs/access-gated) │
 │      +--> AmazonProvider       (implemented, access-gated)  │
@@ -98,6 +98,7 @@ packages/
 docs/
   ARCHITECTURE.md
   TECHNICAL_DESIGN.md
+  INTERNATIONAL_COMPARISON.md
   ROADMAP.md
   STATUS.md
   PROVIDER_ACCESS.md

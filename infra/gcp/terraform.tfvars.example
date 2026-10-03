@@ -27,7 +27,13 @@ deploy_runtime = false
 #
 # ebay_browse_enabled                  = false
 # ebay_marketplace_comparison_enabled  = false
-# ebay_environment      = "sandbox"
+# ebay_environment                      = "sandbox"
+# ebay_delivery_country                 = "DE"
+# ebay_marketplace_search_concurrency   = 3
+# ebay_marketplace_search_ids = [
+#   "EBAY_DE", "EBAY_PL", "EBAY_AT", "EBAY_FR",
+#   "EBAY_IT", "EBAY_ES", "EBAY_NL", "EBAY_BE"
+# ]
 # amazon_creators_enabled = false
 # amazon_partner_tag      = "replace-only-after-approved-live-access"
 
