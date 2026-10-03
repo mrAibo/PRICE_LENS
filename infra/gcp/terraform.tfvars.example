@@ -25,7 +25,8 @@ deploy_runtime = false
 #   AMAZON_CREATORS_CREDENTIAL_SECRET = "1"
 # }
 #
-# ebay_browse_enabled   = false
+# ebay_browse_enabled                  = false
+# ebay_marketplace_comparison_enabled  = false
 # ebay_environment      = "sandbox"
 # amazon_creators_enabled = false
 # amazon_partner_tag      = "replace-only-after-approved-live-access"
