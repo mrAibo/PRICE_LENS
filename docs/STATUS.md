@@ -155,6 +155,9 @@ Accepted product direction:
 - [ ] live ECB FX retrieval/cache/freshness validation remains pending
 - [x] backend delivery country is explicit and not inferred from IP
 - [x] user-controlled destination country/postal-code preference is stored locally and sent only with explicit report requests
+- [x] Amazon EU provider supports bounded DE/PL/FR/IT/ES/NL/BE fan-out with locale-specific Partner Tags
+- [x] Amazon mandatory shipping remains unknown, so Amazon cannot become delivered-price winner
+- [ ] Amazon EU live locale activation remains blocked on marketplace-specific Associates/Creators approval
 
 This phase is now the active implementation priority before broad search-results augmentation.
 
