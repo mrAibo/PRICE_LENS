@@ -47,5 +47,6 @@ operational_log_retention_days  = 30
 # ]
 #
 # Tune only after live traffic has been measured.
+server_busy_rejections_threshold = 5
 # cloud_run_5xx_requests_threshold = 5
 # cloud_run_p95_latency_ms         = 5000

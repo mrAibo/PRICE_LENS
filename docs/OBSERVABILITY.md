@@ -114,10 +114,13 @@ baseline:
   `jsonPayload.service="price-lens-api"`;
 - an HTTPS `/ready` uptime check;
 - Cloud Monitoring alert policies for uptime failure, Cloud Run 5xx volume and
-  successful-request P95 latency.
+  successful-request P95 latency;
+- log-based Cloud Monitoring counters for application-level `server_busy`
+  rejections, warning-bearing comparisons and eBay enrichment fallbacks;
+- an application-overload alert driven by the durable `server_busy` log metric.
 
-The alert policies are created disabled by default until the production DNS name and
-managed TLS certificate are verified. Notification channels are supplied only as
+The alert policies, including the application-overload policy, are created disabled by
+default until the production DNS name and managed TLS certificate are verified. Notification channels are supplied only as
 existing Cloud Monitoring resource names and are not created from contact details in
 this repository.
 
