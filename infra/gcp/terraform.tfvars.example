@@ -12,8 +12,8 @@ deploy_runtime = false
 # API hostname has been selected.
 #
 # deploy_runtime = true
-# api_domain     = "api.example.com"
-# api_image      = "europe-west3-docker.pkg.dev/replace-with-your-gcp-project-id/price-lens/price-lens-api:replace-with-git-sha"
+# api_domain     = "api.your-owned-domain.de"
+# api_image      = "europe-west3-docker.pkg.dev/replace-with-your-gcp-project-id/price-lens/price-lens-api:0123456789abcdef0123456789abcdef01234567"
 #
 # The map contains Secret Manager VERSION NUMBERS only, never secret values.
 # Add secret versions out-of-band, then pin them here.

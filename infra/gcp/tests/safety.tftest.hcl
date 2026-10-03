@@ -54,8 +54,8 @@ run "phase_b_runtime_preserves_safe_defaults" {
   variables {
     project_id     = "price-lens-test"
     deploy_runtime = true
-    api_domain     = "api.example.com"
-    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:test-sha"
+    api_domain     = "api.pricelens-demo.de"
+    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:0123456789abcdef0123456789abcdef01234567"
   }
 
   assert {
@@ -142,8 +142,8 @@ run "phase_b_alerting_accepts_an_explicit_approved_channel" {
   variables {
     project_id                = "price-lens-test"
     deploy_runtime            = true
-    api_domain                = "api.example.com"
-    api_image                 = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:test-sha"
+    api_domain                = "api.pricelens-demo.de"
+    api_image                 = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:0123456789abcdef0123456789abcdef01234567"
     monitoring_alerts_enabled = true
     monitoring_notification_channels = [
       "projects/price-lens-test/notificationChannels/1234567890"
@@ -166,3 +166,79 @@ run "phase_b_alerting_accepts_an_explicit_approved_channel" {
   }
 }
 
+
+run "phase_b_rejects_reserved_example_domain" {
+  command = plan
+
+  variables {
+    project_id     = "price-lens-test"
+    deploy_runtime = true
+    api_domain     = "api.pricelens.invalid"
+    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:0123456789abcdef0123456789abcdef01234567"
+  }
+
+  expect_failures = [
+    var.api_domain
+  ]
+}
+
+run "phase_b_rejects_latest_image_tag" {
+  command = plan
+
+  variables {
+    project_id     = "price-lens-test"
+    deploy_runtime = true
+    api_domain     = "api.pricelens-demo.de"
+    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:latest"
+  }
+
+  expect_failures = [
+    var.api_image
+  ]
+}
+
+run "phase_b_rejects_mutable_semantic_image_tag" {
+  command = plan
+
+  variables {
+    project_id     = "price-lens-test"
+    deploy_runtime = true
+    api_domain     = "api.pricelens-demo.de"
+    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api:production"
+  }
+
+  expect_failures = [
+    check.runtime_inputs
+  ]
+}
+
+run "phase_b_rejects_image_from_another_registry_prefix" {
+  command = plan
+
+  variables {
+    project_id     = "price-lens-test"
+    deploy_runtime = true
+    api_domain     = "api.pricelens-demo.de"
+    api_image      = "europe-west3-docker.pkg.dev/another-project/price-lens/price-lens-api:0123456789abcdef0123456789abcdef01234567"
+  }
+
+  expect_failures = [
+    check.runtime_inputs
+  ]
+}
+
+run "phase_b_accepts_immutable_digest_image" {
+  command = plan
+
+  variables {
+    project_id     = "price-lens-test"
+    deploy_runtime = true
+    api_domain     = "api.pricelens-demo.de"
+    api_image      = "europe-west3-docker.pkg.dev/price-lens-test/price-lens/price-lens-api@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.api[0].template[0].containers[0].image == var.api_image
+    error_message = "A pinned sha256 Artifact Registry digest must remain accepted for Phase B."
+  }
+}
