@@ -227,6 +227,64 @@ variable "ebay_marketplace_id" {
   default     = "EBAY_DE"
 }
 
+variable "ebay_marketplace_search_ids" {
+  description = "EU eBay marketplaces queried by the on-demand same-product comparison."
+  type        = list(string)
+  default = [
+    "EBAY_DE",
+    "EBAY_PL",
+    "EBAY_AT",
+    "EBAY_FR",
+    "EBAY_IT",
+    "EBAY_ES",
+    "EBAY_NL",
+    "EBAY_BE"
+  ]
+
+  validation {
+    condition = (
+      length(var.ebay_marketplace_search_ids) > 0 &&
+      alltrue([
+        for marketplace in var.ebay_marketplace_search_ids :
+        contains([
+          "EBAY_DE",
+          "EBAY_PL",
+          "EBAY_AT",
+          "EBAY_FR",
+          "EBAY_IT",
+          "EBAY_ES",
+          "EBAY_NL",
+          "EBAY_BE"
+        ], marketplace)
+      ])
+    )
+    error_message = "ebay_marketplace_search_ids must contain only supported PriceLens EU eBay marketplace IDs."
+  }
+}
+
+variable "ebay_delivery_country" {
+  description = "Two-letter buyer delivery country used by eBay marketplace search. Defaults to Germany."
+  type        = string
+  default     = "DE"
+
+  validation {
+    condition     = can(regex("^[A-Z]{2}$", var.ebay_delivery_country))
+    error_message = "ebay_delivery_country must be an uppercase two-letter ISO country code."
+  }
+}
+
+variable "ebay_marketplace_search_concurrency" {
+  description = "Maximum number of eBay marketplace searches run in parallel within one explicit PriceLens report."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = floor(var.ebay_marketplace_search_concurrency) == var.ebay_marketplace_search_concurrency && var.ebay_marketplace_search_concurrency >= 1 && var.ebay_marketplace_search_concurrency <= 8
+    error_message = "ebay_marketplace_search_concurrency must be an integer between 1 and 8."
+  }
+}
+
+
 variable "ebay_browse_cache_ttl_ms" {
   description = "eBay product-data cache TTL. Keep 0 until approved freshness rules are known."
   type        = number
