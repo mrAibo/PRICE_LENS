@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `b5a124da156e6baa22db807dafc67579f1906a72` (PR #50). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `2fff1130b61a3a5ad88d2d0a0833a7aac90a1609` (PR #51). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -255,6 +255,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #48 — structured warning + match-decision aggregate diagnostics — merged into `main`
 - PR #49 — privacy-safe provider cache hit/miss/coalescing metrics — merged into `main`
 - PR #50 — durable application log metrics + overload alert IaC — merged into `main`
+- PR #51 — same-product eBay fixed-price marketplace comparison — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
