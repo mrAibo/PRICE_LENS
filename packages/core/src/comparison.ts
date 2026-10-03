@@ -103,7 +103,14 @@ export function createComparisonResult(
   requestId = createRequestId()
 ): ComparisonResult {
   const ebay = calculateLandedPrice(listing.price, listing.shipping);
-  const bestOffer = selectBestOffer(offers);
+  const bestOffer = selectBestOffer(
+    offers.filter(
+      (offer) =>
+        offer.provider !== "ebay_market" ||
+        listing.condition === "unknown" ||
+        offer.condition === listing.condition
+    )
+  );
   const warnings = [...listing.extractionWarnings];
 
   if (!ebay.complete) warnings.push("eBay shipping is unknown; landed price is incomplete.");
