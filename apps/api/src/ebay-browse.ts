@@ -2,6 +2,10 @@ import type {
   EcommerceListing,
   ProductIdentity
 } from "@price-lens/contracts";
+import {
+  safeObserveProviderCache,
+  type ProviderCacheObserver
+} from "./provider-cache.js";
 
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
@@ -17,6 +21,7 @@ export interface EbayBrowseEnricherOptions {
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
   now?: () => number;
+  cacheObserver?: ProviderCacheObserver;
 }
 
 interface CachedItem {
@@ -38,6 +43,7 @@ export class EbayBrowseEnricher {
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
+  private readonly cacheObserver?: ProviderCacheObserver;
   private readonly itemCache = new Map<string, CachedItem>();
   private readonly itemInFlight = new Map<string, Promise<JsonRecord | null>>();
   private tokenCache?: CachedToken;
@@ -52,6 +58,7 @@ export class EbayBrowseEnricher {
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "eBay Browse");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
+    this.cacheObserver = options.cacheObserver;
   }
 
   async enrich(listing: EcommerceListing): Promise<EcommerceListing> {
@@ -84,6 +91,10 @@ export class EbayBrowseEnricher {
   ): Promise<JsonRecord | null> {
     const cached = this.itemCache.get(legacyItemId);
     if (cached && cached.expiresAt > this.now()) {
+      safeObserveProviderCache(this.cacheObserver, {
+        source: "ebay",
+        outcome: "hit"
+      });
       return cached.value;
     }
     if (cached) {
@@ -91,8 +102,18 @@ export class EbayBrowseEnricher {
     }
 
     const active = this.itemInFlight.get(legacyItemId);
-    if (active) return active;
+    if (active) {
+      safeObserveProviderCache(this.cacheObserver, {
+        source: "ebay",
+        outcome: "coalesced"
+      });
+      return active;
+    }
 
+    safeObserveProviderCache(this.cacheObserver, {
+      source: "ebay",
+      outcome: "miss"
+    });
     const pending = this.fetchAndCacheItem(legacyItemId).finally(() => {
       if (this.itemInFlight.get(legacyItemId) === pending) {
         this.itemInFlight.delete(legacyItemId);
@@ -254,7 +275,8 @@ export class EbayBrowseEnricher {
 }
 
 export function createEbayBrowseEnricherFromEnv(
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  runtimeOptions: Pick<EbayBrowseEnricherOptions, "cacheObserver"> = {}
 ): EbayBrowseEnricher | undefined {
   if (env.EBAY_BROWSE_ENABLED !== "1") return undefined;
 
@@ -283,7 +305,8 @@ export function createEbayBrowseEnricherFromEnv(
     cacheTtlMs: parseCacheTtlEnv(
       env.EBAY_BROWSE_CACHE_TTL_MS,
       "EBAY_BROWSE_CACHE_TTL_MS"
-    )
+    ),
+    cacheObserver: runtimeOptions.cacheObserver
   });
 }
 
