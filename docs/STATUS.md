@@ -218,15 +218,18 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [ ] caching/rate-limit rules
 - [ ] attribution/deep-link requirements
 
-### Amazon Germany
+### Amazon EU
 
-- [ ] Associates/Creators eligibility
+- [ ] Associates/Creators eligibility for each intended locale
 - [ ] Creators API onboarding / live credentials
-- [x] Creators OAuth/SearchItems provider scaffold
+- [x] shared EU OAuth/SearchItems provider scaffold
+- [x] DE/PL/FR/IT/ES/NL/BE locale fan-out with marketplace-specific Partner Tags
+- [x] bounded locale concurrency and partial-failure isolation
+- [x] marketplace-specific Amazon URL trust boundary
 - [x] ItemInfo / OffersV2 contract parsing
 - [x] unknown mandatory shipping is kept incomplete and excluded from best-offer selection
-- [ ] live price-display/freshness/cache policy validation
-- [ ] attribution/compliance validation with the approved account
+- [ ] live price-display/freshness/cache policy validation per activated locale
+- [ ] attribution/compliance validation with the approved accounts/tags
 
 ## Not started
 
