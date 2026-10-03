@@ -23,6 +23,9 @@ locals {
     PRICE_LENS_METRICS_EVERY              = tostring(var.metrics_every)
     PRICE_LENS_MAX_CONCURRENT_COMPARISONS = tostring(var.max_concurrent_comparisons)
     PRICE_LENS_PROVIDER_MAX_CONCURRENCY   = tostring(var.provider_max_concurrency)
+    PRICE_LENS_REQUEST_TIMEOUT_MS         = tostring(var.http_request_timeout_ms)
+    PRICE_LENS_HEADERS_TIMEOUT_MS         = tostring(var.http_headers_timeout_ms)
+    PRICE_LENS_MAX_HEADERS_COUNT          = tostring(var.http_max_headers_count)
 
     EBAY_BROWSE_ENABLED      = var.ebay_browse_enabled ? "1" : "0"
     EBAY_ENVIRONMENT         = var.ebay_environment
