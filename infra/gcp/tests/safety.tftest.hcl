@@ -28,6 +28,12 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = length(google_logging_metric.server_busy_rejections) == 0 && length(google_logging_metric.comparison_warnings) == 0 && length(google_logging_metric.enrichment_fallbacks) == 0
+    error_message = "Phase A must not create runtime application log metrics."
+  }
+
+
+  assert {
     condition     = local.literal_env.PRICE_LENS_FIXTURE_PROVIDER == "0"
     error_message = "The fixture provider must remain disabled in the production environment map."
   }
@@ -108,6 +114,17 @@ run "phase_b_runtime_preserves_safe_defaults" {
   }
 
   assert {
+    condition     = length(google_logging_metric.server_busy_rejections) == 1 && length(google_logging_metric.comparison_warnings) == 1 && length(google_logging_metric.enrichment_fallbacks) == 1
+    error_message = "Phase B monitoring must create the privacy-minimized PriceLens application log metrics."
+  }
+
+  assert {
+    condition     = google_monitoring_alert_policy.server_busy[0].enabled == false
+    error_message = "Application-overload paging must stay disabled until production DNS/TLS and recipients are verified."
+  }
+
+
+  assert {
     condition     = length(var.monitoring_notification_channels) == 0
     error_message = "No operational recipient/contact channel may be committed as a default."
   }
@@ -161,7 +178,7 @@ run "phase_b_alerting_accepts_an_explicit_approved_channel" {
   }
 
   assert {
-    condition     = google_monitoring_alert_policy.cloud_run_5xx[0].enabled && google_monitoring_alert_policy.cloud_run_p95_latency[0].enabled
+    condition     = google_monitoring_alert_policy.cloud_run_5xx[0].enabled && google_monitoring_alert_policy.cloud_run_p95_latency[0].enabled && google_monitoring_alert_policy.server_busy[0].enabled
     error_message = "All runtime alert policies should share the explicit enablement gate."
   }
 }
