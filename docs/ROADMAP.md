@@ -196,8 +196,9 @@ International foundation:
 - [x] add explicit ECB reference FX normalization before cross-currency savings ranking
 - [ ] live-validate ECB refresh/freshness behavior in deployed runtime
 - [ ] distinguish EU from non-EU landed-cost semantics
-- [ ] add Amazon EU marketplace fan-out only where approved Partner Tags/access exist
-- [ ] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
+- [x] implement Amazon EU marketplace fan-out keyed by marketplace-specific Partner Tags
+- [ ] activate each Amazon EU marketplace only after its Partner Tag/access is approved
+- [x] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
 
 Traffic/scale rules:
 

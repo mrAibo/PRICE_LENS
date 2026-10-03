@@ -79,6 +79,18 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.AMAZON_MARKETPLACE_PARTNER_TAGS_JSON == "{}"
+    error_message = "Amazon EU marketplace Partner Tags must be empty by default."
+  }
+
+  assert {
+    condition     = local.literal_env.AMAZON_MARKETPLACE_SEARCH_CONCURRENCY == "2"
+    error_message = "Amazon EU marketplace fan-out must remain bounded by the conservative default concurrency."
+  }
+
+
+
+  assert {
     condition     = local.literal_env.EBAY_BROWSE_CACHE_TTL_MS == "0" && local.literal_env.AMAZON_CREATORS_CACHE_TTL_MS == "0"
     error_message = "Provider product-data caches must remain disabled by default."
   }
@@ -95,6 +107,46 @@ run "ebay_marketplace_comparison_requires_browse_enablement" {
   expect_failures = [
     check.provider_enablement
   ]
+}
+
+run "amazon_creators_requires_credentials_and_partner_tag" {
+  command = plan
+
+  variables {
+    project_id              = "price-lens-test"
+    amazon_creators_enabled = true
+  }
+
+  expect_failures = [
+    check.provider_enablement
+  ]
+}
+
+run "amazon_locale_map_satisfies_partner_tag_requirement" {
+  command = plan
+
+  variables {
+    project_id              = "price-lens-test"
+    amazon_creators_enabled = true
+    amazon_marketplace_partner_tags = {
+      "www.amazon.de" = "de-tag-21"
+      "www.amazon.pl" = "pl-tag-21"
+    }
+    secret_versions = {
+      AMAZON_CREATORS_CREDENTIAL_ID     = "1"
+      AMAZON_CREATORS_CREDENTIAL_SECRET = "1"
+    }
+  }
+
+  assert {
+    condition     = local.literal_env.AMAZON_CREATORS_ENABLED == "1"
+    error_message = "Amazon Creators should be enabled for the explicit locale-map test."
+  }
+
+  assert {
+    condition     = can(jsondecode(local.literal_env.AMAZON_MARKETPLACE_PARTNER_TAGS_JSON)["www.amazon.pl"])
+    error_message = "Amazon locale Partner Tags must be serialized into the Cloud Run environment."
+  }
 }
 
 run "phase_b_runtime_preserves_safe_defaults" {

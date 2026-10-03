@@ -17,12 +17,52 @@ import {
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
 
+export const AMAZON_EU_MARKETPLACE_HOSTS = [
+  "www.amazon.de",
+  "www.amazon.pl",
+  "www.amazon.fr",
+  "www.amazon.it",
+  "www.amazon.es",
+  "www.amazon.nl",
+  "www.amazon.com.be"
+] as const;
+
+export type AmazonEuMarketplace =
+  typeof AMAZON_EU_MARKETPLACE_HOSTS[number];
+
+const AMAZON_MARKETPLACE_ROOTS: Record<AmazonEuMarketplace, string> = {
+  "www.amazon.de": "amazon.de",
+  "www.amazon.pl": "amazon.pl",
+  "www.amazon.fr": "amazon.fr",
+  "www.amazon.it": "amazon.it",
+  "www.amazon.es": "amazon.es",
+  "www.amazon.nl": "amazon.nl",
+  "www.amazon.com.be": "amazon.com.be"
+};
+
+const AMAZON_MARKETPLACE_CURRENCIES: Record<AmazonEuMarketplace, string> = {
+  "www.amazon.de": "EUR",
+  "www.amazon.pl": "PLN",
+  "www.amazon.fr": "EUR",
+  "www.amazon.it": "EUR",
+  "www.amazon.es": "EUR",
+  "www.amazon.nl": "EUR",
+  "www.amazon.com.be": "EUR"
+};
+
+export interface AmazonMarketplaceConfig {
+  marketplace: AmazonEuMarketplace;
+  partnerTag: string;
+}
+
 export interface AmazonCreatorsProviderOptions {
   credentialId: string;
   credentialSecret: string;
   credentialVersion: string;
-  partnerTag: string;
+  partnerTag?: string;
   marketplace?: string;
+  marketplacePartnerTags?: Record<string, string>;
+  marketplaceConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -46,8 +86,8 @@ export class AmazonCreatorsProvider implements PriceProvider {
   private readonly credentialId: string;
   private readonly credentialSecret: string;
   private readonly credentialVersion: string;
-  private readonly partnerTag: string;
-  private readonly marketplace: string;
+  private readonly marketplaces: AmazonMarketplaceConfig[];
+  private readonly marketplaceConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -68,9 +108,14 @@ export class AmazonCreatorsProvider implements PriceProvider {
       options.credentialVersion,
       "Amazon credential version"
     );
-    this.partnerTag = requireValue(options.partnerTag, "Amazon partner tag");
-    this.marketplace = normalizeAmazonMarketplace(
-      options.marketplace ?? "www.amazon.de"
+    this.marketplaces = normalizeMarketplaceConfigs(
+      options.marketplacePartnerTags,
+      options.marketplace,
+      options.partnerTag
+    );
+    this.marketplaceConcurrency = validatePositiveInteger(
+      options.marketplaceConcurrency ?? 2,
+      "Amazon marketplace concurrency"
     );
     this.timeoutMs = options.timeoutMs ?? 5000;
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "Amazon Creators");
@@ -80,7 +125,33 @@ export class AmazonCreatorsProvider implements PriceProvider {
   }
 
   async search(input: ProviderSearchInput): Promise<ProviderCandidate[]> {
-    const cacheKey = listingCacheKey(input);
+    const settled = await mapWithConcurrency(
+      this.marketplaces,
+      this.marketplaceConcurrency,
+      (config) => this.searchMarketplace(input, config)
+    );
+
+    const successful = settled.filter(
+      (entry): entry is PromiseFulfilledResult<ProviderCandidate[]> =>
+        entry.status === "fulfilled"
+    );
+    if (successful.length === 0) {
+      const firstFailure = settled.find(
+        (entry): entry is PromiseRejectedResult => entry.status === "rejected"
+      );
+      throw firstFailure?.reason instanceof Error
+        ? firstFailure.reason
+        : new Error("All configured Amazon marketplace searches failed.");
+    }
+
+    return successful.flatMap((entry) => entry.value);
+  }
+
+  private async searchMarketplace(
+    input: ProviderSearchInput,
+    config: AmazonMarketplaceConfig
+  ): Promise<ProviderCandidate[]> {
+    const cacheKey = `${config.marketplace}|${listingCacheKey(input)}`;
     const cached = this.searchCache.get(cacheKey);
     if (cached && cached.expiresAt > this.now()) {
       safeObserveProviderCache(this.cacheObserver, {
@@ -110,7 +181,11 @@ export class AmazonCreatorsProvider implements PriceProvider {
       source: "amazon",
       outcome: "miss"
     });
-    const pending = this.fetchAndCacheSearch(input.listing, cacheKey).finally(() => {
+    const pending = this.fetchAndCacheSearch(
+      input.listing,
+      cacheKey,
+      config
+    ).finally(() => {
       if (this.searchInFlight.get(cacheKey) === pending) {
         this.searchInFlight.delete(cacheKey);
       }
@@ -126,12 +201,13 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
   private async fetchAndCacheSearch(
     listing: EcommerceListing,
-    cacheKey: string
+    cacheKey: string,
+    config: AmazonMarketplaceConfig
   ): Promise<ProviderCandidate[]> {
-    let response = await this.searchItems(listing, false);
+    let response = await this.searchItems(listing, false, config);
     if (response.status === 401) {
       this.tokenCache = undefined;
-      response = await this.searchItems(listing, true);
+      response = await this.searchItems(listing, true, config);
     }
 
     if (response.status === 404) {
@@ -139,17 +215,26 @@ export class AmazonCreatorsProvider implements PriceProvider {
     }
 
     if (response.status === 429) {
-      throw new Error("Amazon Creators API rate limit reached.");
+      throw new Error(
+        `Amazon Creators API rate limit reached for ${config.marketplace}.`
+      );
     }
 
     if (!response.ok) {
       throw new Error(
-        `Amazon Creators API request failed with HTTP ${response.status}.`
+        `Amazon Creators API request failed for ${config.marketplace} with HTTP ${response.status}.`
       );
     }
 
-    const payload = await readJsonRecord(response, "Amazon Creators API");
-    const candidates = parseSearchItems(payload, this.now(), this.marketplace);
+    const payload = await readJsonRecord(
+      response,
+      `Amazon Creators API (${config.marketplace})`
+    );
+    const candidates = parseSearchItems(
+      payload,
+      this.now(),
+      config.marketplace
+    );
     if (this.cacheTtlMs > 0) {
       this.searchCache.set(cacheKey, {
         candidates,
@@ -161,7 +246,8 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
   private async searchItems(
     listing: EcommerceListing,
-    forceTokenRefresh: boolean
+    forceTokenRefresh: boolean,
+    config: AmazonMarketplaceConfig
   ): Promise<Response> {
     const token = await this.getToken(forceTokenRefresh);
     const searchTerms = [
@@ -174,11 +260,12 @@ export class AmazonCreatorsProvider implements PriceProvider {
       .trim();
 
     const body: Record<string, unknown> = {
-      partnerTag: this.partnerTag,
-      marketplace: this.marketplace,
+      partnerTag: config.partnerTag,
+      marketplace: config.marketplace,
       keywords: searchTerms || listing.title,
       itemCount: 10,
-      currencyOfPreference: "EUR",
+      currencyOfPreference:
+        AMAZON_MARKETPLACE_CURRENCIES[config.marketplace],
       resources: [
         "itemInfo.title",
         "itemInfo.byLineInfo",
@@ -208,7 +295,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
           accept: "application/json",
-          "x-marketplace": this.marketplace
+          "x-marketplace": config.marketplace
         },
         body: JSON.stringify(body)
       }
@@ -316,10 +403,22 @@ export function createAmazonCreatorsProviderFromEnv(
   const credentialSecret = env.AMAZON_CREATORS_CREDENTIAL_SECRET?.trim();
   const credentialVersion = env.AMAZON_CREATORS_CREDENTIAL_VERSION?.trim();
   const partnerTag = env.AMAZON_PARTNER_TAG?.trim();
+  const marketplacePartnerTags = parseMarketplacePartnerTagsEnv(
+    env.AMAZON_MARKETPLACE_PARTNER_TAGS_JSON
+  );
 
-  if (!credentialId || !credentialSecret || !credentialVersion || !partnerTag) {
+  if (!credentialId || !credentialSecret || !credentialVersion) {
     throw new Error(
-      "AMAZON_CREATORS_ENABLED=1 requires credential id, secret, version and partner tag."
+      "AMAZON_CREATORS_ENABLED=1 requires credential id, secret and version."
+    );
+  }
+  if (
+    (!marketplacePartnerTags ||
+      Object.keys(marketplacePartnerTags).length === 0) &&
+    !partnerTag
+  ) {
+    throw new Error(
+      "AMAZON_CREATORS_ENABLED=1 requires at least one marketplace Partner Tag."
     );
   }
 
@@ -329,6 +428,12 @@ export function createAmazonCreatorsProviderFromEnv(
     credentialVersion,
     partnerTag,
     marketplace: env.AMAZON_MARKETPLACE?.trim() || "www.amazon.de",
+    marketplacePartnerTags,
+    marketplaceConcurrency: parsePositiveIntegerEnv(
+      env.AMAZON_MARKETPLACE_SEARCH_CONCURRENCY,
+      "AMAZON_MARKETPLACE_SEARCH_CONCURRENCY",
+      2
+    ),
     cacheTtlMs: parseCacheTtlEnv(
       env.AMAZON_CREATORS_CACHE_TTL_MS,
       "AMAZON_CREATORS_CACHE_TTL_MS"
@@ -490,23 +595,48 @@ function mapCondition(
   }
 }
 
-function normalizeAmazonMarketplace(value: string): string {
+function normalizeMarketplaceConfigs(
+  marketplacePartnerTags: Record<string, string> | undefined,
+  legacyMarketplace: string | undefined,
+  legacyPartnerTag: string | undefined
+): AmazonMarketplaceConfig[] {
+  const entries = marketplacePartnerTags
+    ? Object.entries(marketplacePartnerTags)
+    : [];
+
+  if (entries.length > 0) {
+    return entries.map(([marketplace, partnerTag]) => ({
+      marketplace: normalizeAmazonMarketplace(marketplace),
+      partnerTag: requireValue(
+        partnerTag,
+        `Amazon Partner Tag for ${marketplace}`
+      )
+    }));
+  }
+
+  return [{
+    marketplace: normalizeAmazonMarketplace(
+      legacyMarketplace ?? "www.amazon.de"
+    ),
+    partnerTag: requireValue(
+      legacyPartnerTag ?? "",
+      "Amazon partner tag"
+    )
+  }];
+}
+
+function normalizeAmazonMarketplace(value: string): AmazonEuMarketplace {
   const hostname = requireValue(value, "Amazon marketplace").toLowerCase();
   if (
-    hostname.includes("://") ||
-    hostname.includes("/") ||
-    hostname.includes("?") ||
-    hostname.includes("#") ||
-    (
-      hostname !== "amazon.de" &&
-      !hostname.endsWith(".amazon.de")
+    !AMAZON_EU_MARKETPLACE_HOSTS.includes(
+      hostname as AmazonEuMarketplace
     )
   ) {
     throw new Error(
-      "Amazon marketplace must be an amazon.de hostname such as www.amazon.de."
+      `Unsupported Amazon EU marketplace: ${value}. Supported markets: ${AMAZON_EU_MARKETPLACE_HOSTS.join(", ")}.`
     );
   }
-  return hostname;
+  return hostname as AmazonEuMarketplace;
 }
 
 function isTrustedAmazonDetailUrl(
@@ -524,15 +654,13 @@ function isTrustedAmazonDetailUrl(
       return false;
     }
 
-    const hostname = url.hostname.toLowerCase();
     const marketplaceHostname = normalizeAmazonMarketplace(marketplace);
-    const rootDomain = marketplaceHostname === "amazon.de"
-      ? "amazon.de"
-      : marketplaceHostname.split(".").slice(-2).join(".");
+    const rootDomain = AMAZON_MARKETPLACE_ROOTS[marketplaceHostname];
+    const hostname = url.hostname.toLowerCase();
 
     return (
-      rootDomain === "amazon.de" &&
-      (hostname === "amazon.de" || hostname.endsWith(".amazon.de"))
+      hostname === rootDomain ||
+      hostname.endsWith(`.${rootDomain}`)
     );
   } catch {
     return false;
@@ -628,6 +756,93 @@ async function readJsonRecord(
   const record = readRecord(value);
   if (!record) throw new Error(`${source} returned an invalid JSON object.`);
   return record;
+}
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  maxConcurrent: number,
+  task: (value: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(values.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= values.length) return;
+
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: await task(values[index]!)
+        };
+      } catch (reason) {
+        results[index] = {status: "rejected", reason};
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      {length: Math.min(maxConcurrent, values.length)},
+      () => worker()
+    )
+  );
+  return results;
+}
+
+function parseMarketplacePartnerTagsEnv(
+  raw: string | undefined
+): Record<string, string> | undefined {
+  if (!raw?.trim()) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must be a JSON object."
+    );
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(
+      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must be a JSON object."
+    );
+  }
+
+  const result: Record<string, string> = {};
+  for (const [marketplace, value] of Object.entries(
+    parsed as Record<string, unknown>
+  )) {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(
+        `Amazon Partner Tag for ${marketplace} must be a non-empty string.`
+      );
+    }
+    result[normalizeAmazonMarketplace(marketplace)] = value.trim();
+  }
+
+  return result;
+}
+
+function parsePositiveIntegerEnv(
+  raw: string | undefined,
+  name: string,
+  fallback: number
+): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return validatePositiveInteger(Number(raw.trim()), name);
+}
+
+function validatePositiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive safe integer.`);
+  }
+  return value;
 }
 
 function parseCacheTtlEnv(

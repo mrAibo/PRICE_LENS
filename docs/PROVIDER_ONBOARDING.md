@@ -139,16 +139,19 @@ Ask Geizhals to provide/confirm:
 
 No Geizhals adapter should be guessed before these publisher docs are supplied.
 
-## Amazon Germany
+## Amazon EU / Creators API
 
 ### PartnerNet / Associates
 
 Register or sign in:
 https://partnernet.amazon.de/
 
-PriceLens needs an accepted Amazon Associates account for the German marketplace.
-Amazon's current Creators API documentation also requires the account to meet the
-Creators API eligibility threshold before API access is enabled.
+PriceLens needs Associates/Creators eligibility for every Amazon marketplace it plans
+to activate. A Partner Tag is locale-specific: do not reuse the German tag for Poland,
+France, Italy, Spain, the Netherlands or Belgium.
+
+The backend can use the common EU Creators credential flow, while PriceLens activates
+only marketplaces whose own Partner Tag and access have been approved.
 
 ### Creators API
 

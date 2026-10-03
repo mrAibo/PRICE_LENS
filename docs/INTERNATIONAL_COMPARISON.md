@@ -147,6 +147,28 @@ Safety rules:
 ECB reference rates are estimates for comparison, not promised card/payment conversion
 rates. The UI must not describe them as the final transaction exchange rate.
 
+## Amazon EU marketplace model
+
+PriceLens now has an internal Amazon Creators multi-market adapter for:
+
+```text
+www.amazon.de
+www.amazon.pl
+www.amazon.fr
+www.amazon.it
+www.amazon.es
+www.amazon.nl
+www.amazon.com.be
+```
+
+Each locale is queried only when its own Partner Tag is configured. The locale searches
+are bounded and isolated, while the regional OAuth credential/token can be shared.
+
+Amazon `OffersV2` still lacks a reliable mandatory shipping charge for PriceLens's
+landed-price rule. Therefore Amazon offers remain `landedPriceComplete: false` and
+cannot become the headline delivered-price winner, even when ECB FX normalization is
+available for PLN.
+
 ## URL trust boundary
 
 The current allowlist maps marketplace IDs to eBay-owned domains:
@@ -173,6 +195,6 @@ marketplace hostname is discarded.
 - live validation of ECB reference-rate retrieval and refresh behavior;
 - EUR-normalized comparison while retaining original prices;
 - EU versus non-EU tax/import-cost model;
-- Amazon multi-market support with marketplace-specific approved Partner Tags;
+- live activation/validation of Amazon EU locales with marketplace-specific approved Partner Tags;
 - provider quota/latency measurements under real traffic;
 - eBay Production/Growth Check confirmation for the final presentation.

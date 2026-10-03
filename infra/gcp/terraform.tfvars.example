@@ -38,8 +38,14 @@ deploy_runtime = false
 # ecb_fx_cache_ttl_ms      = 21600000
 # ecb_fx_max_rate_age_days = 7
 # ecb_fx_timeout_ms        = 2000
-# amazon_creators_enabled = false
-# amazon_partner_tag      = "replace-only-after-approved-live-access"
+# amazon_creators_enabled              = false
+# amazon_marketplace_search_concurrency = 2
+# amazon_marketplace_partner_tags = {
+#   "www.amazon.de" = "replace-after-approved-de-access"
+#   # "www.amazon.pl" = "replace-after-approved-pl-access"
+# }
+# Legacy single-market fallback:
+# amazon_partner_tag = "replace-only-after-approved-live-access"
 
 # Keep the first edge-rate-limit rule in preview until traffic is measured.
 cloud_armor_rate_limit_preview = true
