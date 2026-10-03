@@ -347,10 +347,57 @@ variable "amazon_partner_tag" {
   default     = ""
 }
 
+variable "amazon_marketplace_partner_tags" {
+  description = "Amazon Associates Partner Tags keyed by approved EU marketplace hostname. Leave empty to use the legacy single-market amazon_partner_tag."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for marketplace, tag in var.amazon_marketplace_partner_tags :
+      contains([
+        "www.amazon.de",
+        "www.amazon.pl",
+        "www.amazon.fr",
+        "www.amazon.it",
+        "www.amazon.es",
+        "www.amazon.nl",
+        "www.amazon.com.be"
+      ], marketplace) && length(trimspace(tag)) > 0
+    ])
+    error_message = "amazon_marketplace_partner_tags may contain only supported PriceLens EU Amazon marketplaces with non-empty Partner Tags."
+  }
+}
+
+variable "amazon_marketplace_search_concurrency" {
+  description = "Maximum Amazon marketplace searches run in parallel within one explicit report."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = floor(var.amazon_marketplace_search_concurrency) == var.amazon_marketplace_search_concurrency && var.amazon_marketplace_search_concurrency >= 1 && var.amazon_marketplace_search_concurrency <= 7
+    error_message = "amazon_marketplace_search_concurrency must be an integer between 1 and 7."
+  }
+}
+
+
 variable "amazon_marketplace" {
-  description = "Amazon marketplace hostname."
+  description = "Legacy single-market Amazon hostname used only when amazon_marketplace_partner_tags is empty."
   type        = string
   default     = "www.amazon.de"
+
+  validation {
+    condition = contains([
+      "www.amazon.de",
+      "www.amazon.pl",
+      "www.amazon.fr",
+      "www.amazon.it",
+      "www.amazon.es",
+      "www.amazon.nl",
+      "www.amazon.com.be"
+    ], var.amazon_marketplace)
+    error_message = "amazon_marketplace must be a supported PriceLens EU Amazon marketplace hostname."
+  }
 }
 
 variable "amazon_credential_version" {
