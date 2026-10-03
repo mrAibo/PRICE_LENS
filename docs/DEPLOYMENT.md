@@ -289,7 +289,9 @@ PRICE_LENS_PROVIDER_MAX_CONCURRENCY=4
 
 Behavior:
 
-- when the comparison limit is full, new `POST /v1/compare` requests are drained and rejected immediately with HTTP `503` plus `Retry-After: 1`;
+- media type, the bounded request body and the full inbound listing schema are validated before a comparison slot is reserved;
+- malformed/unsupported requests therefore cannot consume the enrichment/provider comparison budget;
+- when the comparison limit is full, otherwise-valid `POST /v1/compare` requests are rejected with HTTP `503` plus `Retry-After: 1`;
 - configured price providers are wrapped independently and reject work when their own active-call limit is reached;
 - no unbounded in-process wait queue is introduced;
 - existing single-flight/coalescing still deduplicates identical in-flight provider work before these limits become relevant;
