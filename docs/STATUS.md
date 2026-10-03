@@ -150,7 +150,9 @@ Accepted product direction:
 - [x] full returned offer list is hidden behind a `+` expansion control
 - [x] UI expansion/collapse must not create another provider request
 - [x] eBay international comparison fans out across configurable EU marketplaces with deliveryCountry=DE and bounded concurrency
-- [x] multi-currency ranking remains blocked until explicit FX normalization exists
+- [x] raw multi-currency ranking is blocked unless an explicit normalized comparison price exists
+- [x] optional ECB reference FX normalizer preserves original PLN/etc. prices and adds EUR comparison prices
+- [ ] live ECB FX retrieval/cache/freshness validation remains pending
 - [x] backend delivery country is explicit and not inferred from IP
 - [ ] user-controlled destination postal code/country preference remains to be added
 
