@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `4e2b02623155e83c9db4f92f36ebb6714ae03b38` (PR #46). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `da0fbe74260e1c824a3fd257fd859f16abc0582b` (PR #47). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -241,6 +241,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #44 — alert enablement requires approved notification recipient — merged into `main`
 - PR #45 — JSON-only comparison media-type / non-CORS abuse boundary — merged into `main`
 - PR #46 — validate requests before reserving comparison concurrency — merged into `main`
+- PR #47 — production release preflight + immutable Phase B inputs — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
