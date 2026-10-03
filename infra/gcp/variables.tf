@@ -296,6 +296,45 @@ variable "ebay_browse_cache_ttl_ms" {
   }
 }
 
+variable "ecb_fx_enabled" {
+  description = "Enable ECB reference-rate normalization for cross-currency comparison estimates."
+  type        = bool
+  default     = false
+}
+
+variable "ecb_fx_cache_ttl_ms" {
+  description = "How long the latest ECB rate table is reused before refresh."
+  type        = number
+  default     = 21600000
+
+  validation {
+    condition     = floor(var.ecb_fx_cache_ttl_ms) == var.ecb_fx_cache_ttl_ms && var.ecb_fx_cache_ttl_ms >= 0
+    error_message = "ecb_fx_cache_ttl_ms must be a non-negative integer."
+  }
+}
+
+variable "ecb_fx_max_rate_age_days" {
+  description = "Maximum accepted ECB reference-rate age, allowing weekends and TARGET closing days."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = floor(var.ecb_fx_max_rate_age_days) == var.ecb_fx_max_rate_age_days && var.ecb_fx_max_rate_age_days >= 1
+    error_message = "ecb_fx_max_rate_age_days must be a positive integer."
+  }
+}
+
+variable "ecb_fx_timeout_ms" {
+  description = "Network timeout for refreshing ECB reference rates."
+  type        = number
+  default     = 2000
+
+  validation {
+    condition     = floor(var.ecb_fx_timeout_ms) == var.ecb_fx_timeout_ms && var.ecb_fx_timeout_ms >= 1
+    error_message = "ecb_fx_timeout_ms must be a positive integer."
+  }
+}
+
 variable "amazon_creators_enabled" {
   description = "Enable Amazon Creators provider after approved live access exists."
   type        = bool
