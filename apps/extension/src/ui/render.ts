@@ -498,6 +498,20 @@ function renderAllOffers(result: ComparisonResult): string {
         (conditionRank.get(left.condition) ?? 99) -
         (conditionRank.get(right.condition) ?? 99);
       if (conditionDifference !== 0) return conditionDifference;
+      const leftComparable = comparableOfferPrice(
+        left,
+        result.ebayLandedPrice.currency
+      );
+      const rightComparable = comparableOfferPrice(
+        right,
+        result.ebayLandedPrice.currency
+      );
+      if (leftComparable && rightComparable) {
+        return leftComparable.amount - rightComparable.amount;
+      }
+      if (leftComparable !== undefined || rightComparable !== undefined) {
+        return leftComparable ? -1 : 1;
+      }
       const currencyDifference = left.landedPrice.currency.localeCompare(
         right.landedPrice.currency
       );
