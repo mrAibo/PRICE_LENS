@@ -1,6 +1,7 @@
 import type {
   MatchMethod,
   PriceProviderId,
+  ProviderFailureCategory,
   ProviderState
 } from "@price-lens/contracts";
 import type {
@@ -26,6 +27,7 @@ export interface ProviderDiagnostic {
   provider: PriceProviderId;
   state: ProviderState;
   latencyMs?: number;
+  failureCategory?: ProviderFailureCategory;
   reviewCandidateCount: number;
 }
 
@@ -100,6 +102,7 @@ export interface ProviderMetricsSnapshot {
     maxMs: number;
   };
   reviewCandidateCount: number;
+  failureCategories: Partial<Record<ProviderFailureCategory, number>>;
 }
 
 export interface OperationalMetricsSnapshot {
@@ -178,6 +181,7 @@ export function createAggregatingDiagnosticSink(
       latencyTotalMs: number;
       latencyMaxMs: number;
       reviewCandidateCount: number;
+      failureCategories: Map<ProviderFailureCategory, number>;
     }
   >();
 
@@ -246,7 +250,8 @@ export function createAggregatingDiagnosticSink(
                 : roundMetric(metrics.latencyTotalMs / metrics.latencyCount),
             maxMs: metrics.latencyMaxMs
           },
-          reviewCandidateCount: metrics.reviewCandidateCount
+          reviewCandidateCount: metrics.reviewCandidateCount,
+          failureCategories: Object.fromEntries(metrics.failureCategories)
         }))
     };
   }
@@ -331,12 +336,20 @@ export function createAggregatingDiagnosticSink(
           latencyCount: 0,
           latencyTotalMs: 0,
           latencyMaxMs: 0,
-          reviewCandidateCount: 0
+          reviewCandidateCount: 0,
+          failureCategories: new Map<ProviderFailureCategory, number>()
         };
 
         current.observations += 1;
         incrementMap(current.stateCounts, provider.state, 1);
         current.reviewCandidateCount += provider.reviewCandidateCount;
+        if (provider.failureCategory !== undefined) {
+          incrementMap(
+            current.failureCategories,
+            provider.failureCategory,
+            1
+          );
+        }
 
         if (provider.latencyMs !== undefined) {
           current.latencyCount += 1;
