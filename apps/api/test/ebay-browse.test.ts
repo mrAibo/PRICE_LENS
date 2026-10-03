@@ -305,6 +305,126 @@ describe("eBay Browse enrichment", () => {
   });
 });
 
+describe("eBay same-product marketplace search", () => {
+  it("searches exact GTIN fixed-price listings, excludes the current listing and preserves conditions", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "market-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|123456789012|0",
+              title: "Current Sony WH-1000XM6",
+              itemWebUrl: "https://www.ebay.de/itm/123456789012",
+              price: {value: "349.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000"
+            },
+            {
+              itemId: "v1|223456789012|0",
+              title: "Sony WH-1000XM6 Neu",
+              itemWebUrl: "https://www.ebay.de/itm/223456789012",
+              price: {value: "309.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000",
+              seller: {
+                username: "trusted-shop",
+                feedbackPercentage: "99.8",
+                feedbackScore: 18000
+              },
+              shippingOptions: [
+                {shippingCost: {value: "4.99", currency: "EUR"}},
+                {shippingCost: {value: "0.00", currency: "EUR"}}
+              ]
+            },
+            {
+              itemId: "v1|323456789012|0",
+              title: "Sony WH-1000XM6 Refurbished",
+              itemWebUrl: "https://www.ebay.de/itm/323456789012",
+              price: {value: "269.90", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "2500"
+            },
+            {
+              itemId: "v1|423456789012|0",
+              title: "Sony WH-1000XM6 Gebraucht",
+              itemWebUrl: "https://www.ebay.de/itm/423456789012",
+              price: {value: "219.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "5000",
+              shippingOptions: [
+                {shippingCost: {value: "6.99", currency: "EUR"}}
+              ]
+            },
+            {
+              itemId: "v1|523456789012|0",
+              title: "Auction should be ignored",
+              itemWebUrl: "https://www.ebay.de/itm/523456789012",
+              price: {value: "100.00", currency: "EUR"},
+              buyingOptions: ["AUCTION"],
+              conditionId: "3000"
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl,
+      now: () => Date.parse("2026-10-03T17:00:00.000Z")
+    });
+    const listing: EcommerceListing = {
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    };
+
+    const candidates = await enricher.searchMarketplace(listing);
+
+    expect(candidates).toHaveLength(3);
+    expect(candidates.map((candidate) => candidate.condition)).toEqual([
+      "new",
+      "refurbished",
+      "used"
+    ]);
+    expect(candidates[0]).toMatchObject({
+      provider: "ebay_market",
+      providerProductId: "v1|223456789012|0",
+      merchant: "trusted-shop",
+      sellerFeedbackPercentage: 99.8,
+      sellerFeedbackScore: 18000,
+      identity: {gtin: "4548736162657"},
+      itemPrice: {amount: 309, currency: "EUR"},
+      shipping: {amount: 0, currency: "EUR"},
+      fetchedAt: "2026-10-03T17:00:00.000Z"
+    });
+    expect(candidates[2]?.shipping).toEqual({amount: 6.99, currency: "EUR"});
+
+    const searchUrl = new URL(String(fetchImpl.mock.calls[1]![0]));
+    expect(searchUrl.pathname).toBe("/buy/browse/v1/item_summary/search");
+    expect(searchUrl.searchParams.get("gtin")).toBe("4548736162657");
+    expect(searchUrl.searchParams.get("limit")).toBe("25");
+    expect(searchUrl.searchParams.get("filter")).toBe(
+      "buyingOptions:{FIXED_PRICE}"
+    );
+  });
+
+  it("does not issue a broad title search when no strong trade identifier exists", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    await expect(enricher.searchMarketplace(baseListing)).resolves.toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
 describe("eBay Browse environment configuration", () => {
   it("is disabled unless explicitly enabled", () => {
     expect(
