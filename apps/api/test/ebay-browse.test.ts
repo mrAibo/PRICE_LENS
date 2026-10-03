@@ -662,6 +662,45 @@ describe("eBay same-product marketplace search", () => {
     ).resolves.toEqual([]);
   });
 
+  it("bounds concurrent marketplace calls inside one explicit report", async () => {
+    let activeSearches = 0;
+    let maxActiveSearches = 0;
+
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "bounded-token", expires_in: 7200});
+      }
+
+      activeSearches += 1;
+      maxActiveSearches = Math.max(maxActiveSearches, activeSearches);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      activeSearches -= 1;
+      return jsonResponse({itemSummaries: []});
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: [
+        "EBAY_DE",
+        "EBAY_PL",
+        "EBAY_AT",
+        "EBAY_FR",
+        "EBAY_IT"
+      ],
+      marketplaceSearchConcurrency: 2,
+      fetchImpl
+    });
+
+    await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(maxActiveSearches).toBe(2);
+  });
+
   it("does not issue a broad title search when no strong trade identifier exists", async () => {
     const fetchImpl = vi.fn<typeof fetch>();
     const enricher = new EbayBrowseEnricher({
