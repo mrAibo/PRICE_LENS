@@ -151,6 +151,44 @@ variable "metrics_every" {
   }
 }
 
+variable "http_request_timeout_ms" {
+  description = "Maximum time in milliseconds to receive a complete inbound HTTP request."
+  type        = number
+  default     = 15000
+
+  validation {
+    condition     = var.http_request_timeout_ms >= 1000 && var.http_request_timeout_ms <= 120000 && floor(var.http_request_timeout_ms) == var.http_request_timeout_ms
+    error_message = "http_request_timeout_ms must be an integer between 1000 and 120000."
+  }
+}
+
+variable "http_headers_timeout_ms" {
+  description = "Maximum time in milliseconds to receive complete inbound HTTP headers."
+  type        = number
+  default     = 10000
+
+  validation {
+    condition = (
+      var.http_headers_timeout_ms >= 1000 &&
+      var.http_headers_timeout_ms <= 60000 &&
+      floor(var.http_headers_timeout_ms) == var.http_headers_timeout_ms &&
+      var.http_headers_timeout_ms <= var.http_request_timeout_ms
+    )
+    error_message = "http_headers_timeout_ms must be an integer between 1000 and 60000 and must not exceed http_request_timeout_ms."
+  }
+}
+
+variable "http_max_headers_count" {
+  description = "Maximum number of inbound HTTP headers accepted by the Node API server."
+  type        = number
+  default     = 64
+
+  validation {
+    condition     = var.http_max_headers_count >= 16 && var.http_max_headers_count <= 256 && floor(var.http_max_headers_count) == var.http_max_headers_count
+    error_message = "http_max_headers_count must be an integer between 16 and 256."
+  }
+}
+
 variable "provider_secret_ids" {
   description = "Secret Manager secret IDs created for backend-only provider credentials. Values are names, never secret contents."
   type        = map(string)
