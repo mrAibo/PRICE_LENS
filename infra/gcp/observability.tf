@@ -8,6 +8,24 @@ locals {
   ])
 
   monitoring_notification_channels = var.monitoring_notification_channels
+
+  server_busy_log_filter = join(" AND ", [
+    local.operational_log_filter,
+    "jsonPayload.type=\"request_rejected\"",
+    "jsonPayload.reason=\"server_busy\""
+  ])
+
+  comparison_warning_log_filter = join(" AND ", [
+    local.operational_log_filter,
+    "jsonPayload.type=\"compare_completed\"",
+    "jsonPayload.warningCount>0"
+  ])
+
+  enrichment_fallback_log_filter = join(" AND ", [
+    local.operational_log_filter,
+    "jsonPayload.type=\"compare_completed\"",
+    "jsonPayload.enrichmentFallback=true"
+  ])
 }
 
 resource "google_logging_project_bucket_config" "price_lens_ops" {
@@ -38,6 +56,60 @@ resource "google_logging_project_sink" "price_lens_ops" {
     google_project_service.required,
     google_logging_project_bucket_config.price_lens_ops
   ]
+}
+
+resource "google_logging_metric" "server_busy_rejections" {
+  count = local.operational_observability_enabled ? 1 : 0
+
+  project     = var.project_id
+  name        = "${var.name_prefix}-server-busy-rejections"
+  description = "PriceLens comparison requests rejected because the application concurrency budget was exhausted"
+  filter      = local.server_busy_log_filter
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+    display_name = "PriceLens server-busy rejections"
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_logging_metric" "comparison_warnings" {
+  count = local.operational_observability_enabled ? 1 : 0
+
+  project     = var.project_id
+  name        = "${var.name_prefix}-comparison-warnings"
+  description = "Completed PriceLens comparisons carrying one or more controlled warnings"
+  filter      = local.comparison_warning_log_filter
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+    display_name = "PriceLens comparisons with warnings"
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_logging_metric" "enrichment_fallbacks" {
+  count = local.operational_observability_enabled ? 1 : 0
+
+  project     = var.project_id
+  name        = "${var.name_prefix}-enrichment-fallbacks"
+  description = "PriceLens comparisons that continued after optional eBay Browse enrichment failed"
+  filter      = local.enrichment_fallback_log_filter
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+    display_name = "PriceLens enrichment fallbacks"
+  }
+
+  depends_on = [google_project_service.required]
 }
 
 resource "google_monitoring_uptime_check_config" "api" {
@@ -224,4 +296,55 @@ resource "google_monitoring_alert_policy" "cloud_run_p95_latency" {
   }
 
   depends_on = [google_project_service.required]
+}
+
+resource "google_monitoring_alert_policy" "server_busy" {
+  count = local.operational_observability_enabled ? 1 : 0
+
+  project      = var.project_id
+  display_name = "PriceLens application overload"
+  combiner     = "OR"
+  enabled      = var.monitoring_alerts_enabled
+
+  documentation {
+    content = "PriceLens is rejecting comparison requests because its application concurrency budget is exhausted. Inspect Cloud Run instance saturation, PRICE_LENS_MAX_CONCURRENT_COMPARISONS, provider latency/quotas and recent traffic before raising limits."
+  }
+
+  conditions {
+    display_name = "Server-busy rejections above budget"
+
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.server_busy_rejections[0].name}\" AND resource.type=\"cloud_run_revision\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.server_busy_rejections_threshold
+      duration        = "60s"
+
+      aggregations {
+        alignment_period     = "300s"
+        per_series_aligner   = "ALIGN_SUM"
+        cross_series_reducer = "REDUCE_SUM"
+        group_by_fields      = ["resource.label.\"service_name\""]
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  alert_strategy {
+    auto_close = "1800s"
+  }
+
+  notification_channels = local.monitoring_notification_channels
+
+  user_labels = {
+    service  = "price-lens"
+    severity = "warning"
+  }
+
+  depends_on = [
+    google_project_service.required,
+    google_logging_metric.server_busy_rejections
+  ]
 }
