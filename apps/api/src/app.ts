@@ -16,6 +16,11 @@ import {
   type PriceProvider
 } from "@price-lens/core";
 import {
+  PUBLIC_PROVIDER_ACCESS,
+  normalizeProviderAccessContext,
+  type ProviderAccessContext
+} from "./provider-access.js";
+import {
   safeEmitDiagnostic,
   type MatchMethodCounts,
   type PriceLensDiagnosticSink,
@@ -35,6 +40,9 @@ export interface PriceLensApiOptions {
   diagnostics?: PriceLensDiagnosticSink;
   now?: () => number;
   maxConcurrentComparisons?: number;
+  resolveProviderAccess?: (
+    request: IncomingMessage
+  ) => ProviderAccessContext | Promise<ProviderAccessContext>;
 }
 
 export function createPriceLensServer(
@@ -130,6 +138,18 @@ export function createPriceLensServer(
         return;
       }
 
+      let providerAccess = PUBLIC_PROVIDER_ACCESS;
+      if (options.resolveProviderAccess) {
+        try {
+          providerAccess = normalizeProviderAccessContext(
+            await options.resolveProviderAccess(request)
+          );
+        } catch {
+          // Access-resolution failures fail closed to the public restrictions.
+          providerAccess = PUBLIC_PROVIDER_ACCESS;
+        }
+      }
+
       if (activeComparisons >= maxConcurrentComparisons) {
         response.setHeader("retry-after", "1");
         sendJson(response, 503, {
@@ -170,7 +190,8 @@ export function createPriceLensServer(
         const result = await compareWithProviders(listing, providers, {
           requestId,
           normalizeOffers: options.normalizeOffers,
-          destination: payload.destination
+          destination: payload.destination,
+          restrictedProviders: providerAccess.restrictedProviders
         });
         sendJson(response, 200, result);
         safeEmitDiagnostic(options.diagnostics, {
