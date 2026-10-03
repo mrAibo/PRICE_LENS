@@ -6,7 +6,10 @@ import {
   listingFingerprint
 } from "../src/lifecycle.js";
 import type {CompareMessage, CompareResponse} from "../src/messages.js";
-import type {PriceLensView} from "../src/ui/render.js";
+import type {
+  PriceLensReportActions,
+  PriceLensView
+} from "../src/ui/render.js";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -69,6 +72,15 @@ function renderPage(itemId = "123456789012", amount = "100.00"): JSDOM {
   });
 }
 
+function view(overrides: Partial<PriceLensView> = {}): PriceLensView {
+  return {
+    renderLoading: vi.fn(),
+    renderComparison: vi.fn(),
+    renderError: vi.fn(),
+    ...overrides
+  };
+}
+
 describe("listing fingerprint", () => {
   it("is stable for non-comparison metadata", () => {
     const first = listing();
@@ -98,18 +110,18 @@ describe("listing fingerprint", () => {
 });
 
 describe("PriceLens content lifecycle", () => {
-  it("deduplicates repeated refreshes of the same listing", async () => {
+  it("extracts and mounts once but sends no comparison until explicitly requested", async () => {
     const dom = renderPage();
     const source = listing();
     const sendMessage = vi.fn(async (_message: CompareMessage): Promise<CompareResponse> => ({
       ok: true,
       result: result(source)
     }));
-    const renderComparison = vi.fn();
-    const mount = vi.fn((): PriceLensView => ({
-      renderComparison,
-      renderError: vi.fn()
-    }));
+    const mountedView = view();
+    const mount = vi.fn(
+      (_document: Document, _listing: EcommerceListing, _actions: PriceLensReportActions) =>
+        mountedView
+    );
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
@@ -121,9 +133,16 @@ describe("PriceLens content lifecycle", () => {
     await lifecycle.refreshNow();
     await lifecycle.refreshNow();
 
-    expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(mount).toHaveBeenCalledTimes(1);
-    expect(renderComparison).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    const actions = mount.mock.calls[0]![2];
+    await actions.onRequestComparison();
+    await actions.onRequestComparison();
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(mountedView.renderLoading).toHaveBeenCalledTimes(1);
+    expect(mountedView.renderComparison).toHaveBeenCalledTimes(1);
     lifecycle.stop();
   });
 
@@ -136,14 +155,11 @@ describe("PriceLens content lifecycle", () => {
       url: "https://www.ebay.de/itm/123456789012"
     });
 
-    const sendMessage = vi.fn(async (_message: CompareMessage): Promise<CompareResponse> => ({
+    const sendMessage = vi.fn(async (): Promise<CompareResponse> => ({
       ok: false,
       error: "should not be called"
     }));
-    const mount = vi.fn((): PriceLensView => ({
-      renderComparison: vi.fn(),
-      renderError: vi.fn()
-    }));
+    const mount = vi.fn(() => view());
     const mountUnsupported = vi.fn();
 
     const lifecycle = createPriceLensLifecycle({
@@ -163,7 +179,7 @@ describe("PriceLens content lifecycle", () => {
     lifecycle.stop();
   });
 
-  it("replaces an unsupported state when the listing becomes safely extractable", async () => {
+  it("replaces an unsupported state with an idle report action when extraction becomes safe", async () => {
     const dom = new JSDOM(`
       <!doctype html><html><head>
         <meta property="og:title" content="Late-loading item">
@@ -176,11 +192,11 @@ describe("PriceLens content lifecycle", () => {
       ok: true,
       result: result(message.listing)
     }));
-    const renderComparison = vi.fn();
-    const mount = vi.fn((): PriceLensView => ({
-      renderComparison,
-      renderError: vi.fn()
-    }));
+    const mountedView = view();
+    const mount = vi.fn(
+      (_document: Document, _listing: EcommerceListing, _actions: PriceLensReportActions) =>
+        mountedView
+    );
     const mountUnsupported = vi.fn();
 
     const lifecycle = createPriceLensLifecycle({
@@ -202,22 +218,32 @@ describe("PriceLens content lifecycle", () => {
     await lifecycle.refreshNow();
 
     expect(mount).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await mount.mock.calls[0]![2].onRequestComparison();
     expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(renderComparison).toHaveBeenCalledTimes(1);
+    expect(mountedView.renderComparison).toHaveBeenCalledTimes(1);
     lifecycle.stop();
   });
 
-  it("refreshes after relevant DOM data changes", async () => {
+  it("requires a fresh explicit request after relevant DOM data changes", async () => {
     const dom = renderPage();
     const sendMessage = vi.fn(async (message: CompareMessage): Promise<CompareResponse> => ({
       ok: false,
       error: String(message.listing.price.amount)
     }));
-    const renderError = vi.fn();
-    const mount = vi.fn((): PriceLensView => ({
-      renderComparison: vi.fn(),
-      renderError
-    }));
+    const firstView = view();
+    const secondView = view();
+    const mount = vi
+      .fn<
+        (
+          document: Document,
+          listing: EcommerceListing,
+          actions: PriceLensReportActions
+        ) => PriceLensView
+      >()
+      .mockReturnValueOnce(firstView)
+      .mockReturnValueOnce(secondView);
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
@@ -227,6 +253,8 @@ describe("PriceLens content lifecycle", () => {
     });
 
     await lifecycle.refreshNow();
+    await mount.mock.calls[0]![2].onRequestComparison();
+    expect(firstView.renderError).toHaveBeenCalledWith("100");
 
     const script = dom.window.document.querySelector('script[type="application/ld+json"]');
     expect(script).not.toBeNull();
@@ -234,9 +262,13 @@ describe("PriceLens content lifecycle", () => {
 
     await lifecycle.refreshNow();
 
-    expect(sendMessage).toHaveBeenCalledTimes(2);
     expect(mount).toHaveBeenCalledTimes(2);
-    expect(renderError).toHaveBeenLastCalledWith("101");
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+
+    await mount.mock.calls[1]![2].onRequestComparison();
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(secondView.renderError).toHaveBeenCalledWith("101");
     lifecycle.stop();
   });
 
@@ -252,18 +284,18 @@ describe("PriceLens content lifecycle", () => {
       .mockImplementationOnce(() => firstResponse)
       .mockResolvedValueOnce({ok: false, error: "newer"});
 
-    const firstRender = vi.fn();
-    const secondRender = vi.fn();
+    const firstView = view();
+    const secondView = view();
     const mount = vi
-      .fn<() => PriceLensView>()
-      .mockReturnValueOnce({
-        renderComparison: firstRender,
-        renderError: firstRender
-      })
-      .mockReturnValueOnce({
-        renderComparison: secondRender,
-        renderError: secondRender
-      });
+      .fn<
+        (
+          document: Document,
+          listing: EcommerceListing,
+          actions: PriceLensReportActions
+        ) => PriceLensView
+      >()
+      .mockReturnValueOnce(firstView)
+      .mockReturnValueOnce(secondView);
 
     const lifecycle = createPriceLensLifecycle({
       document: dom.window.document,
@@ -273,18 +305,21 @@ describe("PriceLens content lifecycle", () => {
     });
 
     await Promise.resolve();
+    const firstRequest = mount.mock.calls[0]![2].onRequestComparison();
 
     const script = dom.window.document.querySelector('script[type="application/ld+json"]');
     script!.textContent = script!.textContent!.replace('"100.00"', '"102.00"');
 
     await lifecycle.refreshNow();
-    expect(secondRender).toHaveBeenCalledWith("newer");
+    await mount.mock.calls[1]![2].onRequestComparison();
+    expect(secondView.renderError).toHaveBeenCalledWith("newer");
 
     resolveFirst!({ok: false, error: "stale"});
-    await firstResponse;
+    await firstRequest;
     await Promise.resolve();
 
-    expect(firstRender).not.toHaveBeenCalled();
+    expect(firstView.renderError).not.toHaveBeenCalled();
+    expect(firstView.renderComparison).not.toHaveBeenCalled();
     lifecycle.stop();
   });
 });
