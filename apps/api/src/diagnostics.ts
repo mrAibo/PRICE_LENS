@@ -26,11 +26,12 @@ export interface RequestRejectedDiagnostic {
   type: "request_rejected";
   requestId: string;
   route: string;
-  status: 400 | 404 | 413 | 503;
+  status: 400 | 404 | 413 | 415 | 503;
   reason:
     | "invalid_request"
     | "invalid_json"
     | "payload_too_large"
+    | "unsupported_media_type"
     | "not_found"
     | "server_busy";
   durationMs: number;
