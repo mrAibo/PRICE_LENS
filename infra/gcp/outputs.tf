@@ -49,3 +49,28 @@ output "required_dns_a_record" {
     value = google_compute_global_address.api[0].address
   } : null
 }
+
+output "operational_log_bucket_name" {
+  description = "Dedicated privacy-minimized operational log bucket when runtime monitoring is enabled."
+  value       = local.operational_observability_enabled ? google_logging_project_bucket_config.price_lens_ops[0].name : null
+}
+
+output "api_uptime_check_id" {
+  description = "Cloud Monitoring uptime-check ID for the public HTTPS /ready endpoint."
+  value       = local.operational_observability_enabled ? google_monitoring_uptime_check_config.api[0].uptime_check_id : null
+}
+
+output "monitoring_alert_policy_names" {
+  description = "Cloud Monitoring alert-policy resource names for PriceLens runtime health."
+  value = local.operational_observability_enabled ? {
+    uptime        = google_monitoring_alert_policy.api_uptime[0].name
+    cloud_run_5xx = google_monitoring_alert_policy.cloud_run_5xx[0].name
+    p95_latency   = google_monitoring_alert_policy.cloud_run_p95_latency[0].name
+  } : {}
+}
+
+output "monitoring_alerts_enabled" {
+  description = "Whether PriceLens Cloud Monitoring alert policies are enabled."
+  value       = local.operational_observability_enabled ? var.monitoring_alerts_enabled : false
+}
+

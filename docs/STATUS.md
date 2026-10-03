@@ -96,6 +96,8 @@ Bootstrap PR #1 is **merged**. New implementation branches should start from the
 - [x] HTTP request correlation via `x-price-lens-request-id` and `ComparisonResult.requestId`
 - [x] opt-in privacy-minimized JSON diagnostics with provider latency/state aggregation
 - [x] periodic cumulative operational metrics snapshots (provider states + avg/max latency + rejection reasons)
+- [x] GCP IaC for dedicated privacy-minimized operational-log retention
+- [x] GCP HTTPS readiness uptime check + Cloud Run 5xx/P95 alert-policy baseline
 - [x] provider product/price caches disabled by default until approved freshness rules are known
 - [x] explicit TTL-only provider caching with configuration validation
 - [x] deep inbound eBay payload validation at the API trust boundary
@@ -193,7 +195,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 - [x] in-flight provider request coalescing
 - [ ] provider-approved production cache/freshness policy
-- [ ] durable external observability/metrics persistence and alerting
+- [ ] live-apply durable GCP observability, approve notification channels and tune alert thresholds
 - [ ] first approved real provider adapter
 - [ ] multi-provider production comparison
 - [ ] eBay search-result card augmentation
@@ -243,7 +245,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
-9. Issue #33 — Terraform definitions are ready; apply Phase A in the selected GCP project, add approved secret versions/image/domain, apply Phase B, tune Cloud Armor preview traffic, then package Chrome against the verified HTTPS origin.
+9. Issue #33 — Terraform definitions are ready; apply Phase A, add approved secret versions/image/domain, apply Phase B, verify DNS/TLS, then tune Cloud Armor and enable/tune the predeclared observability alerts before packaging Chrome against the verified HTTPS origin.
 10. Keep server/provider concurrency defaults conservative until live provider quotas are measured.
 
 ## Local verification

@@ -1,8 +1,8 @@
 # PriceLens Observability
 
-Status: **privacy-minimized diagnostics + process-local aggregation implemented**
+Status: **privacy-minimized diagnostics + durable GCP retention/alerting IaC implemented; live apply pending**
 
-Updated: **2026-10-02**
+Updated: **2026-10-03**
 
 PriceLens keeps diagnostics intentionally narrow. Product browsing data is not required
 for the first operational signals.
@@ -93,9 +93,26 @@ A `metrics_snapshot` contains:
 Snapshots intentionally omit request ids, product identity, item/title/URL and user data.
 
 Counters reset when the Node process restarts. PriceLens does not expose a public metrics
-HTTP endpoint at this stage. Durable retention, dashboards and alerts belong to the
-future deployment logging/metrics backend and require an explicit retention/access
-policy.
+HTTP endpoint.
+
+For the selected GCP production target, Terraform now defines a durable operational
+baseline:
+
+- a dedicated Cloud Logging bucket with 30-day default retention;
+- a sink that routes only Cloud Run JSON entries carrying
+  `jsonPayload.service="price-lens-api"`;
+- an HTTPS `/ready` uptime check;
+- Cloud Monitoring alert policies for uptime failure, Cloud Run 5xx volume and
+  successful-request P95 latency.
+
+The alert policies are created disabled by default until the production DNS name and
+managed TLS certificate are verified. Notification channels are supplied only as
+existing Cloud Monitoring resource names and are not created from contact details in
+this repository.
+
+This infrastructure is versioned but has not yet been applied to a production GCP
+project. Thresholds and retention must still be reviewed against live traffic,
+provider quotas and the final operational/privacy policy.
 
 ## Failure isolation
 
@@ -106,11 +123,12 @@ never alter the HTTP response path.
 
 Continue extending aggregate signals rather than richer per-product logs:
 
-- cache hit/miss counters
-- rate-limit-specific counters
-- latency histograms/percentiles in the external metrics backend
-- match-decision counts
-- unsupported-extraction counts
-- durable retention and alerting in the chosen deployment platform
+- cache hit/miss counters where provider policy permits persistent caches;
+- provider/rate-limit-specific counters;
+- match-decision counts;
+- unsupported-extraction counts;
+- production dashboards after the first live deployment;
+- threshold tuning from real traffic rather than guessed request rates.
 
-Any persistent telemetry requires a separate privacy review before collection.
+Before enabling persistent production collection, confirm the final log-retention,
+access-control and privacy/store disclosures.

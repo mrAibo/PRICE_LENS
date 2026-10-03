@@ -182,6 +182,69 @@ Preview is intentional. Inspect real traffic and provider quotas before setting 
 Requests without `Content-Length` are still bounded by the application body reader;
 the edge rule is not treated as the only body-size control.
 
+
+## Operational logging and monitoring
+
+Phase B can also create a bounded operational-observability baseline without adding
+product-level telemetry.
+
+When `operational_monitoring_enabled=true` (the default for runtime deployment),
+Terraform creates:
+
+- a dedicated Cloud Logging bucket for PriceLens structured diagnostics;
+- a log sink restricted to Cloud Run entries where
+  `jsonPayload.service="price-lens-api"`;
+- a public HTTPS uptime check against `/ready`;
+- alert policies for uptime failure, Cloud Run 5xx responses and successful-request
+  P95 latency.
+
+The dedicated bucket defaults to **30 days** retention. PriceLens application
+diagnostics intentionally omit item ids, product titles, listing/provider URLs,
+query terms, cookies, request headers, credentials and OAuth tokens.
+
+Alert policies are created but default to:
+
+```hcl
+monitoring_alerts_enabled = false
+```
+
+Keep them disabled during initial Phase-B provisioning. After the DNS A record points
+to the load balancer and Google-managed TLS is active, verify:
+
+```bash
+curl --fail "https://<api-domain>/ready"
+curl --fail "https://<api-domain>/health"
+```
+
+Then reference already-approved Cloud Monitoring notification channels and enable the
+policies:
+
+```hcl
+monitoring_alerts_enabled = true
+
+monitoring_notification_channels = [
+  "projects/PROJECT_ID/notificationChannels/CHANNEL_ID"
+]
+```
+
+Terraform deliberately does **not** create email/webhook/PagerDuty/Slack recipients.
+Operational contact data and escalation ownership stay outside the repository.
+
+Initial thresholds are conservative placeholders:
+
+```hcl
+cloud_run_5xx_requests_threshold = 5
+cloud_run_p95_latency_ms         = 5000
+```
+
+Tune them only from observed production traffic. These alerts complement, rather than
+replace, Cloud Armor limits and the application/provider concurrency guards.
+
+The dedicated bucket is an application-diagnostics retention boundary, not a statement
+about organization-wide Google Cloud logging policy. Project/organization access,
+default log-bucket retention, export, legal retention and subprocessor policy remain
+an explicit production governance decision.
+
 ## Secret rotation
 
 For a credential rotation:
