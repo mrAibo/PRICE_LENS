@@ -98,6 +98,7 @@ Current implementation checkpoint: `698550c8bbf47827ad2e8adae5b2f08263b082d5` (P
 - [x] structured comparison warning taxonomy aggregated without parsing human-readable warning text
 - [x] accepted/review match-method aggregate diagnostics without product identifiers
 - [x] eBay/Amazon product-cache hit/miss/coalesced aggregate metrics without cache keys or lookup terms
+- [x] durable GCP log-based application counters + overload alert IaC for server_busy/warnings/enrichment fallback (live apply pending)
 - [x] GCP IaC for dedicated privacy-minimized operational-log retention
 - [x] GCP HTTPS readiness uptime check + Cloud Run 5xx/P95 alert-policy baseline
 - [x] credential-free Terraform Phase A/Phase B safety-invariant tests in CI
