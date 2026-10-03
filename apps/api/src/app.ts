@@ -84,8 +84,47 @@ export function createPriceLensServer(
         return;
       }
 
+      let payload: ComparisonRequest;
+      try {
+        const parsed = await readJsonBody(request);
+        if (!isComparisonRequest(parsed)) {
+          sendJson(response, 400, {
+            error: "invalid_request",
+            message: "Expected a valid eBay listing payload.",
+            requestId
+          });
+          safeEmitDiagnostic(options.diagnostics, {
+            type: "request_rejected",
+            requestId,
+            route: "/v1/compare",
+            status: 400,
+            reason: "invalid_request",
+            durationMs: elapsedMs(startedAt, now)
+          });
+          return;
+        }
+        payload = parsed;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid request";
+        const status: 400 | 413 = message.includes("too large") ? 413 : 400;
+        const reason = status === 413 ? "payload_too_large" : "invalid_json";
+        sendJson(response, status, {
+          error: reason,
+          message,
+          requestId
+        });
+        safeEmitDiagnostic(options.diagnostics, {
+          type: "request_rejected",
+          requestId,
+          route: "/v1/compare",
+          status,
+          reason,
+          durationMs: elapsedMs(startedAt, now)
+        });
+        return;
+      }
+
       if (activeComparisons >= maxConcurrentComparisons) {
-        request.resume();
         response.setHeader("retry-after", "1");
         sendJson(response, 503, {
           error: "server_busy",
@@ -105,82 +144,45 @@ export function createPriceLensServer(
 
       activeComparisons += 1;
       try {
-        try {
-          const payload = await readJsonBody(request);
-          if (!isComparisonRequest(payload)) {
-            sendJson(response, 400, {
-              error: "invalid_request",
-              message: "Expected a valid eBay listing payload.",
-              requestId
-            });
-            safeEmitDiagnostic(options.diagnostics, {
-              type: "request_rejected",
-              requestId,
-              route: "/v1/compare",
-              status: 400,
-              reason: "invalid_request",
-              durationMs: elapsedMs(startedAt, now)
-            });
-            return;
+        let listing = payload.listing;
+        let enrichmentFallback = false;
+        if (options.enrichListing) {
+          try {
+            listing = await options.enrichListing(listing);
+          } catch {
+            enrichmentFallback = true;
+            listing = {
+              ...listing,
+              extractionWarnings: [
+                ...listing.extractionWarnings,
+                ENRICHMENT_FALLBACK_WARNING
+              ]
+            };
           }
-
-          let listing = payload.listing;
-          let enrichmentFallback = false;
-          if (options.enrichListing) {
-            try {
-              listing = await options.enrichListing(listing);
-            } catch {
-              enrichmentFallback = true;
-              listing = {
-                ...listing,
-                extractionWarnings: [
-                  ...listing.extractionWarnings,
-                  ENRICHMENT_FALLBACK_WARNING
-                ]
-              };
-            }
-          }
-
-          const result = await compareWithProviders(listing, providers, {
-            requestId
-          });
-          sendJson(response, 200, result);
-          safeEmitDiagnostic(options.diagnostics, {
-            type: "compare_completed",
-            requestId,
-            route: "/v1/compare",
-            status: 200,
-            durationMs: elapsedMs(startedAt, now),
-            offerCount: result.offers.length,
-            warningCount: result.warnings.length,
-            enrichmentFallback,
-            providers: result.providerStatus.map((status) => ({
-              provider: status.provider,
-              state: status.state,
-              ...(status.latencyMs !== undefined
-                ? {latencyMs: status.latencyMs}
-                : {}),
-              reviewCandidateCount: status.reviewCandidates?.length ?? 0
-            }))
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Invalid request";
-          const status: 400 | 413 = message.includes("too large") ? 413 : 400;
-          const reason = status === 413 ? "payload_too_large" : "invalid_json";
-          sendJson(response, status, {
-            error: reason,
-            message,
-            requestId
-          });
-          safeEmitDiagnostic(options.diagnostics, {
-            type: "request_rejected",
-            requestId,
-            route: "/v1/compare",
-            status,
-            reason,
-            durationMs: elapsedMs(startedAt, now)
-          });
         }
+
+        const result = await compareWithProviders(listing, providers, {
+          requestId
+        });
+        sendJson(response, 200, result);
+        safeEmitDiagnostic(options.diagnostics, {
+          type: "compare_completed",
+          requestId,
+          route: "/v1/compare",
+          status: 200,
+          durationMs: elapsedMs(startedAt, now),
+          offerCount: result.offers.length,
+          warningCount: result.warnings.length,
+          enrichmentFallback,
+          providers: result.providerStatus.map((status) => ({
+            provider: status.provider,
+            state: status.state,
+            ...(status.latencyMs !== undefined
+              ? {latencyMs: status.latencyMs}
+              : {}),
+            reviewCandidateCount: status.reviewCandidates?.length ?? 0
+          }))
+        });
       } finally {
         activeComparisons -= 1;
       }
