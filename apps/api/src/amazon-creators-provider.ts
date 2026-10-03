@@ -9,6 +9,10 @@ import type {
   ProviderCandidate,
   ProviderSearchInput
 } from "@price-lens/core";
+import {
+  safeObserveProviderCache,
+  type ProviderCacheObserver
+} from "./provider-cache.js";
 
 type FetchLike = typeof fetch;
 type JsonRecord = Record<string, unknown>;
@@ -23,6 +27,7 @@ export interface AmazonCreatorsProviderOptions {
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
   now?: () => number;
+  cacheObserver?: ProviderCacheObserver;
 }
 
 interface CachedToken {
@@ -47,6 +52,7 @@ export class AmazonCreatorsProvider implements PriceProvider {
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
   private readonly now: () => number;
+  private readonly cacheObserver?: ProviderCacheObserver;
   private tokenCache?: CachedToken;
   private tokenInFlight?: Promise<string>;
   private readonly searchCache = new Map<string, CachedCandidates>();
@@ -70,12 +76,17 @@ export class AmazonCreatorsProvider implements PriceProvider {
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "Amazon Creators");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
+    this.cacheObserver = options.cacheObserver;
   }
 
   async search(input: ProviderSearchInput): Promise<ProviderCandidate[]> {
     const cacheKey = listingCacheKey(input);
     const cached = this.searchCache.get(cacheKey);
     if (cached && cached.expiresAt > this.now()) {
+      safeObserveProviderCache(this.cacheObserver, {
+        source: "amazon",
+        outcome: "hit"
+      });
       return cached.candidates;
     }
     if (cached) {
@@ -84,6 +95,10 @@ export class AmazonCreatorsProvider implements PriceProvider {
 
     const active = this.searchInFlight.get(cacheKey);
     if (active) {
+      safeObserveProviderCache(this.cacheObserver, {
+        source: "amazon",
+        outcome: "coalesced"
+      });
       return waitForSignal(
         active,
         input.signal,
@@ -91,6 +106,10 @@ export class AmazonCreatorsProvider implements PriceProvider {
       );
     }
 
+    safeObserveProviderCache(this.cacheObserver, {
+      source: "amazon",
+      outcome: "miss"
+    });
     const pending = this.fetchAndCacheSearch(input.listing, cacheKey).finally(() => {
       if (this.searchInFlight.get(cacheKey) === pending) {
         this.searchInFlight.delete(cacheKey);
@@ -288,7 +307,8 @@ export class AmazonCreatorsProvider implements PriceProvider {
 }
 
 export function createAmazonCreatorsProviderFromEnv(
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  runtimeOptions: Pick<AmazonCreatorsProviderOptions, "cacheObserver"> = {}
 ): AmazonCreatorsProvider | undefined {
   if (env.AMAZON_CREATORS_ENABLED !== "1") return undefined;
 
@@ -312,7 +332,8 @@ export function createAmazonCreatorsProviderFromEnv(
     cacheTtlMs: parseCacheTtlEnv(
       env.AMAZON_CREATORS_CACHE_TTL_MS,
       "AMAZON_CREATORS_CACHE_TTL_MS"
-    )
+    ),
+    cacheObserver: runtimeOptions.cacheObserver
   });
 }
 
