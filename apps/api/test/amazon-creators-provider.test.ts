@@ -84,6 +84,40 @@ function searchResponse(): unknown {
   };
 }
 
+function searchResponseFor(
+  marketplace: "www.amazon.de" | "www.amazon.pl" | "www.amazon.com.be",
+  partnerTag: string,
+  amount: number,
+  currency: string
+): unknown {
+  const response = searchResponse() as {
+    searchResult: {
+      items: Array<{
+        detailPageURL: string;
+        offersV2: {
+          listings: Array<{
+            merchantInfo: {name: string};
+            price: {money: {amount: number; currency: string}};
+          }>;
+        };
+      }>;
+    };
+  };
+  const root =
+    marketplace === "www.amazon.com.be"
+      ? "www.amazon.com.be"
+      : marketplace;
+  response.searchResult.items[0]!.detailPageURL =
+    `https://${root}/dp/B0EXAMPLE01?tag=${partnerTag}`;
+  response.searchResult.items[0]!.offersV2.listings[0]!.merchantInfo.name =
+    marketplace;
+  response.searchResult.items[0]!.offersV2.listings[0]!.price.money = {
+    amount,
+    currency
+  };
+  return response;
+}
+
 describe("Amazon Creators provider", () => {
   it("uses EU v3.2 OAuth and SearchItems for Amazon.de", async () => {
     const fetchImpl = vi
@@ -173,6 +207,199 @@ describe("Amazon Creators provider", () => {
         fetchedAt: expect.any(String)
       }
     ]);
+  });
+
+  it("fans out across configured EU marketplaces with locale-specific Partner Tags", async () => {
+    const searchCalls: Array<{marketplace: string; body: Record<string, unknown>}> = [];
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/auth/o2/token")) {
+        return jsonResponse({access_token: "eu-token", expires_in: 3600});
+      }
+
+      const headers = new Headers(init?.headers);
+      const marketplace = headers.get("x-marketplace") ?? "";
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      searchCalls.push({marketplace, body});
+
+      if (marketplace === "www.amazon.de") {
+        return jsonResponse(
+          searchResponseFor(
+            "www.amazon.de",
+            "de-tag-21",
+            329.99,
+            "EUR"
+          )
+        );
+      }
+      if (marketplace === "www.amazon.pl") {
+        return jsonResponse(
+          searchResponseFor(
+            "www.amazon.pl",
+            "pl-tag-21",
+            1399,
+            "PLN"
+          )
+        );
+      }
+      return jsonResponse({searchResult: {items: []}});
+    });
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      marketplacePartnerTags: {
+        "www.amazon.de": "de-tag-21",
+        "www.amazon.pl": "pl-tag-21"
+      },
+      marketplaceConcurrency: 2,
+      fetchImpl
+    });
+
+    const result = await provider.search({listing});
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(searchCalls).toHaveLength(2);
+    expect(searchCalls).toEqual(
+      expect.arrayContaining([
+        {
+          marketplace: "www.amazon.de",
+          body: expect.objectContaining({
+            partnerTag: "de-tag-21",
+            marketplace: "www.amazon.de",
+            currencyOfPreference: "EUR"
+          })
+        },
+        {
+          marketplace: "www.amazon.pl",
+          body: expect.objectContaining({
+            partnerTag: "pl-tag-21",
+            marketplace: "www.amazon.pl",
+            currencyOfPreference: "PLN"
+          })
+        }
+      ])
+    );
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          marketplace: "www.amazon.de",
+          itemPrice: {amount: 329.99, currency: "EUR"},
+          shipping: undefined
+        }),
+        expect.objectContaining({
+          marketplace: "www.amazon.pl",
+          itemPrice: {amount: 1399, currency: "PLN"},
+          shipping: undefined
+        })
+      ])
+    );
+  });
+
+  it("keeps successful Amazon locales when another configured locale fails", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).endsWith("/auth/o2/token")) {
+        return jsonResponse({access_token: "partial-token", expires_in: 3600});
+      }
+
+      const marketplace = new Headers(init?.headers).get("x-marketplace");
+      if (marketplace === "www.amazon.de") {
+        return jsonResponse(
+          searchResponseFor(
+            "www.amazon.de",
+            "de-tag-21",
+            329.99,
+            "EUR"
+          )
+        );
+      }
+      return jsonResponse({message: "temporary"}, 503);
+    });
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      marketplacePartnerTags: {
+        "www.amazon.de": "de-tag-21",
+        "www.amazon.pl": "pl-tag-21"
+      },
+      marketplaceConcurrency: 2,
+      fetchImpl
+    });
+
+    await expect(provider.search({listing})).resolves.toEqual([
+      expect.objectContaining({
+        marketplace: "www.amazon.de"
+      })
+    ]);
+  });
+
+  it("accepts Amazon Belgium URLs only for the Belgium marketplace", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).endsWith("/auth/o2/token")) {
+        return jsonResponse({access_token: "be-token", expires_in: 3600});
+      }
+      return jsonResponse(
+        searchResponseFor(
+          "www.amazon.com.be",
+          "be-tag-21",
+          319.99,
+          "EUR"
+        )
+      );
+    });
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      marketplacePartnerTags: {
+        "www.amazon.com.be": "be-tag-21"
+      },
+      fetchImpl
+    });
+
+    const result = await provider.search({listing});
+    expect(result).toEqual([
+      expect.objectContaining({
+        marketplace: "www.amazon.com.be",
+        url: expect.stringContaining("amazon.com.be")
+      })
+    ]);
+  });
+
+  it("bounds Amazon marketplace fan-out concurrency", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      if (String(input).endsWith("/auth/o2/token")) {
+        return jsonResponse({access_token: "bounded-token", expires_in: 3600});
+      }
+
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return jsonResponse({searchResult: {items: []}});
+    });
+
+    const provider = new AmazonCreatorsProvider({
+      credentialId: "id",
+      credentialSecret: "secret",
+      credentialVersion: "3.2",
+      marketplacePartnerTags: {
+        "www.amazon.de": "de-tag",
+        "www.amazon.pl": "pl-tag",
+        "www.amazon.fr": "fr-tag"
+      },
+      marketplaceConcurrency: 2,
+      fetchImpl
+    });
+
+    await provider.search({listing});
+    expect(maxActive).toBe(2);
   });
 
   it("ignores provider items whose detail URL leaves the Amazon Germany domain", async () => {
@@ -464,7 +691,7 @@ describe("Amazon Creators environment configuration", () => {
     ).toThrow("AMAZON_CREATORS_CACHE_TTL_MS");
   });
 
-  it("rejects a non-German marketplace hostname", () => {
+  it("rejects an unsupported Amazon marketplace hostname", () => {
     expect(() =>
       new AmazonCreatorsProvider({
         credentialId: "id",
@@ -473,7 +700,71 @@ describe("Amazon Creators environment configuration", () => {
         partnerTag: "price-lens-21",
         marketplace: "www.amazon.com"
       })
-    ).toThrow("amazon.de hostname");
+    ).toThrow("Unsupported Amazon EU marketplace");
+  });
+
+  it("accepts a JSON map of locale-specific Partner Tags", () => {
+    expect(
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2",
+        AMAZON_MARKETPLACE_PARTNER_TAGS_JSON: JSON.stringify({
+          "www.amazon.de": "de-tag-21",
+          "www.amazon.pl": "pl-tag-21"
+        }),
+        AMAZON_MARKETPLACE_SEARCH_CONCURRENCY: "2"
+      })
+    ).toBeInstanceOf(AmazonCreatorsProvider);
+  });
+
+  it("rejects malformed or unsupported marketplace tag maps", () => {
+    expect(() =>
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2",
+        AMAZON_MARKETPLACE_PARTNER_TAGS_JSON: "{bad-json"
+      })
+    ).toThrow("JSON object");
+
+    expect(() =>
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2",
+        AMAZON_MARKETPLACE_PARTNER_TAGS_JSON: JSON.stringify({
+          "www.amazon.com": "us-tag"
+        })
+      })
+    ).toThrow("Unsupported Amazon EU marketplace");
+  });
+
+  it("requires at least one marketplace Partner Tag when enabled", () => {
+    expect(() =>
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2"
+      })
+    ).toThrow("at least one marketplace Partner Tag");
+  });
+
+  it("rejects invalid Amazon marketplace concurrency", () => {
+    expect(() =>
+      createAmazonCreatorsProviderFromEnv({
+        AMAZON_CREATORS_ENABLED: "1",
+        AMAZON_CREATORS_CREDENTIAL_ID: "id",
+        AMAZON_CREATORS_CREDENTIAL_SECRET: "secret",
+        AMAZON_CREATORS_CREDENTIAL_VERSION: "3.2",
+        AMAZON_PARTNER_TAG: "price-lens-21",
+        AMAZON_MARKETPLACE_SEARCH_CONCURRENCY: "0"
+      })
+    ).toThrow("positive");
   });
 
   it("creates a Germany provider with assigned credential version", () => {
