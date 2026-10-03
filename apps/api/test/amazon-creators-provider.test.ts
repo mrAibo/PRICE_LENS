@@ -245,6 +245,7 @@ describe("Amazon Creators provider", () => {
       return jsonResponse({searchResult: {items: []}});
     });
 
+    const fanoutObserver = vi.fn();
     const provider = new AmazonCreatorsProvider({
       credentialId: "id",
       credentialSecret: "secret",
@@ -254,7 +255,8 @@ describe("Amazon Creators provider", () => {
         "www.amazon.pl": "pl-tag-21"
       },
       marketplaceConcurrency: 2,
-      fetchImpl
+      fetchImpl,
+      fanoutObserver
     });
 
     const result = await provider.search({listing});
@@ -295,6 +297,14 @@ describe("Amazon Creators provider", () => {
         })
       ])
     );
+    expect(fanoutObserver).toHaveBeenCalledTimes(1);
+    expect(fanoutObserver).toHaveBeenCalledWith({
+      source: "amazon",
+      attempted: 2,
+      succeeded: 2,
+      failed: 0,
+      durationMs: expect.any(Number)
+    });
   });
 
   it("keeps successful Amazon locales when another configured locale fails", async () => {
