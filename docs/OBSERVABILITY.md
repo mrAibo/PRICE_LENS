@@ -2,7 +2,7 @@
 
 Status: **privacy-minimized diagnostics + durable GCP retention/alerting IaC implemented; live apply pending**
 
-Updated: **2026-10-03**
+Updated: **2026-10-04**
 
 PriceLens keeps diagnostics intentionally narrow. Product browsing data is not required
 for the first operational signals.
@@ -38,7 +38,7 @@ Successful comparison diagnostics may contain:
 - total request duration
 - offer count
 - warning count
-- structured warning-category counts (`extraction_warning`, `ebay_shipping_unknown`, `enrichment_fallback`)
+- structured warning-category counts (`extraction_warning`, `ebay_shipping_unknown`, `enrichment_fallback`, `fx_normalization`)
 - accepted match-method counts (`gtin`, `mpn`, `model`, `fuzzy`, etc.)
 - review-only match-method counts
 - whether optional eBay enrichment fell back
@@ -94,14 +94,26 @@ A `metrics_snapshot` contains:
 - eBay/Amazon product-cache `hit` / `miss` / `coalesced` counts plus hit rate;
 - per-provider observation and state counts;
 - latency sample count, average and maximum;
-- review-candidate count.
+- review-candidate count;
+- aggregate eBay/Amazon marketplace fan-out metrics:
+  - report count;
+  - attempted/succeeded/failed marketplace calls;
+  - average and maximum calls per report;
+  - average and maximum fan-out duration.
 
 Provider product-cache lookup events are aggregated in-process and are **not** emitted
 as per-lookup JSON lines. The aggregator records only provider source plus
 `hit` / `miss` / `coalesced` counters; cache keys and lookup terms never enter
 diagnostics.
 
-Snapshots intentionally omit request ids, product identity, item/title/URL and user data.
+Marketplace fan-out observations are handled the same way: individual fan-out events
+are internal to the process and are **not** emitted as JSON log lines. They carry only
+`source`, attempted/succeeded/failed counts and aggregate duration. They contain no
+marketplace names, product identifiers, queries, listing URLs, buyer country/postal
+code, account id or user/session data.
+
+Snapshots intentionally omit request ids, product identity, item/title/URL, buyer
+destination and user data.
 
 Counters reset when the Node process restarts. PriceLens does not expose a public metrics
 HTTP endpoint.
@@ -138,6 +150,7 @@ never alter the HTTP response path.
 Continue extending aggregate signals rather than richer per-product logs:
 
 - provider/rate-limit-specific counters;
+- fan-out failure-rate and calls/report alert thresholds only after live baselines exist;
 - unsupported-extraction counts;
 - production dashboards after the first live deployment;
 - threshold tuning from real traffic rather than guessed request rates.
