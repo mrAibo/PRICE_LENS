@@ -1,4 +1,5 @@
 import type {
+  BuyerDestination,
   EcommerceListing,
   ListingCondition,
   Money,
@@ -36,7 +37,7 @@ const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, string> = {
   EBAY_IT: "ebay.it",
   EBAY_ES: "ebay.es",
   EBAY_NL: "ebay.nl",
-  EBAY_BE: "ebay.be"
+  EBAY_BE: "ebay.com.be"
 };
 
 export interface EbayBrowseEnricherOptions {
@@ -46,7 +47,7 @@ export interface EbayBrowseEnricherOptions {
   marketplaceId?: string;
   marketplaceSearchIds?: string[];
   deliveryCountry?: string;
-  marketplaceSearchConcurrency?: number;
+   marketplaceSearchConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -71,7 +72,7 @@ export class EbayBrowseEnricher {
   private readonly marketplaceId: string;
   private readonly marketplaceSearchIds: EbayEuMarketplaceId[];
   private readonly deliveryCountry: string;
-  private readonly marketplaceSearchConcurrency: number;
+   private readonly marketplaceSearchConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -132,16 +133,28 @@ export class EbayBrowseEnricher {
 
   async searchMarketplace(
     listing: EcommerceListing,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    destination?: BuyerDestination
   ): Promise<ProviderCandidate[]> {
     const gtin = strongestTradeIdentifier(listing.identity);
     if (!gtin) return [];
+
+    const effectiveDestination = normalizeDestination(
+      destination,
+      this.deliveryCountry
+    );
 
     const settled = await mapWithConcurrency(
       this.marketplaceSearchIds,
       this.marketplaceSearchConcurrency,
       (marketplaceId) =>
-        this.searchSingleMarketplace(marketplaceId, listing, gtin, signal)
+        this.searchSingleMarketplace(
+          marketplaceId,
+          listing,
+          gtin,
+          effectiveDestination,
+          signal
+        )
     );
 
     const successful = settled.filter(
@@ -167,12 +180,14 @@ export class EbayBrowseEnricher {
     marketplaceId: EbayEuMarketplaceId,
     listing: EcommerceListing,
     gtin: string,
+    destination: BuyerDestination,
     signal?: AbortSignal
   ): Promise<ProviderCandidate[]> {
     let response = await this.fetchMarketplaceSearch(
       marketplaceId,
       gtin,
       false,
+      destination,
       signal
     );
     if (response.status === 401) {
@@ -181,6 +196,7 @@ export class EbayBrowseEnricher {
         marketplaceId,
         gtin,
         true,
+        destination,
         signal
       );
     }
@@ -310,6 +326,7 @@ export class EbayBrowseEnricher {
     marketplaceId: EbayEuMarketplaceId,
     gtin: string,
     forceTokenRefresh: boolean,
+    destination: BuyerDestination,
     signal?: AbortSignal
   ): Promise<Response> {
     const token = await this.getApplicationToken(forceTokenRefresh);
@@ -319,22 +336,32 @@ export class EbayBrowseEnricher {
     );
     endpoint.searchParams.set("gtin", gtin);
     endpoint.searchParams.set("limit", "25");
-    endpoint.searchParams.set(
-      "filter",
-      `buyingOptions:{FIXED_PRICE},deliveryCountry:${this.deliveryCountry}`
-    );
+    const filters = [
+      "buyingOptions:{FIXED_PRICE}",
+      `deliveryCountry:${destination.country}`
+    ];
+    if (destination.postalCode) {
+      filters.push(`deliveryPostalCode:${destination.postalCode}`);
+    }
+    endpoint.searchParams.set("filter", filters.join(","));
+
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${token}`,
+      "x-ebay-c-marketplace-id": marketplaceId,
+      accept: "application/json"
+    };
+    if (destination.postalCode) {
+      headers["x-ebay-c-enduserctx"] =
+        `contextualLocation=${encodeURIComponent(
+          `country=${destination.country},zip=${destination.postalCode}`
+        )}`;
+    }
 
     return this.fetchWithTimeout(
       endpoint,
       {
         method: "GET",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "x-ebay-c-marketplace-id": marketplaceId,
-          "x-ebay-c-enduserctx":
-            `contextualLocation=country=${this.deliveryCountry}`,
-          accept: "application/json"
-        }
+        headers
       },
       signal
     );
@@ -453,7 +480,8 @@ export function createEbayMarketplaceProvider(
   return {
     id: "ebay_market",
     matchAcrossConditions: true,
-    search: ({listing, signal}) => enricher.searchMarketplace(listing, signal)
+    search: ({listing, destination, signal}) =>
+      enricher.searchMarketplace(listing, signal, destination)
   };
 }
 
@@ -727,6 +755,43 @@ function validateMarketplaceId(value: string): EbayEuMarketplaceId {
     );
   }
   return value as EbayEuMarketplaceId;
+}
+
+function normalizeDestination(
+  destination: BuyerDestination | undefined,
+  fallbackCountry: string
+): BuyerDestination {
+  const country = validateCountryCode(
+    destination?.country ?? fallbackCountry,
+    "eBay delivery country"
+  );
+  const postalCode = validatePostalCode(
+    destination?.postalCode,
+    "eBay delivery postal code"
+  );
+
+  return {
+    country,
+    ...(postalCode ? {postalCode} : {})
+  };
+}
+
+function validatePostalCode(
+  value: string | undefined,
+  name: string
+): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim();
+  if (!normalized) return undefined;
+  if (
+    normalized.length > 16 ||
+    !/^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(normalized)
+  ) {
+    throw new Error(
+      `${name} must contain only letters, numbers, spaces or hyphens and be at most 16 characters.`
+    );
+  }
+  return normalized;
 }
 
 function validateCountryCode(value: string, name: string): string {

@@ -596,6 +596,26 @@ describe("provider orchestration", () => {
     );
   });
 
+  it("passes buyer destination to provider searches", async () => {
+    let destination: unknown;
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search(input) {
+        destination = input.destination;
+        return [];
+      }
+    };
+
+    await compareWithProviders(listing, [provider], {
+      destination: {country: "DE", postalCode: "30159"}
+    });
+
+    expect(destination).toEqual({
+      country: "DE",
+      postalCode: "30159"
+    });
+  });
+
   it("isolates provider failures", async () => {
     const broken: PriceProvider = {
       id: "geizhals",

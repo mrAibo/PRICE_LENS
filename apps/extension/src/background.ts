@@ -7,7 +7,9 @@ import {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isCompareMessage(message)) return false;
 
-  void requestComparison(message.listing)
+  void requestComparison(message.listing, {
+    destination: message.destination
+  })
     .then((result) => {
       const response: CompareResponse = {ok: true, result};
       sendResponse(response);

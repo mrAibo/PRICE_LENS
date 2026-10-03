@@ -64,6 +64,63 @@ describe("PriceLens unsupported UI", () => {
     expect(calls).toBe(1);
   });
 
+  it("passes the selected country and postal code only when the user requests a report", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let destination: unknown;
+
+    mountPriceLens(dom.window.document, listing, {
+      initialDestination: {country: "DE", postalCode: "30159"},
+      async onRequestComparison(value) {
+        destination = value;
+      }
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const country = shadow?.querySelector<HTMLSelectElement>(
+      "[data-price-lens-country]"
+    );
+    const postal = shadow?.querySelector<HTMLInputElement>(
+      "[data-price-lens-postal]"
+    );
+
+    expect(country?.value).toBe("DE");
+    expect(postal?.value).toBe("30159");
+
+    if (country) country.value = "PL";
+    if (postal) postal.value = "00-001";
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")?.click();
+    await Promise.resolve();
+
+    expect(destination).toEqual({
+      country: "PL",
+      postalCode: "00-001"
+    });
+  });
+
+  it("rejects an unsafe postal code locally without sending a report", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let calls = 0;
+
+    mountPriceLens(dom.window.document, listing, {
+      async onRequestComparison() {
+        calls += 1;
+      }
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const postal = shadow?.querySelector<HTMLInputElement>(
+      "[data-price-lens-postal]"
+    );
+    if (postal) postal.value = "30159,zip=99999";
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")?.click();
+    await Promise.resolve();
+
+    expect(calls).toBe(0);
+    expect(shadow?.textContent).toContain("valid postal code");
+  });
+
   it("explains incomplete landed-price offers instead of saying providers are unconfigured", () => {
     const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
     const view = mountPriceLens(dom.window.document, listing);

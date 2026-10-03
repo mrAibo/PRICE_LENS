@@ -188,9 +188,9 @@ International foundation:
 - [x] add marketplace/source-country metadata to normalized offers
 - [x] make comparison currency-safe before multi-currency marketplace fan-out
 - [x] model buyer destination country explicitly at backend configuration level (default DE; no IP inference)
-- [ ] add optional user-controlled delivery postal code/country preference in the extension
+- [x] add user-controlled delivery country/postal-code preference in the extension
 - [x] add eBay EU marketplace fan-out, starting with DE/PL/AT/FR/IT/ES/NL/BE
-- [x] pass buyer destination context where the provider supports shipping calculation
+- [x] pass buyer destination country and optional postal code where the provider supports shipping calculation
 - [x] deduplicate the same eBay item returned by multiple marketplaces
 - [x] preserve original marketplace currency and block raw cross-currency ranking
 - [x] add explicit ECB reference FX normalization before cross-currency savings ranking

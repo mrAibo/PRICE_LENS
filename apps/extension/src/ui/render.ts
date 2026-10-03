@@ -1,4 +1,5 @@
 import type {
+  BuyerDestination,
   ComparisonResult,
   EcommerceListing,
   ListingCondition,
@@ -6,6 +7,10 @@ import type {
   PriceProviderId,
   ProviderStatus
 } from "@price-lens/contracts";
+import {
+  normalizeBuyerDestination,
+  SUPPORTED_BUYER_COUNTRIES
+} from "../buyer-destination.js";
 
 export interface PriceLensView {
   renderLoading(): void;
@@ -14,12 +19,17 @@ export interface PriceLensView {
 }
 
 export interface PriceLensReportActions {
-  onRequestComparison: () => void | Promise<void>;
+  onRequestComparison: (
+    destination?: BuyerDestination
+  ) => void | Promise<void>;
 }
 
 export interface PriceLensUiOptions {
   onDisableSharing?: () => void | Promise<void>;
-  onRequestComparison?: () => void | Promise<void>;
+  onRequestComparison?: (
+    destination?: BuyerDestination
+  ) => void | Promise<void>;
+  initialDestination?: BuyerDestination;
 }
 
 export interface PriceLensConsentOptions {
@@ -185,9 +195,9 @@ function render(
       </div>
       <div class="price">${escapeHtml(formatMoney(listing.price.amount, listing.price.currency))}</div>
       <div class="muted">${escapeHtml(listing.title)}</div>
-      ${state === "idle" ? renderIdleAction() : ""}
+      ${state === "idle" ? renderIdleAction(options) : ""}
       ${state === "loading" ? renderLoadingState() : ""}
-      ${state === "error" ? renderErrorState(errorMessage) : ""}
+      ${state === "error" ? renderErrorState(errorMessage, options) : ""}
       ${state === "result" ? renderResult(result, statuses) : ""}
       ${privacyControlMarkup(options)}
     </div>
@@ -198,8 +208,42 @@ function render(
   wireDisableSharing(root, options);
 }
 
-function renderIdleAction(): string {
+function renderIdleAction(options: PriceLensUiOptions): string {
+  const destination =
+    normalizeBuyerDestination(options.initialDestination) ?? {country: "DE"};
+  const countryOptions = SUPPORTED_BUYER_COUNTRIES
+    .map(
+      (country) =>
+        `<option value="${country}"${country === destination.country ? " selected" : ""}>${countryLabel(country)}</option>`
+    )
+    .join("");
+
   return `
+    <div class="destination-box">
+      <div class="section-title">Delivery destination</div>
+      <div class="destination-fields">
+        <label>
+          <span class="field-label">Country</span>
+          <select data-price-lens-country>${countryOptions}</select>
+        </label>
+        <label class="postal-field">
+          <span class="field-label">Postal code</span>
+          <input
+            type="text"
+            inputmode="text"
+            autocomplete="postal-code"
+            maxlength="16"
+            placeholder="e.g. 30159"
+            value="${escapeHtml(destination.postalCode ?? "")}"
+            data-price-lens-postal
+          />
+        </label>
+      </div>
+      <div class="muted action-note">
+        Postal code is optional but improves calculated shipping. It is sent only when you request this report.
+      </div>
+      <div class="error" data-price-lens-destination-error hidden></div>
+    </div>
     <div class="report-action">
       <button type="button" class="primary compare-button" data-price-lens-compare>
         <span class="lens-icon" aria-hidden="true">◉</span>
@@ -224,9 +268,18 @@ function renderLoadingState(): string {
   `;
 }
 
-function renderErrorState(errorMessage: string | undefined): string {
+function renderErrorState(
+  errorMessage: string | undefined,
+  options: PriceLensUiOptions
+): string {
+  const destination =
+    normalizeBuyerDestination(options.initialDestination) ?? {country: "DE"};
   return `
     <div class="error">${escapeHtml(errorMessage ?? "Comparison failed.")}</div>
+    <div class="muted action-note">
+      Retry destination: ${escapeHtml(countryLabel(destination.country))}
+      ${destination.postalCode ? ` · ${escapeHtml(destination.postalCode)}` : ""}
+    </div>
     <div class="report-action">
       <button type="button" class="secondary compare-button" data-price-lens-compare>
         Try again
@@ -774,10 +827,49 @@ function wireRequestComparison(
   );
   button?.addEventListener("click", () => {
     if (!button) return;
+
+    const destination = readBuyerDestinationFromUi(
+      root,
+      options.initialDestination
+    );
+    if (!destination) {
+      const error = root.querySelector<HTMLElement>(
+        "[data-price-lens-destination-error]"
+      );
+      if (error) {
+        error.hidden = false;
+        error.textContent =
+          "Enter a valid postal code using letters, numbers, spaces or hyphens.";
+      }
+      return;
+    }
+
+    options.initialDestination = destination;
     button.disabled = true;
-    Promise.resolve(options.onRequestComparison?.()).catch(() => {
+    Promise.resolve(options.onRequestComparison?.(destination)).catch(() => {
       button.disabled = false;
     });
+  });
+}
+
+function readBuyerDestinationFromUi(
+  root: ShadowRoot,
+  fallback: BuyerDestination | undefined
+): BuyerDestination | undefined {
+  const country = root.querySelector<HTMLSelectElement>(
+    "[data-price-lens-country]"
+  );
+  const postal = root.querySelector<HTMLInputElement>(
+    "[data-price-lens-postal]"
+  );
+
+  if (!country) {
+    return normalizeBuyerDestination(fallback) ?? {country: "DE"};
+  }
+
+  return normalizeBuyerDestination({
+    country: country.value,
+    postalCode: postal?.value ?? ""
   });
 }
 
@@ -845,6 +937,35 @@ function baseStyles(): string {
       .warn { margin-top:10px; color:#8a4b00; }
       .error { margin-top:10px; color:#a40000; }
       .report-action { margin-top:12px; }
+      .destination-box {
+        margin-top:12px;
+        padding:10px;
+        border:1px solid #e3e6ea;
+        border-radius:9px;
+        background:#fafbfc;
+      }
+      .destination-fields {
+        display:grid;
+        grid-template-columns:minmax(120px,.8fr) minmax(150px,1.2fr);
+        gap:8px;
+        margin-top:8px;
+      }
+      .field-label {
+        display:block;
+        margin-bottom:4px;
+        color:#5c5f62;
+        font-size:12px;
+      }
+      select, input {
+        box-sizing:border-box;
+        width:100%;
+        border:1px solid #c9ccd1;
+        border-radius:7px;
+        padding:7px 8px;
+        background:#fff;
+        color:#191919;
+        font:inherit;
+      }
       .action-note, .compact-note { margin-top:6px; }
       .compare-button { display:inline-flex; align-items:center; gap:8px; }
       .lens-icon { font-size:17px; line-height:1; }
@@ -940,6 +1061,20 @@ function formatMoney(amount: number, currency: string): string {
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
+}
+
+function countryLabel(country: string): string {
+  const labels: Record<string, string> = {
+    DE: "Germany",
+    AT: "Austria",
+    BE: "Belgium",
+    FR: "France",
+    IT: "Italy",
+    ES: "Spain",
+    NL: "Netherlands",
+    PL: "Poland"
+  };
+  return labels[country] ?? country;
 }
 
 function offerSourceLabel(offer: MarketOffer): string {

@@ -27,14 +27,26 @@ EBAY_NL
 EBAY_BE
 ```
 
-The default buyer delivery country is Germany:
+The backend fallback delivery country is Germany:
 
 ```text
 EBAY_DELIVERY_COUNTRY=DE
 ```
 
-This is an operator-side Phase 3C default, not an IP inference. A later slice will add
-an explicit user-controlled delivery country/postal-code preference.
+The extension now exposes an explicit user-controlled delivery country and optional
+postal code. The preference is stored locally in extension storage and is sent only
+inside an explicit comparison request. It is never inferred from IP address.
+
+If the user supplies a postal code, eBay search receives both:
+
+```text
+deliveryCountry:<country>
+deliveryPostalCode:<postal-code>
+```
+
+and an encoded `X-EBAY-C-ENDUSERCTX` contextual location containing the same country
+and postal code. If no postal code is supplied, PriceLens uses only the country filter
+and does not send a partial contextual-location header.
 
 ## Search behavior
 
@@ -42,8 +54,9 @@ Each requested report:
 
 1. derives the strongest safe GTIN/EAN/UPC already available;
 2. searches the configured eBay marketplaces with bounded concurrency;
-3. requests fixed-price listings deliverable to the configured buyer country;
-4. passes buyer country as eBay contextual location;
+3. requests fixed-price listings deliverable to the explicit buyer country;
+4. adds the explicit postal-code filter and encoded eBay contextual location when a
+   postal code is present;
 5. validates that returned item URLs belong to the marketplace that was queried;
 6. excludes the current listing;
 7. rejects auctions defensively;
@@ -71,18 +84,20 @@ and one explicit report cannot open an unbounded number of concurrent eBay reque
 
 ## Shipping semantics
 
-PriceLens asks eBay only for listings eligible for the configured delivery country and
-passes contextual buyer country information.
+PriceLens asks eBay only for listings eligible for the requested delivery country.
+When the user provides a postal code, the request also uses eBay's delivery-postal-code
+filter and contextual location to improve calculated shipping accuracy.
 
-Shipping is still conservative:
+Shipping remains conservative:
 
 - a returned shipping amount is included only when its currency matches the item price;
 - missing shipping remains unknown;
 - unknown shipping never becomes zero;
 - only complete landed prices may participate in savings ranking.
 
-The later user-destination slice should add an optional postal code because calculated
-shipping can depend on postcode.
+The delivery destination is a user-controlled report input. Changing the saved
+destination does not trigger a provider request by itself; it takes effect only on the
+next explicit report request.
 
 ## Currency safety and ECB reference normalization
 
@@ -144,7 +159,7 @@ EBAY_FR -> ebay.fr
 EBAY_IT -> ebay.it
 EBAY_ES -> ebay.es
 EBAY_NL -> ebay.nl
-EBAY_BE -> ebay.be
+EBAY_BE -> ebay.com.be
 ```
 
 HTTPS is required and subdomains are allowed. A result returned under the wrong
@@ -154,7 +169,7 @@ marketplace hostname is discarded.
 
 - real Sandbox/Production response validation;
 - representative DE/PL/AT/FR/IT/ES/NL/BE fixtures;
-- explicit user destination country and postal code;
+- live validation of destination-aware shipping across representative countries/postcodes;
 - live validation of ECB reference-rate retrieval and refresh behavior;
 - EUR-normalized comparison while retaining original prices;
 - EU versus non-EU tax/import-cost model;

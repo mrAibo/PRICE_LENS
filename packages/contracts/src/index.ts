@@ -32,6 +32,11 @@ export interface ProductIdentity {
   variant?: ProductVariant;
 }
 
+export interface BuyerDestination {
+  country: string;
+  postalCode?: string;
+}
+
 export interface EcommerceListing {
   source: "ebay";
   itemId: string;
@@ -125,4 +130,5 @@ export interface ComparisonResult {
 
 export interface ComparisonRequest {
   listing: EcommerceListing;
+  destination?: BuyerDestination;
 }

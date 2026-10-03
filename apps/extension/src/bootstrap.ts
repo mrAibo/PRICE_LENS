@@ -1,10 +1,14 @@
-import type {EcommerceListing} from "@price-lens/contracts";
+import type {
+  BuyerDestination,
+  EcommerceListing
+} from "@price-lens/contracts";
 import {
   createPriceLensLifecycle,
   type PriceLensLifecycle
 } from "./lifecycle.js";
 import type {CompareMessage, CompareResponse} from "./messages.js";
 import type {ComparisonConsentStore} from "./privacy-consent.js";
+import type {BuyerDestinationStore} from "./buyer-destination.js";
 import {
   mountPriceLens,
   mountPrivacyConsent,
@@ -15,6 +19,7 @@ export interface PriceLensBootstrapOptions {
   document: Document;
   window: Window & typeof globalThis;
   consentStore: ComparisonConsentStore;
+  destinationStore?: BuyerDestinationStore;
   sendMessage: (
     message: CompareMessage
   ) => Promise<CompareResponse | undefined>;
@@ -29,11 +34,29 @@ export async function bootstrapPriceLens(
 ): Promise<PriceLensBootstrapController> {
   let lifecycle: PriceLensLifecycle | undefined;
   let stopped = false;
+  let buyerDestination: BuyerDestination = {country: "DE"};
+
+  if (options.destinationStore) {
+    try {
+      buyerDestination =
+        (await options.destinationStore.getDestination()) ?? buyerDestination;
+    } catch {
+      buyerDestination = {country: "DE"};
+    }
+  }
 
   async function disableSharing(): Promise<void> {
     lifecycle?.stop();
     lifecycle = undefined;
     await options.consentStore.revokeConsent();
+    if (options.destinationStore) {
+      try {
+        await options.destinationStore.clearDestination();
+      } catch {
+        // Revocation still succeeds if local preference cleanup is unavailable.
+      }
+    }
+    buyerDestination = {country: "DE"};
     if (!stopped) showConsent();
   }
 
@@ -48,7 +71,18 @@ export async function bootstrapPriceLens(
       mount(document: Document, listing: EcommerceListing, actions) {
         return mountPriceLens(document, listing, {
           onDisableSharing: disableSharing,
-          onRequestComparison: actions.onRequestComparison
+          initialDestination: buyerDestination,
+          async onRequestComparison(destination) {
+            buyerDestination = destination ?? {country: "DE"};
+            if (options.destinationStore) {
+              try {
+                await options.destinationStore.setDestination(buyerDestination);
+              } catch {
+                // A local storage failure must not block an explicit comparison.
+              }
+            }
+            await actions.onRequestComparison(buyerDestination);
+          }
         });
       },
       mountUnsupported(document: Document, message: string) {

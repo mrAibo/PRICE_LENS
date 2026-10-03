@@ -1,4 +1,5 @@
 import {bootstrapPriceLens} from "./bootstrap.js";
+import {createBuyerDestinationStore} from "./buyer-destination.js";
 import {
   createCallbackStorageAdapter,
   sendCallbackRuntimeMessage,
@@ -15,6 +16,9 @@ void bootstrapPriceLens({
   document,
   window,
   consentStore: createComparisonConsentStore(
+    createCallbackStorageAdapter(storage, runtime)
+  ),
+  destinationStore: createBuyerDestinationStore(
     createCallbackStorageAdapter(storage, runtime)
   ),
   sendMessage(message: CompareMessage): Promise<CompareResponse | undefined> {

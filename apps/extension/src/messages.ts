@@ -1,8 +1,13 @@
-import type {ComparisonResult, EcommerceListing} from "@price-lens/contracts";
+import type {
+  BuyerDestination,
+  ComparisonResult,
+  EcommerceListing
+} from "@price-lens/contracts";
 
 export interface CompareMessage {
   type: "PRICE_LENS_COMPARE";
   listing: EcommerceListing;
+  destination?: BuyerDestination;
 }
 
 export type CompareResponse =

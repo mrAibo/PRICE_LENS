@@ -40,8 +40,10 @@ The normalized listing leaves the page only when the user explicitly presses the
 PriceLens report control. Provider lookups happen only as part of that requested
 report.
 
-When the user selects **Enable PriceLens**, the extension stores only a local boolean
-consent flag in `chrome.storage.local`.
+When the user selects **Enable PriceLens**, the extension stores a local consent flag
+in `chrome.storage.local`. If the user enters a delivery destination, PriceLens can
+also store the selected country and optional postal code locally so it can be reused
+on later item pages.
 
 The user can select **Disable PriceLens data sharing** in the PriceLens card. That:
 
@@ -56,6 +58,11 @@ Selecting **Not now** sends no listing data and stores no consent.
 When comparison is enabled and the user is on a supported
 `https://www.ebay.de/itm/*` page, PriceLens may process and send the current normalized
 listing to the PriceLens API.
+
+The comparison request can contain an explicit buyer destination consisting of a
+two-letter country code and an optional postal code. This value is entered/selected by
+the user; PriceLens does not infer it from IP geolocation. It is used only to improve
+shipping eligibility/calculation for the requested report.
 
 The listing contract can contain:
 
@@ -116,15 +123,19 @@ Provider credentials remain backend-only and are never included in the extension
 
 ## Local extension storage
 
-The extension currently uses the Chrome `storage` permission only for:
+The extension currently uses the Chrome `storage` permission for:
 
 ```text
 priceLensComparisonConsent.v1 = true
+priceLensBuyerDestination.v1 = { country, postalCode? }
 ```
 
-This is a local consent preference. It is not an advertising identifier or account ID.
+These are local preferences, not advertising identifiers or account IDs. The
+destination contains no street address and is transmitted only when the user explicitly
+requests a report.
 
-Revoking consent removes the key.
+Selecting **Disable PriceLens data sharing** revokes consent and clears the saved buyer
+destination preference.
 
 ## Backend application storage
 
@@ -149,6 +160,7 @@ Built-in PriceLens diagnostics deliberately omit:
 - provider search/query terms;
 - browser cookies;
 - request headers;
+- buyer delivery country or postal code;
 - authorization headers;
 - OAuth tokens;
 - provider credentials.

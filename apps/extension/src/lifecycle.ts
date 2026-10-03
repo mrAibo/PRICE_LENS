@@ -1,4 +1,7 @@
-import type {EcommerceListing} from "@price-lens/contracts";
+import type {
+  BuyerDestination,
+  EcommerceListing
+} from "@price-lens/contracts";
 import {extractEbayItemId, extractEbayListing} from "./ebay/extract.js";
 import type {CompareMessage, CompareResponse} from "./messages.js";
 import {
@@ -95,7 +98,9 @@ export function createPriceLensLifecycle(
     let reportLoaded = false;
 
     let view!: PriceLensView;
-    const requestComparison = async (): Promise<void> => {
+    const requestComparison = async (
+      destination?: BuyerDestination
+    ): Promise<void> => {
       if (
         stopped ||
         generation !== refreshGeneration ||
@@ -110,7 +115,8 @@ export function createPriceLensLifecycle(
 
       const message: CompareMessage = {
         type: "PRICE_LENS_COMPARE",
-        listing
+        listing,
+        ...(destination ? {destination} : {})
       };
 
       try {

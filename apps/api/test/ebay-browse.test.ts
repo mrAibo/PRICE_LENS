@@ -413,9 +413,7 @@ describe("eBay same-product marketplace search", () => {
     );
     const searchHeaders = new Headers(fetchImpl.mock.calls[1]![1]?.headers);
     expect(searchHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
-    expect(searchHeaders.get("x-ebay-c-enduserctx")).toBe(
-      "contextualLocation=country=DE"
-    );
+    expect(searchHeaders.get("x-ebay-c-enduserctx")).toBeNull();
   });
 
   it("fans exact-GTIN search across configured EU marketplaces and keeps market metadata", async () => {
@@ -515,10 +513,115 @@ describe("eBay same-product marketplace search", () => {
       expect(url.searchParams.get("filter")).toBe(
         "buyingOptions:{FIXED_PRICE},deliveryCountry:DE"
       );
-      expect(new Headers(init?.headers).get("x-ebay-c-enduserctx")).toBe(
-        "contextualLocation=country=DE"
-      );
+      expect(new Headers(init?.headers).get("x-ebay-c-enduserctx")).toBeNull();
     }
+  });
+
+  it("uses explicit buyer postal code in eBay delivery filters and encoded shipping context", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "postal-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse({itemSummaries: []}));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE"],
+      fetchImpl
+    });
+
+    await enricher.searchMarketplace(
+      {
+        ...baseListing,
+        identity: {ean: "4548736162657"}
+      },
+      undefined,
+      {country: "DE", postalCode: "30159"}
+    );
+
+    const searchUrl = new URL(String(fetchImpl.mock.calls[1]![0]));
+    expect(searchUrl.searchParams.get("filter")).toBe(
+      "buyingOptions:{FIXED_PRICE},deliveryCountry:DE,deliveryPostalCode:30159"
+    );
+
+    const headers = new Headers(fetchImpl.mock.calls[1]![1]?.headers);
+    expect(headers.get("x-ebay-c-enduserctx")).toBe(
+      "contextualLocation=country%3DDE%2Czip%3D30159"
+    );
+  });
+
+  it("uses a request destination instead of the server country fallback", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "destination-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse({itemSummaries: []}));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_PL"],
+      deliveryCountry: "DE",
+      fetchImpl
+    });
+
+    await enricher.searchMarketplace(
+      {
+        ...baseListing,
+        identity: {ean: "4548736162657"}
+      },
+      undefined,
+      {country: "PL", postalCode: "00-001"}
+    );
+
+    const searchUrl = new URL(String(fetchImpl.mock.calls[1]![0]));
+    expect(searchUrl.searchParams.get("filter")).toBe(
+      "buyingOptions:{FIXED_PRICE},deliveryCountry:PL,deliveryPostalCode:00-001"
+    );
+  });
+
+  it("accepts the official Belgium marketplace hostname", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "be-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|640000000001|0",
+              title: "Sony WH-1000XM6 Belgium",
+              itemWebUrl: "https://www.ebay.com.be/itm/640000000001",
+              price: {value: "299.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000"
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_BE"],
+      fetchImpl
+    });
+
+    const candidates = await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        providerProductId: "v1|640000000001|0",
+        marketplace: "EBAY_BE"
+      })
+    ]);
   });
 
   it("keeps successful EU marketplace results when another market fails", async () => {
@@ -772,6 +875,26 @@ describe("eBay Browse environment configuration", () => {
         EBAY_MARKETPLACE_SEARCH_CONCURRENCY: "0"
       })
     ).toThrow("positive");
+  });
+
+  it("rejects an invalid configured delivery postal code only when explicitly requested", async () => {
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE"],
+      fetchImpl: vi.fn<typeof fetch>()
+    });
+
+    await expect(
+      enricher.searchMarketplace(
+        {
+          ...baseListing,
+          identity: {ean: "4548736162657"}
+        },
+        undefined,
+        {country: "DE", postalCode: "30159,evil"}
+      )
+    ).rejects.toThrow("postal code");
   });
 
   it("accepts an explicit production configuration", () => {

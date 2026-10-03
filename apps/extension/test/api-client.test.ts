@@ -46,6 +46,26 @@ describe("PriceLens API client", () => {
     ).resolves.toEqual(result);
   });
 
+  it("posts an explicit buyer destination when provided", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        listing,
+        destination: {country: "DE", postalCode: "30159"}
+      });
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: {"content-type": "application/json"}
+      });
+    }) as typeof fetch;
+
+    await expect(
+      requestComparison(listing, {
+        fetchImpl,
+        destination: {country: "DE", postalCode: "30159"}
+      })
+    ).resolves.toEqual(result);
+  });
+
   it("rejects non-success API responses", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(JSON.stringify({error: "bad_request"}), {

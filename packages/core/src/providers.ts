@@ -1,4 +1,5 @@
 import type {
+  BuyerDestination,
   ComparisonResult,
   EcommerceListing,
   ListingCondition,
@@ -31,6 +32,7 @@ export interface ProviderCandidate {
 
 export interface ProviderSearchInput {
   listing: EcommerceListing;
+  destination?: BuyerDestination;
   signal?: AbortSignal;
 }
 
@@ -85,6 +87,7 @@ export interface ProviderOrchestratorOptions {
   timeoutMs?: number;
   requestId?: string;
   normalizeOffers?: OfferNormalizer;
+  destination?: BuyerDestination;
 }
 
 export async function compareWithProviders(
@@ -94,7 +97,14 @@ export async function compareWithProviders(
 ): Promise<ComparisonResult> {
   const timeoutMs = options.timeoutMs ?? 5000;
   const results = await Promise.all(
-    providers.map((provider) => runProvider(provider, listing, timeoutMs))
+    providers.map((provider) =>
+      runProvider(
+        provider,
+        listing,
+        timeoutMs,
+        options.destination
+      )
+    )
   );
 
   const rawOffers = results.flatMap((result) => result.offers);
@@ -144,7 +154,8 @@ export async function compareWithProviders(
 async function runProvider(
   provider: PriceProvider,
   listing: EcommerceListing,
-  timeoutMs: number
+  timeoutMs: number,
+  destination?: BuyerDestination
 ): Promise<{offers: MarketOffer[]; status: ProviderStatus}> {
   const started = Date.now();
   const controller = new AbortController();
@@ -152,7 +163,11 @@ async function runProvider(
 
   try {
     const candidates = await withTimeout(
-      provider.search({listing, signal: controller.signal}),
+      provider.search({
+        listing,
+        destination,
+        signal: controller.signal
+      }),
       timeoutMs,
       provider.id
     );
