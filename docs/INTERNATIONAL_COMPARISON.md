@@ -84,9 +84,9 @@ Shipping is still conservative:
 The later user-destination slice should add an optional postal code because calculated
 shipping can depend on postcode.
 
-## Currency safety
+## Currency safety and ECB reference normalization
 
-International offers preserve their original currency.
+International offers always preserve their original marketplace currency.
 
 Example:
 
@@ -95,15 +95,42 @@ eBay Germany   309 EUR + 0 EUR shipping
 eBay Poland    1199 PLN + 45 PLN shipping
 ```
 
-Until an explicit FX source/rate/timestamp model exists, PriceLens must **not** compare
-the numbers 309 and 1244 directly.
+PriceLens must never compare the raw numbers 309 and 1244 directly.
 
-Current behavior:
+The Phase 3C FX implementation can optionally normalize a complete landed price into
+the current listing currency using the European Central Bank's latest euro foreign
+exchange reference-rate table:
 
-- same-currency complete offers can participate in headline/compact ranking;
-- other-currency offers remain available in the full report;
-- cross-currency savings are not calculated;
-- original marketplace and currency metadata are preserved for the future FX layer.
+```text
+ECB_FX_ENABLED=1
+ECB_FX_CACHE_TTL_MS=21600000
+ECB_FX_MAX_RATE_AGE_DAYS=7
+ECB_FX_TIMEOUT_MS=2000
+```
+
+The fixed source is:
+
+```text
+https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
+```
+
+Safety rules:
+
+- the original item/shipping/landed price and original currency are never overwritten;
+- the converted value is stored separately as `comparisonLandedPrice`;
+- FX metadata records source, reference-rate date, fetch time, source/target currency
+  and the effective conversion rate;
+- only complete landed prices are converted;
+- stale ECB rate tables are rejected;
+- the ECB request is cached, coalesced and time-bounded;
+- if FX refresh fails, PriceLens fails open and leaves cross-currency offers unranked;
+- unsupported currencies remain visible but unranked;
+- compact savings and headline best price may use the explicit normalized value;
+- the UI marks converted values with `≈` and retains the original amount plus the
+  ECB reference date.
+
+ECB reference rates are estimates for comparison, not promised card/payment conversion
+rates. The UI must not describe them as the final transaction exchange rate.
 
 ## URL trust boundary
 
@@ -128,7 +155,7 @@ marketplace hostname is discarded.
 - real Sandbox/Production response validation;
 - representative DE/PL/AT/FR/IT/ES/NL/BE fixtures;
 - explicit user destination country and postal code;
-- FX provider/rate provenance/timestamp;
+- live validation of ECB reference-rate retrieval and refresh behavior;
 - EUR-normalized comparison while retaining original prices;
 - EU versus non-EU tax/import-cost model;
 - Amazon multi-market support with marketplace-specific approved Partner Tags;
