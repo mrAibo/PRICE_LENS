@@ -67,9 +67,9 @@ resource "google_logging_metric" "server_busy_rejections" {
   filter      = local.server_busy_log_filter
 
   metric_descriptor {
-    metric_kind = "DELTA"
-    value_type  = "INT64"
-    unit        = "1"
+    metric_kind  = "DELTA"
+    value_type   = "INT64"
+    unit         = "1"
     display_name = "PriceLens server-busy rejections"
   }
 
@@ -85,9 +85,9 @@ resource "google_logging_metric" "comparison_warnings" {
   filter      = local.comparison_warning_log_filter
 
   metric_descriptor {
-    metric_kind = "DELTA"
-    value_type  = "INT64"
-    unit        = "1"
+    metric_kind  = "DELTA"
+    value_type   = "INT64"
+    unit         = "1"
     display_name = "PriceLens comparisons with warnings"
   }
 
@@ -103,9 +103,9 @@ resource "google_logging_metric" "enrichment_fallbacks" {
   filter      = local.enrichment_fallback_log_filter
 
   metric_descriptor {
-    metric_kind = "DELTA"
-    value_type  = "INT64"
-    unit        = "1"
+    metric_kind  = "DELTA"
+    value_type   = "INT64"
+    unit         = "1"
     display_name = "PriceLens enrichment fallbacks"
   }
 
