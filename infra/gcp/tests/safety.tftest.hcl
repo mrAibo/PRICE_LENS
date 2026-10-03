@@ -79,7 +79,11 @@ run "phase_b_runtime_preserves_safe_defaults" {
   }
 
   assert {
-    condition     = google_compute_security_policy.api[0].rule[1].preview
+    condition = one([
+      for rule in google_compute_security_policy.api[0].rule :
+      rule.preview
+      if rule.priority == 200
+    ])
     error_message = "The initial Cloud Armor rate-limit rule must remain in preview by default."
   }
 
