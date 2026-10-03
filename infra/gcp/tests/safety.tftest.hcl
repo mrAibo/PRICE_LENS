@@ -49,6 +49,21 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_MARKETPLACE_SEARCH_IDS == "EBAY_DE,EBAY_PL,EBAY_AT,EBAY_FR,EBAY_IT,EBAY_ES,EBAY_NL,EBAY_BE"
+    error_message = "The default on-demand eBay market set must stay constrained to the approved PriceLens EU list."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_DELIVERY_COUNTRY == "DE"
+    error_message = "The current Phase 3C delivery-country default must remain Germany until an explicit user destination model is implemented."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_MARKETPLACE_SEARCH_CONCURRENCY == "3"
+    error_message = "eBay EU fan-out must remain bounded by the conservative default concurrency."
+  }
+
+  assert {
     condition     = local.literal_env.AMAZON_CREATORS_ENABLED == "0"
     error_message = "Amazon Creators must remain opt-in by default."
   }
