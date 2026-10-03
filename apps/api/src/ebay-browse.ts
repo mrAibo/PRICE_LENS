@@ -1,7 +1,10 @@
 import type {
   EcommerceListing,
+  ListingCondition,
+  Money,
   ProductIdentity
 } from "@price-lens/contracts";
+import type {PriceProvider, ProviderCandidate} from "@price-lens/core";
 import {
   safeObserveProviderCache,
   type ProviderCacheObserver
@@ -84,6 +87,36 @@ export class EbayBrowseEnricher {
           : listing.extractionEvidence,
       extractionWarnings: [...listing.extractionWarnings, ...warnings]
     };
+  }
+
+  async searchMarketplace(
+    listing: EcommerceListing,
+    signal?: AbortSignal
+  ): Promise<ProviderCandidate[]> {
+    const gtin = strongestTradeIdentifier(listing.identity);
+    if (!gtin) return [];
+
+    let response = await this.fetchMarketplaceSearch(gtin, false, signal);
+    if (response.status === 401) {
+      this.tokenCache = undefined;
+      response = await this.fetchMarketplaceSearch(gtin, true, signal);
+    }
+
+    if (response.status === 429) {
+      throw new Error("eBay Browse marketplace search rate limit reached.");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `eBay Browse marketplace search failed with HTTP ${response.status}.`
+      );
+    }
+
+    const payload = await readJsonRecord(
+      response,
+      "eBay Browse marketplace search"
+    );
+    return extractMarketplaceCandidates(payload, listing, gtin, this.now());
   }
 
   private async getItemByLegacyId(
@@ -182,6 +215,34 @@ export class EbayBrowseEnricher {
     });
   }
 
+  private async fetchMarketplaceSearch(
+    gtin: string,
+    forceTokenRefresh: boolean,
+    signal?: AbortSignal
+  ): Promise<Response> {
+    const token = await this.getApplicationToken(forceTokenRefresh);
+    const endpoint = new URL(
+      "/buy/browse/v1/item_summary/search",
+      this.apiBaseUrl()
+    );
+    endpoint.searchParams.set("gtin", gtin);
+    endpoint.searchParams.set("limit", "25");
+    endpoint.searchParams.set("filter", "buyingOptions:{FIXED_PRICE}");
+
+    return this.fetchWithTimeout(
+      endpoint,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-ebay-c-marketplace-id": this.marketplaceId,
+          accept: "application/json"
+        }
+      },
+      signal
+    );
+  }
+
   private async getApplicationToken(forceRefresh: boolean): Promise<string> {
     if (
       !forceRefresh &&
@@ -253,10 +314,21 @@ export class EbayBrowseEnricher {
 
   private async fetchWithTimeout(
     input: URL,
-    init: RequestInit
+    init: RequestInit,
+    externalSignal?: AbortSignal
   ): Promise<Response> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let timedOut = false;
+    const onExternalAbort = () => controller.abort();
+    if (externalSignal?.aborted) {
+      controller.abort();
+    } else {
+      externalSignal?.addEventListener("abort", onExternalAbort, {once: true});
+    }
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeoutMs);
 
     try {
       return await this.fetchImpl(input, {
@@ -264,14 +336,28 @@ export class EbayBrowseEnricher {
         signal: controller.signal
       });
     } catch (error) {
-      if (controller.signal.aborted) {
+      if (timedOut) {
         throw new Error(`eBay request timed out after ${this.timeoutMs} ms.`);
+      }
+      if (externalSignal?.aborted) {
+        throw new Error("eBay marketplace search was aborted.");
       }
       throw error;
     } finally {
       clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", onExternalAbort);
     }
   }
+}
+
+export function createEbayMarketplaceProvider(
+  enricher: EbayBrowseEnricher
+): PriceProvider {
+  return {
+    id: "ebay_market",
+    matchAcrossConditions: true,
+    search: ({listing, signal}) => enricher.searchMarketplace(listing, signal)
+  };
 }
 
 export function createEbayBrowseEnricherFromEnv(
@@ -308,6 +394,147 @@ export function createEbayBrowseEnricherFromEnv(
     ),
     cacheObserver: runtimeOptions.cacheObserver
   });
+}
+
+function extractMarketplaceCandidates(
+  payload: JsonRecord,
+  listing: EcommerceListing,
+  gtin: string,
+  fetchedAtMs: number
+): ProviderCandidate[] {
+  const summaries = Array.isArray(payload.itemSummaries)
+    ? payload.itemSummaries
+    : [];
+  const candidates: ProviderCandidate[] = [];
+
+  for (const value of summaries) {
+    const item = readRecord(value);
+    if (!item) continue;
+
+    const itemId = readString(item.itemId);
+    const title = readString(item.title);
+    const url = readString(item.itemWebUrl);
+    const price = readMoney(item.price);
+    if (!itemId || !title || !url || !price) continue;
+
+    const legacyItemId = legacyItemIdFromRestId(itemId);
+    if (legacyItemId && legacyItemId === listing.itemId) continue;
+    if (!isAllowedEbayGermanyUrl(url)) continue;
+
+    const buyingOptions = Array.isArray(item.buyingOptions)
+      ? item.buyingOptions.filter((entry): entry is string => typeof entry === "string")
+      : [];
+    if (
+      buyingOptions.length > 0 &&
+      !buyingOptions.includes("FIXED_PRICE")
+    ) {
+      continue;
+    }
+
+    const seller = readRecord(item.seller);
+    const shipping = lowestShippingCost(item.shippingOptions, price.currency);
+    const condition = normalizeEbayCondition(
+      readString(item.conditionId),
+      readString(item.condition)
+    );
+
+    candidates.push({
+      provider: "ebay_market",
+      providerProductId: itemId,
+      productTitle: title,
+      merchant: readString(seller?.username),
+      sellerFeedbackPercentage: readFiniteNumber(seller?.feedbackPercentage),
+      sellerFeedbackScore: readFiniteNumber(seller?.feedbackScore),
+      url,
+      condition,
+      identity: {gtin},
+      itemPrice: price,
+      shipping,
+      fetchedAt: new Date(fetchedAtMs).toISOString()
+    });
+  }
+
+  return candidates;
+}
+
+function strongestTradeIdentifier(identity: ProductIdentity): string | undefined {
+  return (
+    cleanTradeIdentifier(identity.gtin) ??
+    cleanTradeIdentifier(identity.ean) ??
+    cleanTradeIdentifier(identity.upc)
+  );
+}
+
+function legacyItemIdFromRestId(itemId: string): string | undefined {
+  const match = /^v1\|(\d+)\|/.exec(itemId);
+  return match?.[1];
+}
+
+function isAllowedEbayGermanyUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (host === "ebay.de" || host.endsWith(".ebay.de"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function normalizeEbayCondition(
+  conditionId: string | undefined,
+  label: string | undefined
+): ListingCondition {
+  const numericId = conditionId ? Number.parseInt(conditionId, 10) : Number.NaN;
+  if (numericId === 1000) return "new";
+  if (numericId === 1500 || numericId === 1750) return "open_box";
+  if (numericId >= 2000 && numericId < 3000) return "refurbished";
+  if (numericId >= 3000) return "used";
+
+  const normalized = normalizeWords(label ?? "");
+  if (!normalized) return "unknown";
+  if (/refurb|generaluberholt|erneuert/.test(normalized)) return "refurbished";
+  if (/open box|geoffnet|wie neu|neuwertig/.test(normalized)) return "open_box";
+  if (/gebraucht|used|akzeptabel|acceptable|good|sehr gut|very good/.test(normalized)) {
+    return "used";
+  }
+  if (/^neu$|^new$|neu mit|new with/.test(normalized)) return "new";
+  return "unknown";
+}
+
+function readMoney(value: unknown): Money | undefined {
+  const record = readRecord(value);
+  const currency = readString(record?.currency);
+  const amount = readFiniteNumber(record?.value);
+  if (!currency || amount === undefined || amount < 0) return undefined;
+  return {amount, currency: currency.toUpperCase()};
+}
+
+function lowestShippingCost(
+  value: unknown,
+  currency: string
+): Money | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const costs = value
+    .map((entry) => readMoney(readRecord(entry)?.shippingCost))
+    .filter(
+      (cost): cost is Money =>
+        Boolean(cost) && cost.currency.toUpperCase() === currency.toUpperCase()
+    )
+    .sort((left, right) => left.amount - right.amount);
+  return costs[0];
+}
+
+function readFiniteNumber(value: unknown): number | undefined {
+  const number =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseFloat(value)
+        : Number.NaN;
+  return Number.isFinite(number) ? number : undefined;
 }
 
 function extractBrowseIdentity(item: JsonRecord): ProductIdentity {
