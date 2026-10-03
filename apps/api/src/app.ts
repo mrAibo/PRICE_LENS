@@ -66,6 +66,24 @@ export function createPriceLensServer(
     }
 
     if (request.method === "POST" && request.url === "/v1/compare") {
+      if (!hasJsonContentType(request)) {
+        request.resume();
+        sendJson(response, 415, {
+          error: "unsupported_media_type",
+          message: "Content-Type must be application/json.",
+          requestId
+        });
+        safeEmitDiagnostic(options.diagnostics, {
+          type: "request_rejected",
+          requestId,
+          route: "/v1/compare",
+          status: 415,
+          reason: "unsupported_media_type",
+          durationMs: elapsedMs(startedAt, now)
+        });
+        return;
+      }
+
       if (activeComparisons >= maxConcurrentComparisons) {
         request.resume();
         response.setHeader("retry-after", "1");
@@ -183,6 +201,14 @@ export function createPriceLensServer(
       durationMs: elapsedMs(startedAt, now)
     });
   });
+}
+
+function hasJsonContentType(request: IncomingMessage): boolean {
+  const contentType = request.headers["content-type"];
+  if (typeof contentType !== "string") return false;
+
+  const [mediaType] = contentType.split(";", 1);
+  return mediaType?.trim().toLowerCase() === "application/json";
 }
 
 function validateConcurrencyLimit(value: number, name: string): void {

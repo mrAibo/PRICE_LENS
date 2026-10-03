@@ -302,6 +302,15 @@ These defaults are process-level safeguards, not a substitute for edge rate limi
 PriceLens comparison requests originate from the extension service worker, whose exact
 API host permission is generated at build time.
 
+`POST /v1/compare` requires `Content-Type: application/json` (optional charset
+parameters are allowed). Missing or CORS-safelisted form/text media types are rejected
+with HTTP `415` before enrichment/provider work starts. The API intentionally does not
+emit permissive CORS response headers or an OPTIONS preflight success path.
+
+This is an abuse boundary, not client authentication: non-browser HTTP clients can still
+send `application/json`, so Cloud Armor and application/provider concurrency controls
+remain necessary.
+
 Do not broaden the API into an arbitrary browser-facing CORS service unless a separate
 use case and security review require it.
 
