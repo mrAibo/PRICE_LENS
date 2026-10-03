@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest";
 import type {EcommerceListing} from "@price-lens/contracts";
 import {
+  classifyProviderFailure,
   compareWithProviders,
   evaluateProviderCandidate,
   limitProviderConcurrency,
@@ -404,6 +405,26 @@ describe("provider concurrency limits", () => {
   );
 });
 
+describe("provider failure taxonomy", () => {
+  it.each([
+    ["amazon provider timed out after 5000 ms.", "timeout"],
+    ["eBay Browse API rate limit reached.", "rate_limit"],
+    ["Amazon Creators API request failed with HTTP 401.", "auth"],
+    ["idealo provider concurrency limit reached (4).", "concurrency"],
+    ["Amazon Creators request was aborted.", "aborted"],
+    ["eBay Browse API request failed with HTTP 503.", "http"],
+    ["socket closed unexpectedly", "unknown"]
+  ] as const)("classifies %s as %s", (message, expected) => {
+    expect(classifyProviderFailure(new Error(message))).toBe(expected);
+  });
+
+  it("treats AbortError as aborted even without a controlled message", () => {
+    const error = new Error("operation stopped");
+    error.name = "AbortError";
+    expect(classifyProviderFailure(error)).toBe("aborted");
+  });
+});
+
 describe("provider orchestration", () => {
   it("does not call providers that are restricted by server-owned access policy", async () => {
     let idealoCalls = 0;
@@ -639,6 +660,27 @@ describe("provider orchestration", () => {
     });
   });
 
+  it("reports provider timeouts as a controlled failure category", async () => {
+    const slow: PriceProvider = {
+      id: "amazon",
+      async search() {
+        return new Promise<ProviderCandidate[]>(() => {});
+      }
+    };
+
+    const result = await compareWithProviders(listing, [slow], {
+      timeoutMs: 5
+    });
+
+    expect(
+      result.providerStatus.find((status) => status.provider === "amazon")
+    ).toMatchObject({
+      state: "error",
+      failureCategory: "timeout",
+      message: "This price source took too long to respond."
+    });
+  });
+
   it("isolates provider failures", async () => {
     const broken: PriceProvider = {
       id: "geizhals",
@@ -652,12 +694,16 @@ describe("provider orchestration", () => {
     });
 
     expect(result.offers).toHaveLength(0);
-    expect(
-      result.providerStatus.find((status) => status.provider === "geizhals")
-    ).toMatchObject({
+    const failedStatus = result.providerStatus.find(
+      (status) => status.provider === "geizhals"
+    );
+    expect(failedStatus).toMatchObject({
       provider: "geizhals",
-      state: "error"
+      state: "error",
+      failureCategory: "unknown",
+      message: "This price source is temporarily unavailable."
     });
+    expect(failedStatus?.message).not.toContain("fixture provider unavailable");
     expect(
       result.providerStatus.find((status) => status.provider === "idealo")
     ).toMatchObject({
