@@ -403,10 +403,22 @@ export function createAmazonCreatorsProviderFromEnv(
   const credentialSecret = env.AMAZON_CREATORS_CREDENTIAL_SECRET?.trim();
   const credentialVersion = env.AMAZON_CREATORS_CREDENTIAL_VERSION?.trim();
   const partnerTag = env.AMAZON_PARTNER_TAG?.trim();
+  const marketplacePartnerTags = parseMarketplacePartnerTagsEnv(
+    env.AMAZON_MARKETPLACE_PARTNER_TAGS_JSON
+  );
 
-  if (!credentialId || !credentialSecret || !credentialVersion || !partnerTag) {
+  if (!credentialId || !credentialSecret || !credentialVersion) {
     throw new Error(
-      "AMAZON_CREATORS_ENABLED=1 requires credential id, secret, version and partner tag."
+      "AMAZON_CREATORS_ENABLED=1 requires credential id, secret and version."
+    );
+  }
+  if (
+    (!marketplacePartnerTags ||
+      Object.keys(marketplacePartnerTags).length === 0) &&
+    !partnerTag
+  ) {
+    throw new Error(
+      "AMAZON_CREATORS_ENABLED=1 requires at least one marketplace Partner Tag."
     );
   }
 
@@ -416,6 +428,12 @@ export function createAmazonCreatorsProviderFromEnv(
     credentialVersion,
     partnerTag,
     marketplace: env.AMAZON_MARKETPLACE?.trim() || "www.amazon.de",
+    marketplacePartnerTags,
+    marketplaceConcurrency: parsePositiveIntegerEnv(
+      env.AMAZON_MARKETPLACE_SEARCH_CONCURRENCY,
+      "AMAZON_MARKETPLACE_SEARCH_CONCURRENCY",
+      2
+    ),
     cacheTtlMs: parseCacheTtlEnv(
       env.AMAZON_CREATORS_CACHE_TTL_MS,
       "AMAZON_CREATORS_CACHE_TTL_MS"
@@ -577,23 +595,48 @@ function mapCondition(
   }
 }
 
-function normalizeAmazonMarketplace(value: string): string {
+function normalizeMarketplaceConfigs(
+  marketplacePartnerTags: Record<string, string> | undefined,
+  legacyMarketplace: string | undefined,
+  legacyPartnerTag: string | undefined
+): AmazonMarketplaceConfig[] {
+  const entries = marketplacePartnerTags
+    ? Object.entries(marketplacePartnerTags)
+    : [];
+
+  if (entries.length > 0) {
+    return entries.map(([marketplace, partnerTag]) => ({
+      marketplace: normalizeAmazonMarketplace(marketplace),
+      partnerTag: requireValue(
+        partnerTag,
+        `Amazon Partner Tag for ${marketplace}`
+      )
+    }));
+  }
+
+  return [{
+    marketplace: normalizeAmazonMarketplace(
+      legacyMarketplace ?? "www.amazon.de"
+    ),
+    partnerTag: requireValue(
+      legacyPartnerTag ?? "",
+      "Amazon partner tag"
+    )
+  }];
+}
+
+function normalizeAmazonMarketplace(value: string): AmazonEuMarketplace {
   const hostname = requireValue(value, "Amazon marketplace").toLowerCase();
   if (
-    hostname.includes("://") ||
-    hostname.includes("/") ||
-    hostname.includes("?") ||
-    hostname.includes("#") ||
-    (
-      hostname !== "amazon.de" &&
-      !hostname.endsWith(".amazon.de")
+    !AMAZON_EU_MARKETPLACE_HOSTS.includes(
+      hostname as AmazonEuMarketplace
     )
   ) {
     throw new Error(
-      "Amazon marketplace must be an amazon.de hostname such as www.amazon.de."
+      `Unsupported Amazon EU marketplace: ${value}. Supported markets: ${AMAZON_EU_MARKETPLACE_HOSTS.join(", ")}.`
     );
   }
-  return hostname;
+  return hostname as AmazonEuMarketplace;
 }
 
 function isTrustedAmazonDetailUrl(
@@ -611,15 +654,13 @@ function isTrustedAmazonDetailUrl(
       return false;
     }
 
-    const hostname = url.hostname.toLowerCase();
     const marketplaceHostname = normalizeAmazonMarketplace(marketplace);
-    const rootDomain = marketplaceHostname === "amazon.de"
-      ? "amazon.de"
-      : marketplaceHostname.split(".").slice(-2).join(".");
+    const rootDomain = AMAZON_MARKETPLACE_ROOTS[marketplaceHostname];
+    const hostname = url.hostname.toLowerCase();
 
     return (
-      rootDomain === "amazon.de" &&
-      (hostname === "amazon.de" || hostname.endsWith(".amazon.de"))
+      hostname === rootDomain ||
+      hostname.endsWith(`.${rootDomain}`)
     );
   } catch {
     return false;
@@ -715,6 +756,98 @@ async function readJsonRecord(
   const record = readRecord(value);
   if (!record) throw new Error(`${source} returned an invalid JSON object.`);
   return record;
+}
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  maxConcurrent: number,
+  task: (value: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(values.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= values.length) return;
+
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: await task(values[index]!)
+        };
+      } catch (reason) {
+        results[index] = {status: "rejected", reason};
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      {length: Math.min(maxConcurrent, values.length)},
+      () => worker()
+    )
+  );
+  return results;
+}
+
+function parseMarketplacePartnerTagsEnv(
+  raw: string | undefined
+): Record<string, string> | undefined {
+  if (!raw?.trim()) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must be a JSON object."
+    );
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(
+      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must be a JSON object."
+    );
+  }
+
+  const result: Record<string, string> = {};
+  for (const [marketplace, value] of Object.entries(
+    parsed as Record<string, unknown>
+  )) {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(
+        `Amazon Partner Tag for ${marketplace} must be a non-empty string.`
+      );
+    }
+    result[normalizeAmazonMarketplace(marketplace)] = value.trim();
+  }
+
+  if (Object.keys(result).length === 0) {
+    throw new Error(
+      "AMAZON_MARKETPLACE_PARTNER_TAGS_JSON must contain at least one marketplace."
+    );
+  }
+  return result;
+}
+
+function parsePositiveIntegerEnv(
+  raw: string | undefined,
+  name: string,
+  fallback: number
+): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return validatePositiveInteger(Number(raw.trim()), name);
+}
+
+function validatePositiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive safe integer.`);
+  }
+  return value;
 }
 
 function parseCacheTtlEnv(
