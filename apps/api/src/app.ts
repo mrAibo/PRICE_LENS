@@ -223,14 +223,6 @@ function buildWarningCategories(
     0,
     result.listing.extractionWarnings.length - (enrichmentFallback ? 1 : 0)
   );
-  const providerErrors = result.providerStatus.filter(
-    (status) => status.state === "error"
-  ).length;
-  const reviewCandidates = result.providerStatus.reduce(
-    (sum, status) => sum + (status.reviewCandidates?.length ?? 0),
-    0
-  );
-
   setPositiveCount(categories, "extraction_warning", extractionWarnings);
   setPositiveCount(
     categories,
@@ -242,9 +234,6 @@ function buildWarningCategories(
     "enrichment_fallback",
     enrichmentFallback ? 1 : 0
   );
-  setPositiveCount(categories, "provider_error", providerErrors);
-  setPositiveCount(categories, "review_candidate", reviewCandidates);
-
   return categories;
 }
 
