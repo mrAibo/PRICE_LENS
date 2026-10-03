@@ -87,6 +87,10 @@ Current implementation checkpoint: `b5a124da156e6baa22db807dafc67579f1906a72` (P
 - [x] JSON-only comparison media-type boundary; no permissive browser CORS preflight
 - [x] opt-in local `fixture` provider for true end-to-end development without external traffic
 - [x] server-side eBay Browse OAuth/enrichment client with fail-open fallback
+- [x] feature-gated eBay same-product fixed-price marketplace provider using exact GTIN/EAN/UPC search
+- [x] condition-separated eBay alternatives (new/open-box/refurbished/used) with current-listing exclusion
+- [x] eBay alternatives UI with accepted count, cheapest complete landed price, range/median and seller feedback context
+- [x] cross-condition eBay alternatives cannot replace same-condition global best price
 - [x] eBay token/item cache, timeout, 401 refresh and 404/429 handling
 - [x] Amazon Creators API provider scaffold with OAuth/SearchItems contract tests
 - [x] Amazon offers remain landed-price incomplete when mandatory shipping is unavailable
@@ -164,13 +168,15 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 ## Blocked on external access
 
-### eBay enrichment
+### eBay enrichment + same-product marketplace
 
 - [ ] eBay developer credentials / Sandbox live validation
 - [x] Browse API enrichment client
 - [x] server-side OAuth token lifecycle
 - [x] timeout, cache, 401 refresh, 404 and rate-limit handling
 - [x] fail-open page-extraction fallback
+- [x] same-product marketplace search implementation behind `EBAY_MARKETPLACE_COMPARISON_ENABLED=0` default
+- [ ] live same-product search validation across representative conditions/categories
 - [ ] Production Buy API / Growth Check approval as required by eBay
 
 ### Idealo
@@ -254,7 +260,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 ## Current engineering priorities
 
 1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The capture/review pipeline is ready, but raw saved live-page HTML is still required; do not substitute search snippets or synthetic fixtures.
-2. Issue #12 — insert eBay Sandbox credentials and perform live Browse validation, then Production approval.
+2. Issue #12 — insert eBay Sandbox credentials and perform live Browse enrichment + same-product marketplace validation, then Production approval.
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
@@ -302,6 +308,7 @@ For a new development session:
 Canonical documents:
 
 - [Architecture](ARCHITECTURE.md)
+- [eBay same-product marketplace](EBAY_MARKETPLACE_COMPARISON.md)
 - [Technical design](TECHNICAL_DESIGN.md)
 - [Roadmap](ROADMAP.md)
 - [Provider access](PROVIDER_ACCESS.md)
