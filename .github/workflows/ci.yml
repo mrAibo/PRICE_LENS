@@ -46,6 +46,8 @@ jobs:
         run: terraform -chdir=infra/gcp init -backend=false -input=false
       - name: Terraform validate
         run: terraform -chdir=infra/gcp validate
+      - name: Terraform safety tests
+        run: terraform -chdir=infra/gcp test
       - name: Verify local extension artifact
         run: npm run verify-artifact -w @price-lens/extension
       - name: Verify production extension artifact

@@ -64,11 +64,20 @@ cp terraform.tfvars.example terraform.tfvars
 # edit project_id
 terraform init
 terraform validate
+terraform test
 terraform plan
 terraform apply
 ```
 
 No provider credential value is accepted by this module.
+
+The committed Terraform tests use a mocked Google provider. They require no GCP
+credentials and create no cloud resources. CI asserts that Phase A has no public
+runtime, while Phase B preserves the production safety defaults: load-balancer-only
+Cloud Run ingress, CDN disabled, Cloud Armor throttle in preview, provider product
+caches disabled, fixture/external providers opt-in, 30-day operational-log retention,
+alerts disabled before DNS/TLS verification, and no committed notification recipient.
+
 
 ## Add provider secret versions out-of-band
 
