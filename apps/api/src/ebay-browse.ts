@@ -521,7 +521,8 @@ function lowestShippingCost(
     .map((entry) => readMoney(readRecord(entry)?.shippingCost))
     .filter(
       (cost): cost is Money =>
-        Boolean(cost) && cost.currency.toUpperCase() === currency.toUpperCase()
+        cost !== undefined &&
+        cost.currency.toUpperCase() === currency.toUpperCase()
     )
     .sort((left, right) => left.amount - right.amount);
   return costs[0];
