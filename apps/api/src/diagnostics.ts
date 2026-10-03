@@ -7,9 +7,7 @@ import type {
 export type ComparisonWarningCategory =
   | "extraction_warning"
   | "ebay_shipping_unknown"
-  | "enrichment_fallback"
-  | "provider_error"
-  | "review_candidate";
+  | "enrichment_fallback";
 
 export type MatchMethodCounts = Partial<Record<MatchMethod, number>>;
 export type WarningCategoryCounts = Partial<Record<ComparisonWarningCategory, number>>;
