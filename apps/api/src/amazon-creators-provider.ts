@@ -421,6 +421,7 @@ function parseSearchItems(
         providerProductId: asin,
         productTitle: title,
         merchant,
+        marketplace,
         url,
         condition,
         identity,
