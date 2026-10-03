@@ -32,3 +32,20 @@ deploy_runtime = false
 
 # Keep the first edge-rate-limit rule in preview until traffic is measured.
 cloud_armor_rate_limit_preview = true
+
+# Runtime observability resources are created with Phase B by default.
+# Alert policies themselves stay disabled until the public DNS/TLS endpoint is live.
+operational_monitoring_enabled  = true
+monitoring_alerts_enabled       = false
+operational_log_retention_days  = 30
+
+# Reuse approved Cloud Monitoring notification channels. Do not commit email,
+# webhook, PagerDuty, Slack, or other recipient configuration here.
+#
+# monitoring_notification_channels = [
+#   "projects/replace-with-your-gcp-project-id/notificationChannels/1234567890"
+# ]
+#
+# Tune only after live traffic has been measured.
+# cloud_run_5xx_requests_threshold = 5
+# cloud_run_p95_latency_ms         = 5000
