@@ -13,6 +13,7 @@ import {
 } from "./search-results.js";
 import type {CompareMessage, CompareResponse} from "./messages.js";
 import type {ComparisonConsentStore} from "./privacy-consent.js";
+import type {PilotAuthStatus} from "./pilot-session.js";
 import type {BuyerDestinationStore} from "./buyer-destination.js";
 import {
   mountPriceLens,
@@ -20,11 +21,18 @@ import {
   mountUnsupportedPriceLens
 } from "./ui/render.js";
 
+export interface PilotAuthClient {
+  getStatus(): Promise<PilotAuthStatus>;
+  signIn(): Promise<PilotAuthStatus>;
+  signOut(): Promise<PilotAuthStatus>;
+}
+
 export interface PriceLensBootstrapOptions {
   document: Document;
   window: Window & typeof globalThis;
   consentStore: ComparisonConsentStore;
   destinationStore?: BuyerDestinationStore;
+  pilotAuthClient?: PilotAuthClient;
   sendMessage: (
     message: CompareMessage
   ) => Promise<CompareResponse | undefined>;
@@ -40,6 +48,18 @@ export async function bootstrapPriceLens(
   let lifecycle: PriceLensLifecycle | SearchResultsLifecycle | undefined;
   let stopped = false;
   let buyerDestination: BuyerDestination = {country: "DE"};
+  let pilotAuthStatus: PilotAuthStatus = {
+    enabled: options.pilotAuthClient !== undefined,
+    signedIn: false
+  };
+
+  if (options.pilotAuthClient) {
+    try {
+      pilotAuthStatus = await options.pilotAuthClient.getStatus();
+    } catch {
+      pilotAuthStatus = {enabled: true, signedIn: false};
+    }
+  }
 
   if (options.destinationStore) {
     try {
@@ -87,6 +107,25 @@ export async function bootstrapPriceLens(
         return mountPriceLens(document, listing, {
           onDisableSharing: disableSharing,
           initialDestination: buyerDestination,
+          pilotAuth: options.pilotAuthClient
+            ? {
+                getStatus: () => pilotAuthStatus,
+                async onSignIn() {
+                  pilotAuthStatus = await options.pilotAuthClient!.signIn();
+                  await actions.onRequestComparison(
+                    buyerDestination,
+                    {forceRefresh: true}
+                  );
+                },
+                async onSignOut() {
+                  pilotAuthStatus = await options.pilotAuthClient!.signOut();
+                  await actions.onRequestComparison(
+                    buyerDestination,
+                    {forceRefresh: true}
+                  );
+                }
+              }
+            : undefined,
           async onRequestComparison(destination, requestOptions) {
             buyerDestination = destination ?? {country: "DE"};
             if (options.destinationStore) {
