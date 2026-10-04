@@ -1,0 +1,9 @@
+# PriceLens one-time remote Terraform-state bootstrap.
+# Copy to terraform.tfvars for local use. terraform.tfvars is gitignored.
+
+project_id = "replace-with-your-gcp-project-id"
+
+# Defaults:
+# state_bucket_name = "<project_id>-price-lens-tfstate"
+# location          = "EUROPE-WEST3"
+# backend_prefix    = "price-lens/prod"
