@@ -34,6 +34,11 @@ Search behavior:
 - uses Browse `GET /buy/browse/v1/item_summary/search`;
 - searches by the strongest normalized GTIN/EAN/UPC available after page extraction
   and optional eBay Browse enrichment;
+- if no GTIN/EAN/UPC exists, may search by a trustworthy eBay catalog product ID
+  (ePID);
+- optional Catalog fallback can resolve Brand+MPN to ePID only when exactly one
+  catalog product matches the normalized Brand+MPN pair; ambiguous catalog results
+  are rejected;
 - requests up to 25 results;
 - requests `buyingOptions:{FIXED_PRICE}`;
 - locally rejects non-fixed-price results if eBay returns them anyway;
@@ -42,9 +47,11 @@ Search behavior:
 - refuses broad title-only search when no strong trade identifier exists;
 - never assumes missing shipping means zero.
 
-The current exact-identifier-only rule is intentionally conservative. Brand+MPN,
-EPID and controlled model/title fallbacks remain future work because those paths need
-stronger candidate identity verification.
+The discovery rule remains intentionally conservative. Exact GTIN/EAN/UPC and exact
+ePID are strong discovery identifiers. Brand+MPN is accepted only through the optional
+eBay Catalog API path when it resolves to one unique exact catalog product; a raw
+Brand+MPN keyword result is never auto-accepted. Controlled Brand+Model/title fallbacks
+remain future work because they require stronger candidate verification.
 
 ## Matching policy
 
@@ -124,8 +131,7 @@ an approval gate.
 
 ## Planned extensions
 
-- EPID search when a trustworthy eBay product ID is available;
-- exact Brand + MPN discovery fallback;
+- live-validate direct ePID search and Catalog Brand+MPN -> unique ePID resolution;
 - controlled Brand + Model fallback with detail lookups before automatic matching;
 - category-specific variant verification;
 - configurable result limit and provider quota budgeting;
