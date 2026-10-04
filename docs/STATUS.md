@@ -139,6 +139,28 @@ Current implementation checkpoint: `55abf6ce6180a1fbf13f851084b3871af68b20f2` (P
 
 ## In progress
 
+### Phase 7 — user-triggered eBay search-result cards
+
+Initial implementation now exists behind the same stored comparison consent:
+
+- [x] content script scope includes only `ebay.de/itm/*` and `ebay.de/sch/*`
+- [x] no search-card extraction or UI is activated before stored consent exists
+- [x] eligible `.s-item` cards are recognized locally from item URL/title/price
+- [x] card shipping/condition are used only when they can be parsed safely
+- [x] scrolling/DOM discovery mounts lens controls without API/provider traffic
+- [x] only the clicked card sends a comparison request
+- [x] repeated clicks after a loaded result expand/collapse local data without another request
+- [x] newly appended infinite-scroll cards can be discovered incrementally
+- [x] incomplete current shipping suppresses delivered-price savings claims
+- [x] compact cheaper-first results are bounded; additional accepted offers stay locally expandable
+- [ ] per-card provider degradation/review-candidate detail remains to be surfaced
+- [ ] real eBay.de search-layout fixtures and live-layout validation remain pending
+
+Search-card extraction intentionally carries no invented GTIN/MPN. It relies on the
+existing server-side eBay enrichment path before any provider can auto-match the item.
+
+
+
 ### Phase 3C — on-demand / compact-first comparison
 
 Accepted product direction:
