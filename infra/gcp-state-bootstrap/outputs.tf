@@ -10,5 +10,5 @@ output "backend_prefix" {
 
 output "backend_init_command" {
   description = "Command template for initializing the main PriceLens Terraform root against this bucket."
-  value = "terraform -chdir=infra/gcp init -backend-config=bucket=${google_storage_bucket.terraform_state.name} -backend-config=prefix=${var.backend_prefix}"
+  value       = "terraform -chdir=infra/gcp init -backend-config=bucket=${google_storage_bucket.terraform_state.name} -backend-config=prefix=${var.backend_prefix}"
 }
