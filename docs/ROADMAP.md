@@ -17,7 +17,7 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | 4 — Provider access spikes | **external access in progress** | explicit permitted access path for every enabled provider |
 | 5 — First real provider | **not started** | one production-quality provider end to end |
 | 6 — Multi-provider comparison | **internal plumbing complete; live activation blocked** | partial failures + concurrency + approved freshness are production-safe |
-| 7 — eBay search-results augmentation | **deferred** | single-item correctness proven first |
+| 7 — eBay search-results augmentation | **initial implementation complete; live-layout validation pending** | user-triggered cards remain traffic-safe and evidence-validated |
 | 8 — Deal intelligence | **future** | explainable metrics built on trustworthy matching |
 
 ## Phase 0 — Bootstrap
@@ -260,9 +260,10 @@ Status: **public/private-beta foundation implemented; authenticated identity pen
 - [x] fail closed when server access resolution is missing, malformed or unavailable
 - [x] expose a Private beta placeholder in the extension UI
 - [x] keep pilot/pro/admin access as a server-resolved context
-- [ ] connect an authenticated identity/session provider
-- [ ] issue/verify short-lived user sessions or tokens
-- [ ] persist pilot/pro entitlements in trusted server-side account data
+- [x] connect server-side Google identity verification/session exchange
+- [x] issue/verify short-lived server-signed user sessions
+- [x] persist pilot/pro/admin Google-subject entitlements in pinned trusted Secret Manager data
+- [ ] connect the Chrome extension interactive Google sign-in client
 - [ ] enable Idealo/Geizhals only after both entitlement and provider-contract gates pass
 
 Exit gate: public users cannot invoke restricted provider adapters, while an authenticated
