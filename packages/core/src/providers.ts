@@ -4,9 +4,11 @@ import type {
   EcommerceListing,
   ListingCondition,
   MarketOffer,
+  DeliveryWindow,
   Money,
   PriceProviderId,
   ProductIdentity,
+  SellerAccountType,
   ProviderReviewCandidate,
   ProviderStatus
 } from "@price-lens/contracts";
@@ -27,6 +29,8 @@ export interface ProviderCandidate {
   importChargesIncluded?: boolean;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
+  sellerAccountType?: SellerAccountType;
+  deliveryWindow?: DeliveryWindow;
   url: string;
   condition: ListingCondition;
   identity: ProductIdentity;
@@ -236,6 +240,8 @@ async function runProvider(
         itemLocationCountry: candidate.itemLocationCountry,
         sellerFeedbackPercentage: candidate.sellerFeedbackPercentage,
         sellerFeedbackScore: candidate.sellerFeedbackScore,
+        sellerAccountType: candidate.sellerAccountType,
+        deliveryWindow: candidate.deliveryWindow,
         url: candidate.url,
         condition: candidate.condition,
         itemPrice: candidate.itemPrice,
