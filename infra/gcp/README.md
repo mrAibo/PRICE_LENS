@@ -40,6 +40,26 @@ The repository cannot invent:
 Terraform therefore supports a safe bootstrap phase before any of those runtime inputs
 are available.
 
+### Remote state — required before Phase A
+
+The production root declares a configurable GCS backend. Create that bucket first with
+the separate [state bootstrap](../gcp-state-bootstrap/README.md), then initialize this
+root with the returned bucket and prefix.
+
+For a fresh state:
+
+```bash
+terraform -chdir=infra/gcp init \
+  -backend-config="bucket=<STATE_BUCKET>" \
+  -backend-config="prefix=price-lens/prod"
+```
+
+If a local state already exists and must be preserved, use `-migrate-state` explicitly.
+Do not silently reconfigure over an existing state.
+
+CI intentionally uses `terraform init -backend=false`, so schema and safety tests do
+not require cloud credentials or a live state bucket.
+
 ### Phase A — bootstrap
 
 Leave:
@@ -56,17 +76,15 @@ This creates:
 - empty Secret Manager secret containers;
 - IAM allowing only the runtime service account to read those provider secrets.
 
-Run:
+After the GCS backend is initialized:
 
 ```bash
-cd infra/gcp
-cp terraform.tfvars.example terraform.tfvars
-# edit project_id
-terraform init
-terraform validate
-terraform test
-terraform plan
-terraform apply
+cp infra/gcp/terraform.tfvars.example infra/gcp/terraform.tfvars
+# edit project_id and approved Phase-A options
+terraform -chdir=infra/gcp validate
+terraform -chdir=infra/gcp test
+terraform -chdir=infra/gcp plan
+terraform -chdir=infra/gcp apply
 ```
 
 No provider credential value is accepted by this module.
