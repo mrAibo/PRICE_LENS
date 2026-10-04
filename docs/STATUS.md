@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `4e6e0f7e88e013adef8d17eab844b5362aa51b2b` (PR #78). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `f8a9298948213c8470fe39aabebdd951d83b1acf` (PR #80). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -50,6 +50,8 @@ Current implementation checkpoint: `4e6e0f7e88e013adef8d17eab844b5362aa51b2b` (P
 - [x] observed real-layout capture/anonymization tool
 - [x] independent `reviewed:true` evidence gate for observed fixtures
 - [x] separate synthetic vs observed per-field extraction metrics
+- [x] first independently reviewed real eBay.de item-page fixture: 1 fixture / 18 labelled fields
+- [x] real-layout `schema.org/UsedCondition` normalization defect fixed from observed evidence
 - [x] structured variant fields participate in lifecycle fingerprinting
 - [x] build-time extension API origin with HTTPS-only production policy (PR #29)
 - [x] generated extension artifact verification for dev + production-origin builds
@@ -238,9 +240,9 @@ Still required:
 
 - [x] initial labelled synthetic eBay.de fixture corpus
 - [x] initial regression-evidence report (synthetic corpus)
-- [ ] representative anonymized real-layout fixture corpus
-- [ ] empirical field-level extraction accuracy report over representative layouts
-- [ ] coverage for representative shipping layouts
+- [ ] representative anonymized real-layout fixture corpus (**1 reviewed real fixture / 18 labelled fields collected so far**)
+- [ ] empirical field-level extraction accuracy report over representative layouts (**first observed report available; broader corpus still required**)
+- [ ] coverage for representative shipping layouts (**paid domestic shipping covered; free/unknown still required**)
 - [x] initial coverage for variant/item-specific layouts
 - [ ] broaden variant/item-specific fixture coverage across categories
 - [x] explicit unsupported-state behavior for pages that cannot be normalized safely
@@ -377,11 +379,13 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #76 — observed eBay search-layout capture/review/metrics pipeline — merged into `main`
 - PR #77 — end-to-end search capture anonymization test — merged into `main`
 - PR #78 — external provider onboarding clarification + minimum observed item-layout evidence corpus — merged into `main`
+- PR #79 — eBay/Amazon extension affiliate compliance gates — merged into `main`
+- PR #80 — first reviewed real eBay item fixture + `UsedCondition` fix — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The minimum first observed batch is now explicitly defined. The capture/review pipeline is ready, but raw saved live-page HTML is still required; the authorized Desktop Commander device was offline on 2026-10-04, so do not substitute search snippets or synthetic fixtures.
+1. Issue #10 — continue capturing and independently reviewing representative real eBay.de layouts. Desktop Commander is now online and normal Chrome capture works. One reviewed used/paid-shipping fixture (18 labelled fields) is committed; free shipping, shipping-unknown, selected variant, refurbished/open-box, incomplete JSON-LD and additional category layouts remain.
 2. Issue #12 — insert eBay Sandbox credentials and validate Browse enrichment; Issue #52 — live-validate same-product marketplace search/conditions/shipping, then Production approval.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
