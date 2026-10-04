@@ -1,6 +1,6 @@
 # eBay Extraction Evidence
 
-Status: **synthetic regression corpus + growing independently reviewed observed-layout corpus**
+Status: **Phase 1 observed-layout evidence gate complete**
 
 Updated: **2026-10-04**
 
@@ -54,7 +54,7 @@ The corpus is intentionally synthetic/controlled so that:
 
 ## Phase 1 evidence still required
 
-Before Phase 1 can be called complete, add representative fixture classes derived from observed eBay.de layouts, with sensitive/user-specific data removed or replaced.
+Phase 1 now has representative independently reviewed fixture classes derived from observed eBay.de layouts, with sensitive/user-specific data removed or replaced.
 
 Target evidence should include at minimum:
 
@@ -66,7 +66,7 @@ Target evidence should include at minimum:
 - used listing
 - refurbished/open-box listing
 - item specifics rendered in alternate markup
-- JSON-LD absent or incomplete
+- JSON-LD absent or incomplete (**real incomplete identity case covered: Product JSON-LD omits brand/model/MPN/GTIN while retained DOM `dt/dd` supplies independently reviewed Brand/Model**)
 - multiple JSON-LD blocks / graph form
 - seller title noise
 - weak/no identifier listing
@@ -101,16 +101,17 @@ For identifiers and variants, **precision is more important than coverage**. Mis
 4. Condition is part of comparison identity.
 5. Explicit structured variant conflicts can later reject a provider candidate before fuzzy matching.
 
-## Next gate
+## Phase 1 gate result
 
-Issue #10 remains open until:
+Issue #10's exit gate is satisfied for the current representative corpus:
 
-1. representative layout fixtures are added,
-2. field-level metrics are generated from the labelled corpus,
-3. known unsupported layouts produce an explicit user-visible unsupported state,
-4. selector/structured-data failure modes remain covered by the executable contract.
+1. six independently reviewed real eBay.de item-page fixtures are committed;
+2. observed field-level metrics report 108/108 labelled checks passing;
+3. known unsafe layouts degrade to an explicit user-visible unsupported state;
+4. selector/structured-data failure modes remain covered by the executable contract;
+5. the real local-pickup watch fixture proves a safe DOM identity fallback from incomplete Product JSON-LD: its Product JSON-LD has `name`/`image`/`offers` but omits `brand`, `model`, `mpn` and GTIN fields, while independently reviewed `dt/dd` DOM rows supply `Brand=Breitling` and `Model=Breitling Aerospace`.
 
-The synthetic corpus is the foundation for that gate, not the final evidence.
+This closes the Phase 1 evidence gate for the current MVP scope. Future eBay layout changes must continue to extend the observed corpus; this is not a claim of universal 100% eBay accuracy.
 
 
 ## Capturing observed real-layout fixtures
@@ -194,9 +195,10 @@ An unreviewed observed fixture is intentionally excluded from real-layout metric
 At this checkpoint the infrastructure for real-layout measurement is complete and
 six reviewed observed fixtures are committed. Their 108/108 result is evidence for
 those specific layouts only, not a general real-world accuracy claim. Paid shipping,
-free shipping, local-pickup/no-shipping, destination-dependent shipping unknown and
-weak-identity/no-invention behavior are now covered. The remaining minimum real-layout
-gap before Issue #10 can close is incomplete/absent Product JSON-LD with a safe DOM fallback.
+free shipping, local-pickup/no-shipping, destination-dependent shipping unknown,
+weak-identity/no-invention, selected variants and incomplete Product JSON-LD identity
+with safe DOM `dt/dd` fallback are covered. Issue #10's current Phase 1 evidence gate
+is therefore complete.
 
 ## Search-result layout evidence
 
