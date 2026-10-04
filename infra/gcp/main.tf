@@ -36,8 +36,8 @@ locals {
     EBAY_DELIVERY_COUNTRY               = var.ebay_delivery_country
     EBAY_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.ebay_marketplace_search_concurrency)
     EBAY_CATALOG_EPID_FALLBACK_ENABLED  = var.ebay_catalog_epid_fallback_enabled ? "1" : "0"
-    EBAY_CATALOG_MARKETPLACE_ID          = var.ebay_catalog_marketplace_id
-    EBAY_BROWSE_CACHE_TTL_MS             = tostring(var.ebay_browse_cache_ttl_ms)
+    EBAY_CATALOG_MARKETPLACE_ID         = var.ebay_catalog_marketplace_id
+    EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
     ECB_FX_ENABLED           = var.ecb_fx_enabled ? "1" : "0"
     ECB_FX_CACHE_TTL_MS      = tostring(var.ecb_fx_cache_ttl_ms)
