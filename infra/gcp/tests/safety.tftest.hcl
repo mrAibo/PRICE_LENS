@@ -34,6 +34,16 @@ run "phase_a_bootstrap_has_no_public_runtime" {
 
 
   assert {
+    condition     = local.literal_env.PRICE_LENS_SESSION_AUTH_ENABLED == "0"
+    error_message = "Pilot session auth must remain opt-in by default."
+  }
+
+  assert {
+    condition     = local.literal_env.PRICE_LENS_SESSION_TTL_SECONDS == "900" && local.literal_env.PRICE_LENS_GOOGLE_VERIFY_TIMEOUT_MS == "3000"
+    error_message = "Session lifetime and Google verification timeout must remain short and bounded by default."
+  }
+
+  assert {
     condition     = local.literal_env.PRICE_LENS_FIXTURE_PROVIDER == "0"
     error_message = "The fixture provider must remain disabled in the production environment map."
   }
@@ -93,6 +103,37 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   assert {
     condition     = local.literal_env.EBAY_BROWSE_CACHE_TTL_MS == "0" && local.literal_env.AMAZON_CREATORS_CACHE_TTL_MS == "0"
     error_message = "Provider product-data caches must remain disabled by default."
+  }
+}
+
+run "session_auth_requires_pinned_server_secrets" {
+  command = plan
+
+  variables {
+    project_id           = "price-lens-test"
+    session_auth_enabled = true
+  }
+
+  expect_failures = [
+    check.provider_enablement
+  ]
+}
+
+run "session_auth_accepts_pinned_server_secrets" {
+  command = plan
+
+  variables {
+    project_id           = "price-lens-test"
+    session_auth_enabled = true
+    secret_versions = {
+      PRICE_LENS_SESSION_SIGNING_SECRET   = "1"
+      PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON = "1"
+    }
+  }
+
+  assert {
+    condition     = local.literal_env.PRICE_LENS_SESSION_AUTH_ENABLED == "1"
+    error_message = "Session auth should enable only after pinned backend secrets are supplied."
   }
 }
 
@@ -177,6 +218,15 @@ run "phase_b_runtime_preserves_safe_defaults" {
   assert {
     condition     = google_compute_backend_service.api[0].enable_cdn == false
     error_message = "The PriceLens API backend must not enable CDN caching."
+  }
+
+  assert {
+    condition = one([
+      for rule in google_compute_security_policy.api[0].rule :
+      !rule.preview
+      if rule.priority == 150
+    ])
+    error_message = "The session-exchange rate limit must be enforced rather than preview-only."
   }
 
   assert {
