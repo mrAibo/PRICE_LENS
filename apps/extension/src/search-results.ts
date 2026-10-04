@@ -3,7 +3,8 @@ import type {
   ComparisonResult,
   EcommerceListing,
   ListingCondition,
-  MarketOffer
+  MarketOffer,
+  ProviderStatus
 } from "@price-lens/contracts";
 import {extractEbayItemId} from "./ebay/extract.js";
 import {parseMoneyText} from "./ebay/price.js";
@@ -325,6 +326,7 @@ function renderSearchCardResult(
   const compact = selectCompactOffers(result, 3);
   const completeCount = result.offers.filter((offer) => offer.landedPriceComplete)
     .length;
+  const providerSignals = renderProviderSignals(result.providerStatus, expanded);
 
   let body: string;
   if (!result.ebayLandedPriceComplete) {
@@ -355,9 +357,113 @@ function renderSearchCardResult(
       ◉ PriceLens ${completeCount > 0 ? `· ${completeCount}` : ""}
     </button>
     ${body}
+    ${providerSignals}
   `;
 }
 
+function renderProviderSignals(
+  statuses: ProviderStatus[],
+  expanded: boolean
+): string {
+  const degraded = statuses.filter(
+    (status) => status.state === "error" || status.state === "unavailable"
+  );
+  const restricted = statuses.filter((status) => status.state === "restricted");
+  const reviewGroups = statuses
+    .map((status) => ({
+      provider: status.provider,
+      candidates: status.reviewCandidates ?? []
+    }))
+    .filter((group) => group.candidates.length > 0);
+  const reviewCount = reviewGroups.reduce(
+    (total, group) => total + group.candidates.length,
+    0
+  );
+
+  if (degraded.length === 0 && restricted.length === 0 && reviewCount === 0) {
+    return "";
+  }
+
+  const summary = [
+    degraded.length > 0
+      ? `Partial results: ${degraded.map((status) => providerLabel(status.provider)).join(", ")} unavailable`
+      : undefined,
+    restricted.length > 0
+      ? `Private beta: ${restricted.map((status) => providerLabel(status.provider)).join(", ")}`
+      : undefined,
+    reviewCount > 0
+      ? `${reviewCount} possible match${reviewCount === 1 ? "" : "es"} excluded as uncertain`
+      : undefined
+  ].filter((value): value is string => !!value);
+
+  const details = expanded
+    ? [
+        ...degraded.map(
+          (status) =>
+            `<div><strong>${escapeHtml(providerLabel(status.provider))}</strong>: ${escapeHtml(providerStateLabel(status))}</div>`
+        ),
+        ...restricted.map(
+          (status) =>
+            `<div><strong>${escapeHtml(providerLabel(status.provider))}</strong>: private beta</div>`
+        ),
+        ...reviewGroups.flatMap((group) =>
+          group.candidates.slice(0, 2).map((candidate) => {
+            const confidence = Math.round(
+              Math.max(0, Math.min(1, candidate.confidence)) * 100
+            );
+            return `
+              <div class="review-detail">
+                <strong>${escapeHtml(providerLabel(group.provider))}</strong>:
+                possible match excluded · ${confidence}% ·
+                ${escapeHtml(candidate.matchMethod)}
+                <div class="muted">${escapeHtml(candidate.reason)}</div>
+              </div>
+            `;
+          })
+        )
+      ].join("")
+    : "";
+
+  return `
+    <div class="signals">
+      ${summary.map((value) => `<div>${escapeHtml(value)}</div>`).join("")}
+      ${details ? `<div class="signal-details">${details}</div>` : ""}
+    </div>
+  `;
+}
+
+function providerStateLabel(status: ProviderStatus): string {
+  if (status.message?.trim()) return status.message.trim();
+  switch (status.state) {
+    case "error":
+      return "temporarily unavailable";
+    case "unavailable":
+      return "unavailable";
+    case "restricted":
+      return "private beta";
+    case "ok":
+      return "available";
+    case "no_match":
+      return "no automatic match";
+    case "unconfigured":
+      return "not configured";
+  }
+}
+
+function providerLabel(provider: ProviderStatus["provider"]): string {
+  switch (provider) {
+    case "ebay_market":
+      return "eBay";
+    case "amazon":
+      return "Amazon";
+    case "idealo":
+      return "Idealo";
+    case "geizhals":
+      return "Geizhals";
+    case "fixture":
+      return "Fixture";
+  }
+}
 function renderExpandHint(
   result: ComparisonResult,
   compact: MarketOffer[],
@@ -569,6 +675,24 @@ function searchCardStyles(): string {
       .offer-link { color:#174ea6; text-decoration:none; }
       .offer-link:hover { text-decoration:underline; }
       .expand-hint { margin-top:4px; color:#5b6268; }
+      .signals {
+        box-sizing:border-box;
+        margin-top:5px;
+        padding:6px 8px;
+        border:1px dashed #d8dce1;
+        border-radius:7px;
+        background:#fafbfc;
+        color:#62676d;
+        font:11px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      }
+      .signals > div + div { margin-top:2px; }
+      .signal-details {
+        margin-top:5px;
+        padding-top:5px;
+        border-top:1px solid #e7e9ec;
+        color:#3f4449;
+      }
+      .review-detail { margin-top:4px; }
     </style>
   `;
 }
