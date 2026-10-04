@@ -267,7 +267,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 - [x] redacted `providers:live-check` harness probes /ready, /health and a real user-triggered /v1/compare without persisting product/seller/request identifiers
 - [x] protected manual GitHub provider-validation workflow uploads the redacted report artifact while keeping provider credentials exclusively in the backend
-- [ ] eBay developer credentials / Sandbox live validation
+- [x] eBay developer credentials / Sandbox live validation (`EBAY_DE`, OAuth 200, Browse search 200, enrichment gate pass)
 - [x] Browse API enrichment client
 - [x] server-side OAuth token lifecycle
 - [x] timeout, cache, 401 refresh, 404 and rate-limit handling
@@ -278,7 +278,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [x] Brand+Model fallback verifies storage/RAM/screen/pack Catalog aspects; missing/conflicting aspects reject the ePID
 - [x] edition/modelQualifier use exact allowlisted Catalog aspect verification; missing/conflicting values reject the ePID
 - [ ] bundleIncluded remains excluded because seller bundle state is not safely inferable from product Catalog data
-- [ ] live Catalog/Browse ePID + Brand+Model validation with approved eBay credentials
+- [ ] Catalog fallback permission/authorization validation: current Sandbox keyset returns OAuth `invalid_scope` for `commerce.catalog.readonly`; keep Catalog fallbacks disabled
 - [ ] live same-product search validation across representative conditions/categories
 - [ ] Production Buy API / Growth Check approval as required by eBay
 
@@ -386,7 +386,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 ## Current engineering priorities
 
 1. Issue #10 — continue capturing and independently reviewing representative real eBay.de layouts. Desktop Commander is now online and normal Chrome capture works. One reviewed used/paid-shipping fixture (18 labelled fields) is committed; free shipping, shipping-unknown, selected variant, refurbished/open-box, incomplete JSON-LD and additional category layouts remain.
-2. Issue #12 — insert eBay Sandbox credentials and validate Browse enrichment; Issue #52 — live-validate same-product marketplace search/conditions/shipping, then Production approval.
+2. Issue #12 Sandbox credential/Browse-enrichment gate is complete. Continue Issue #52 with broader same-product/condition/shipping validation and eBay Production approval; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
