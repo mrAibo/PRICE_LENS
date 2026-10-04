@@ -497,6 +497,13 @@ function isEbayListing(value: unknown): value is EcommerceListing {
     (value.shipping === undefined || isMoney(value.shipping)) &&
     isListingCondition(value.condition) &&
     isProductIdentity(value.identity) &&
+    (
+      value.itemLocationCountry === undefined ||
+      (
+        typeof value.itemLocationCountry === "string" &&
+        /^[A-Z]{2}$/.test(value.itemLocationCountry)
+      )
+    ) &&
     (value.imageUrl === undefined || isSafeHttpsUrl(value.imageUrl, 4096)) &&
     isStringArray(value.extractionEvidence, 100, 1024) &&
     isStringArray(value.extractionWarnings, 100, 2048)
