@@ -95,7 +95,9 @@ jobs:
           IMAGE: ${{ steps.image.outputs.image }}
         run: |
           set -euo pipefail
-          digest="$(gcloud artifacts docker images describe "$IMAGE"             --project="$GCP_PROJECT_ID"             --format='value(image_summary.digest)')"
+          digest="$(gcloud artifacts docker images describe "$IMAGE" \
+            --project="$GCP_PROJECT_ID" \
+            --format='value(image_summary.digest)')"
 
           if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "Artifact Registry did not return a valid immutable digest." >&2
@@ -115,9 +117,9 @@ jobs:
             echo
             echo 'Use this exact immutable image in Terraform Phase B:'
             echo
-            echo '\`\`\`hcl'
+            echo '~~~hcl'
             echo "api_image = \"$IMAGE\""
-            echo '\`\`\`'
+            echo '~~~'
             echo
-            echo "Artifact Registry digest: \`$DIGEST\`"
+            echo "Artifact Registry digest: $DIGEST"
           } >> "$GITHUB_STEP_SUMMARY"
