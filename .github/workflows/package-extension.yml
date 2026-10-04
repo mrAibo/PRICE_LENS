@@ -7,6 +7,10 @@ on:
         description: HTTPS PriceLens API origin embedded in the extension
         required: true
         type: string
+      google_oauth_client_id:
+        description: Optional Chrome OAuth client ID for a pilot-auth package
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       PRICE_LENS_API_ORIGIN: ${{ inputs.api_origin }}
+      PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID: ${{ inputs.google_oauth_client_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
