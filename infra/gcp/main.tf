@@ -28,16 +28,19 @@ locals {
     PRICE_LENS_SESSION_TTL_SECONDS        = tostring(var.session_ttl_seconds)
     PRICE_LENS_GOOGLE_VERIFY_TIMEOUT_MS   = tostring(var.google_identity_verify_timeout_ms)
 
-    EBAY_BROWSE_ENABLED                 = var.ebay_browse_enabled ? "1" : "0"
-    EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
-    EBAY_ENVIRONMENT                    = var.ebay_environment
-    EBAY_MARKETPLACE_ID                 = var.ebay_marketplace_id
-    EBAY_MARKETPLACE_SEARCH_IDS         = join(",", var.ebay_marketplace_search_ids)
-    EBAY_DELIVERY_COUNTRY               = var.ebay_delivery_country
-    EBAY_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.ebay_marketplace_search_concurrency)
-    EBAY_CATALOG_EPID_FALLBACK_ENABLED  = var.ebay_catalog_epid_fallback_enabled ? "1" : "0"
-    EBAY_CATALOG_MARKETPLACE_ID         = var.ebay_catalog_marketplace_id
-    EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
+    EBAY_BROWSE_ENABLED                        = var.ebay_browse_enabled ? "1" : "0"
+    EBAY_MARKETPLACE_COMPARISON_ENABLED        = var.ebay_marketplace_comparison_enabled ? "1" : "0"
+    EBAY_ENVIRONMENT                           = var.ebay_environment
+    EBAY_MARKETPLACE_ID                        = var.ebay_marketplace_id
+    EBAY_MARKETPLACE_SEARCH_IDS                = join(",", var.ebay_marketplace_search_ids)
+    EBAY_DELIVERY_COUNTRY                      = var.ebay_delivery_country
+    EBAY_MARKETPLACE_SEARCH_CONCURRENCY        = tostring(var.ebay_marketplace_search_concurrency)
+    EBAY_CATALOG_EPID_FALLBACK_ENABLED         = var.ebay_catalog_epid_fallback_enabled ? "1" : "0"
+    EBAY_CATALOG_MARKETPLACE_ID                = var.ebay_catalog_marketplace_id
+    EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED = var.ebay_marketplace_detail_enrichment_enabled ? "1" : "0"
+    EBAY_MARKETPLACE_DETAIL_LIMIT              = tostring(var.ebay_marketplace_detail_limit)
+    EBAY_MARKETPLACE_DETAIL_CONCURRENCY        = tostring(var.ebay_marketplace_detail_concurrency)
+    EBAY_BROWSE_CACHE_TTL_MS                   = tostring(var.ebay_browse_cache_ttl_ms)
 
     ECB_FX_ENABLED           = var.ecb_fx_enabled ? "1" : "0"
     ECB_FX_CACHE_TTL_MS      = tostring(var.ecb_fx_cache_ttl_ms)
@@ -128,6 +131,11 @@ check "provider_enablement" {
   assert {
     condition     = !var.ebay_catalog_epid_fallback_enabled || var.ebay_browse_enabled
     error_message = "eBay Catalog ePID fallback requires ebay_browse_enabled=true so the same approved eBay application credentials are used."
+  }
+
+  assert {
+    condition     = !var.ebay_marketplace_detail_enrichment_enabled || var.ebay_marketplace_comparison_enabled
+    error_message = "eBay marketplace detail enrichment requires ebay_marketplace_comparison_enabled=true because only accepted marketplace candidates are enriched."
   }
 
   assert {

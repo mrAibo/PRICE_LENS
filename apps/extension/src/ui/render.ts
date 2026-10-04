@@ -488,6 +488,7 @@ function renderCompactOffer(
       </div>
       ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
       ${renderDeliveryContext(offer)}
+      ${renderReturnPolicy(offer)}
     </div>
   `;
 }
@@ -682,6 +683,7 @@ function renderAllOffers(result: ComparisonResult): string {
         ${renderLandedCostNote(offer)}
         ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
         ${renderDeliveryContext(offer)}
+        ${renderReturnPolicy(offer)}
       </div>
     `;
   }).join("");
@@ -945,6 +947,49 @@ function formatDeliveryDate(value: string | undefined): string | undefined {
     month: "short",
     timeZone: "UTC"
   }).format(new Date(timestamp));
+}
+
+function renderReturnPolicy(offer: MarketOffer): string {
+  const policy = offer.returnPolicy;
+  if (!policy) return "";
+
+  if (!policy.returnsAccepted) {
+    return '<div class="muted return-policy-meta">Seller return policy: no voluntary returns listed.</div>';
+  }
+
+  const parts = ["Seller return policy: accepted"];
+  const period = formatReturnPeriod(
+    policy.returnPeriodValue,
+    policy.returnPeriodUnit
+  );
+  if (period) parts.push(period);
+
+  if (policy.returnShippingCostPayer === "BUYER") {
+    parts.push("buyer pays return shipping");
+  } else if (policy.returnShippingCostPayer === "SELLER") {
+    parts.push("seller pays return shipping");
+  }
+
+  return `<div class="muted return-policy-meta">${escapeHtml(parts.join(" · "))}</div>`;
+}
+
+function formatReturnPeriod(
+  value: number | undefined,
+  unit: string | undefined
+): string | undefined {
+  if (!value || !unit) return undefined;
+
+  switch (unit) {
+    case "CALENDAR_DAY":
+    case "DAY":
+      return `${value} day${value === 1 ? "" : "s"}`;
+    case "MONTH":
+      return `${value} month${value === 1 ? "" : "s"}`;
+    case "YEAR":
+      return `${value} year${value === 1 ? "" : "s"}`;
+    default:
+      return `${value} ${unit.toLowerCase().replace(/_/g, " ")}`;
+  }
 }
 
 function conditionLabel(condition: ListingCondition): string {
@@ -1340,7 +1385,7 @@ function baseStyles(): string {
       .compact-offer:first-child { border-top:0; padding-top:0; }
       .offer-price { display:inline-block; margin-top:2px; font-size:16px; }
       .saving { color:#176b35; font-weight:700; }
-      .fx-meta, .delivery-meta { margin-top:2px; font-size:12px; }
+      .fx-meta, .delivery-meta, .return-policy-meta { margin-top:2px; font-size:12px; }
       .landed-cost-note { margin-top:3px; font-size:12px; }
       .expand-button {
         width:100%;

@@ -656,6 +656,87 @@ describe("provider orchestration", () => {
     });
   });
 
+  it("enriches only automatic matches after matching and preserves return-policy metadata", async () => {
+    let enrichedIds: string[] = [];
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({providerProductId: "accepted"}),
+          candidate({
+            providerProductId: "wrong-condition",
+            condition: "used"
+          })
+        ];
+      },
+      async enrichAcceptedCandidates(input) {
+        enrichedIds = input.candidates.map(
+          (entry) => entry.providerProductId ?? ""
+        );
+        return input.candidates.map((entry) => ({
+          ...entry,
+          returnPolicy: {
+            returnsAccepted: true,
+            returnPeriodValue: 30,
+            returnPeriodUnit: "CALENDAR_DAY",
+            returnShippingCostPayer: "BUYER"
+          }
+        }));
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider]);
+
+    expect(enrichedIds).toEqual(["accepted"]);
+    expect(result.offers).toHaveLength(1);
+    expect(result.offers[0]).toMatchObject({
+      providerProductId: "accepted",
+      returnPolicy: {
+        returnsAccepted: true,
+        returnPeriodValue: 30,
+        returnPeriodUnit: "CALENDAR_DAY",
+        returnShippingCostPayer: "BUYER"
+      }
+    });
+  });
+
+  it("fails open when optional post-match enrichment fails or changes candidate identity", async () => {
+    const throwingProvider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [candidate({providerProductId: "stable"})];
+      },
+      async enrichAcceptedCandidates() {
+        throw new Error("detail API unavailable");
+      }
+    };
+
+    const thrown = await compareWithProviders(listing, [throwingProvider]);
+    expect(thrown.offers).toHaveLength(1);
+    expect(thrown.offers[0]?.providerProductId).toBe("stable");
+    expect(thrown.offers[0]?.returnPolicy).toBeUndefined();
+
+    const mutatingProvider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [candidate({providerProductId: "stable"})];
+      },
+      async enrichAcceptedCandidates({candidates}) {
+        return candidates.map((entry) => ({
+          ...entry,
+          providerProductId: "changed",
+          url: "https://evil.example/changed",
+          returnPolicy: {returnsAccepted: true}
+        }));
+      }
+    };
+
+    const mutated = await compareWithProviders(listing, [mutatingProvider]);
+    expect(mutated.offers[0]?.providerProductId).toBe("stable");
+    expect(mutated.offers[0]?.url).toBe("https://example.test/sony-xm6");
+    expect(mutated.offers[0]?.returnPolicy).toBeUndefined();
+  });
+
   it("exposes bounded review-candidate diagnostics", async () => {
     const source: EcommerceListing = {
       ...listing,

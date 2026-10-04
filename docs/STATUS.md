@@ -92,6 +92,8 @@ Current implementation checkpoint: `11691461ca54ac8741a5e5e1564be66b7a28d4d5` (P
 - [x] Catalog ePID lookup uses separate readonly OAuth scope and concurrent single-flight without persistent product caching
 - [x] condition-separated eBay alternatives (new/open-box/refurbished/used) with current-listing exclusion
 - [x] eBay search-level seller account type + lowest-cost-shipping delivery window context
+- [x] optional post-match eBay item-detail enrichment exposes seller return terms only for a bounded set of auto-matched offers
+- [x] eBay detail enrichment defaults off, caps candidates at 5, uses concurrency 2, single-flights identical item/destination lookups, and fails open
 - [x] eBay alternatives UI with accepted count, cheapest complete landed price, range/median and seller feedback context
 - [x] cross-condition eBay alternatives cannot replace same-condition global best price
 - [x] eBay token/item cache, timeout, 401 refresh and 404/429 handling

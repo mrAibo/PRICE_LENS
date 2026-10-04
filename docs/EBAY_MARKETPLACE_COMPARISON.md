@@ -108,10 +108,31 @@ The delivery window is kept with the same shipping option selected for landed-pr
 calculation, so a faster paid method is not accidentally shown beside a cheaper/free
 shipping price.
 
-Return-policy terms remain a separate future detail-enrichment step because the full
-Browse item resource provides richer item details than search summaries. That detail
-lookup must be bounded to already accepted candidates rather than issuing one request
-for every search hit.
+Return-policy terms use an optional post-match detail-enrichment step because the full
+Browse item resource provides richer item details than search summaries.
+
+The detail path is deliberately after PriceLens matching:
+
+1. marketplace search returns candidate summaries;
+2. PriceLens hard guards and matcher reject wrong products/variants;
+3. only auto-matched candidates are eligible for detail enrichment;
+4. at most `EBAY_MARKETPLACE_DETAIL_LIMIT` candidates are enriched;
+5. detail requests use `EBAY_MARKETPLACE_DETAIL_CONCURRENCY`;
+6. identical item + marketplace + destination detail lookups are single-flighted;
+7. 404/429/timeout/detail errors leave the accepted price offer unchanged.
+
+Production defaults remain conservative:
+
+```text
+EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED=0
+EBAY_MARKETPLACE_DETAIL_LIMIT=5
+EBAY_MARKETPLACE_DETAIL_CONCURRENCY=2
+```
+
+The normalized return-policy summary intentionally keeps only objective terms:
+whether seller-listed returns are accepted, return period, and who pays return
+shipping. UI wording says **Seller return policy**; it does not imply that seller
+terms replace any eBay buyer-protection rights.
 
 Any later recommendation score must remain explainable.
 
@@ -140,7 +161,7 @@ an approval gate.
 - controlled Brand + Model fallback with detail lookups before automatic matching;
 - category-specific variant verification;
 - configurable result limit and provider quota budgeting;
-- bounded accepted-candidate detail lookup for return-policy terms;
+- live validation of accepted-candidate return-policy detail responses;
 - optional eBay-qualified programme context;
 - separate auction section (never mixed with fixed-price comparisons);
 - representative live fixtures and measured same-product precision.

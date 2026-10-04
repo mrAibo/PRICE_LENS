@@ -8,6 +8,7 @@ import type {
   Money,
   PriceProviderId,
   ProductIdentity,
+  ReturnPolicySummary,
   SellerAccountType,
   ProviderReviewCandidate,
   ProviderStatus
@@ -31,6 +32,7 @@ export interface ProviderCandidate {
   sellerFeedbackScore?: number;
   sellerAccountType?: SellerAccountType;
   deliveryWindow?: DeliveryWindow;
+  returnPolicy?: ReturnPolicySummary;
   url: string;
   condition: ListingCondition;
   identity: ProductIdentity;
@@ -45,10 +47,17 @@ export interface ProviderSearchInput {
   signal?: AbortSignal;
 }
 
+export interface AcceptedCandidateEnrichmentInput extends ProviderSearchInput {
+  candidates: ProviderCandidate[];
+}
+
 export interface PriceProvider {
   readonly id: PriceProviderId;
   readonly matchAcrossConditions?: boolean;
   search(input: ProviderSearchInput): Promise<ProviderCandidate[]>;
+  enrichAcceptedCandidates?(
+    input: AcceptedCandidateEnrichmentInput
+  ): Promise<ProviderCandidate[]>;
 }
 
 export function limitProviderConcurrency(
@@ -61,25 +70,35 @@ export function limitProviderConcurrency(
 
   let active = 0;
 
-  return {
+  async function withSlot<T>(operation: () => Promise<T>): Promise<T> {
+    if (active >= maxConcurrent) {
+      throw new Error(
+        `${provider.id} provider concurrency limit reached (${maxConcurrent}).`
+      );
+    }
+
+    active += 1;
+    try {
+      return await operation();
+    } finally {
+      active -= 1;
+    }
+  }
+
+  const limited: PriceProvider = {
     id: provider.id,
     matchAcrossConditions: provider.matchAcrossConditions,
-
-    async search(input) {
-      if (active >= maxConcurrent) {
-        throw new Error(
-          `${provider.id} provider concurrency limit reached (${maxConcurrent}).`
-        );
-      }
-
-      active += 1;
-      try {
-        return await provider.search(input);
-      } finally {
-        active -= 1;
-      }
+    search(input) {
+      return withSlot(() => provider.search(input));
     }
   };
+
+  if (provider.enrichAcceptedCandidates) {
+    limited.enrichAcceptedCandidates = (input) =>
+      withSlot(() => provider.enrichAcceptedCandidates!(input));
+  }
+
+  return limited;
 }
 
 export interface OfferNormalizationResult {
@@ -195,7 +214,10 @@ async function runProvider(
       provider.id
     );
 
-    const accepted: MarketOffer[] = [];
+    const acceptedMatches: Array<{
+      candidate: ProviderCandidate;
+      match: ReturnType<typeof evaluateProviderCandidate>;
+    }> = [];
     const reviewCandidates: ProviderReviewCandidate[] = [];
     let reviewCount = 0;
 
@@ -224,6 +246,45 @@ async function runProvider(
         continue;
       }
 
+      acceptedMatches.push({candidate, match});
+    }
+
+    let acceptedCandidates = acceptedMatches.map(({candidate}) => candidate);
+    if (
+      provider.enrichAcceptedCandidates &&
+      acceptedCandidates.length > 0
+    ) {
+      const elapsed = Date.now() - started;
+      const remainingMs = timeoutMs - elapsed;
+      if (remainingMs > 0) {
+        try {
+          const enriched = await withTimeout(
+            provider.enrichAcceptedCandidates({
+              listing,
+              destination,
+              signal: controller.signal,
+              candidates: acceptedCandidates
+            }),
+            remainingMs,
+            provider.id
+          );
+          if (
+            acceptedCandidateEnrichmentIsValid(
+              acceptedCandidates,
+              enriched,
+              provider.id
+            )
+          ) {
+            acceptedCandidates = enriched;
+          }
+        } catch {
+          // Optional post-match metadata must never discard valid price offers.
+        }
+      }
+    }
+
+    const accepted: MarketOffer[] = acceptedMatches.map(({match}, index) => {
+      const candidate = acceptedCandidates[index]!;
       const landed = calculateLandedPrice(candidate.itemPrice, candidate.shipping);
       const landedCost = assessLandedCost(
         landed.complete,
@@ -231,7 +292,7 @@ async function runProvider(
         destination,
         candidate.importChargesIncluded
       );
-      accepted.push({
+      return {
         provider: provider.id,
         providerProductId: candidate.providerProductId,
         productTitle: candidate.productTitle,
@@ -242,6 +303,7 @@ async function runProvider(
         sellerFeedbackScore: candidate.sellerFeedbackScore,
         sellerAccountType: candidate.sellerAccountType,
         deliveryWindow: candidate.deliveryWindow,
+        returnPolicy: candidate.returnPolicy,
         url: candidate.url,
         condition: candidate.condition,
         itemPrice: candidate.itemPrice,
@@ -253,8 +315,8 @@ async function runProvider(
         matchMethod: match.method,
         matchReason: match.reason,
         fetchedAt: candidate.fetchedAt
-      });
-    }
+      };
+    });
 
     const latencyMs = Date.now() - started;
     if (accepted.length > 0) {
@@ -297,6 +359,25 @@ async function runProvider(
   } finally {
     clearTimeout(timer);
   }
+}
+
+function acceptedCandidateEnrichmentIsValid(
+  original: ProviderCandidate[],
+  enriched: ProviderCandidate[],
+  provider: PriceProviderId
+): boolean {
+  return (
+    enriched.length === original.length &&
+    enriched.every((candidate, index) => {
+      const base = original[index];
+      return (
+        base !== undefined &&
+        candidate.provider === provider &&
+        candidate.providerProductId === base.providerProductId &&
+        candidate.url === base.url
+      );
+    })
+  );
 }
 
 async function withTimeout<T>(

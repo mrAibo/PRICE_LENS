@@ -90,6 +90,16 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED == "0"
+    error_message = "eBay item-detail enrichment must remain opt-in until live Browse validation."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_MARKETPLACE_DETAIL_LIMIT == "5" && local.literal_env.EBAY_MARKETPLACE_DETAIL_CONCURRENCY == "2"
+    error_message = "eBay item-detail enrichment must keep bounded default request volume and concurrency."
+  }
+
+  assert {
     condition     = local.literal_env.ECB_FX_ENABLED == "0"
     error_message = "ECB FX normalization must remain opt-in until live deployment validation."
   }
@@ -194,6 +204,24 @@ run "ebay_catalog_fallback_requires_browse_enablement" {
   variables {
     project_id                         = "price-lens-test"
     ebay_catalog_epid_fallback_enabled = true
+  }
+
+  expect_failures = [
+    check.provider_enablement
+  ]
+}
+
+run "ebay_detail_enrichment_requires_marketplace_comparison" {
+  command = plan
+
+  variables {
+    project_id                                 = "price-lens-test"
+    ebay_browse_enabled                        = true
+    ebay_marketplace_detail_enrichment_enabled = true
+    secret_versions = {
+      EBAY_CLIENT_ID     = "1"
+      EBAY_CLIENT_SECRET = "1"
+    }
   }
 
   expect_failures = [

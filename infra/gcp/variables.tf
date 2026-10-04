@@ -407,6 +407,34 @@ variable "ebay_catalog_marketplace_id" {
   }
 }
 
+variable "ebay_marketplace_detail_enrichment_enabled" {
+  description = "Enable bounded post-match eBay Browse item-detail enrichment for objective return-policy metadata."
+  type        = bool
+  default     = false
+}
+
+variable "ebay_marketplace_detail_limit" {
+  description = "Maximum auto-matched eBay candidates per report eligible for item-detail enrichment."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = floor(var.ebay_marketplace_detail_limit) == var.ebay_marketplace_detail_limit && var.ebay_marketplace_detail_limit >= 0 && var.ebay_marketplace_detail_limit <= 10
+    error_message = "ebay_marketplace_detail_limit must be an integer between 0 and 10."
+  }
+}
+
+variable "ebay_marketplace_detail_concurrency" {
+  description = "Maximum concurrent eBay item-detail requests inside one comparison report."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = floor(var.ebay_marketplace_detail_concurrency) == var.ebay_marketplace_detail_concurrency && var.ebay_marketplace_detail_concurrency >= 1 && var.ebay_marketplace_detail_concurrency <= 4
+    error_message = "ebay_marketplace_detail_concurrency must be an integer between 1 and 4."
+  }
+}
+
 variable "ebay_browse_cache_ttl_ms" {
   description = "eBay product-data cache TTL. Keep 0 until approved freshness rules are known."
   type        = number
