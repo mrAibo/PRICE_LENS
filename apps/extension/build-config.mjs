@@ -42,3 +42,20 @@ export function normalizeApiOrigin(rawValue) {
 export function hostPermissionForOrigin(origin) {
   return `${normalizeApiOrigin(origin)}/*`;
 }
+
+
+export function normalizeGoogleOAuthClientId(rawValue) {
+  const raw = rawValue?.trim();
+  if (!raw) return undefined;
+
+  if (
+    raw.length > 255 ||
+    !/^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(raw)
+  ) {
+    throw new Error(
+      "PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID must be a valid Google OAuth client ID ending in .apps.googleusercontent.com."
+    );
+  }
+
+  return raw;
+}
