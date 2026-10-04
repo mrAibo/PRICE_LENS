@@ -149,6 +149,9 @@ Accepted product direction:
 - [x] same-condition savings are prioritized over used/refurbished alternatives
 - [x] full returned offer list is hidden behind a `+` expansion control
 - [x] UI expansion/collapse must not create another provider request
+- [x] explicit Refresh report action bypasses any reusable report and performs a fresh comparison
+- [x] bounded in-memory tab-session report reuse exists for listing + destination
+- [x] tab-session report reuse defaults to TTL 0 until provider-specific cache/freshness terms permit reuse
 - [x] eBay international comparison fans out across configurable EU marketplaces with deliveryCountry=DE and bounded concurrency
 - [x] raw multi-currency ranking is blocked unless an explicit normalized comparison price exists
 - [x] optional ECB reference FX normalizer preserves original PLN/etc. prices and adds EUR comparison prices

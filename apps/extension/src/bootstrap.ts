@@ -72,7 +72,7 @@ export async function bootstrapPriceLens(
         return mountPriceLens(document, listing, {
           onDisableSharing: disableSharing,
           initialDestination: buyerDestination,
-          async onRequestComparison(destination) {
+          async onRequestComparison(destination, requestOptions) {
             buyerDestination = destination ?? {country: "DE"};
             if (options.destinationStore) {
               try {
@@ -81,7 +81,7 @@ export async function bootstrapPriceLens(
                 // A local storage failure must not block an explicit comparison.
               }
             }
-            await actions.onRequestComparison(buyerDestination);
+            await actions.onRequestComparison(buyerDestination, requestOptions);
           }
         });
       },

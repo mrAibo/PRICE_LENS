@@ -121,6 +121,46 @@ describe("PriceLens unsupported UI", () => {
     expect(shadow?.textContent).toContain("valid postal code");
   });
 
+  it("offers an explicit refresh that bypasses session reuse with the saved destination", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const requests: Array<{destination: unknown; forceRefresh: boolean | undefined}> = [];
+    const view = mountPriceLens(dom.window.document, listing, {
+      initialDestination: {country: "PL", postalCode: "00-001"},
+      async onRequestComparison(destination, options) {
+        requests.push({
+          destination,
+          forceRefresh: options?.forceRefresh
+        });
+      }
+    });
+
+    view.renderComparison({
+      requestId: "refresh-report",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [],
+      providerStatus: [],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    expect(shadow?.textContent).toContain("Refresh report");
+    expect(shadow?.textContent).toContain("query the enabled sources again");
+    expect(requests).toHaveLength(0);
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-refresh]")?.click();
+    await Promise.resolve();
+
+    expect(requests).toEqual([
+      {
+        destination: {country: "PL", postalCode: "00-001"},
+        forceRefresh: true
+      }
+    ]);
+  });
+
   it("shows restricted comparison sources as private beta without treating them as outages", () => {
     const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
     const view = mountPriceLens(dom.window.document, listing);

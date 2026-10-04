@@ -146,6 +146,226 @@ describe("PriceLens content lifecycle", () => {
     lifecycle.stop();
   });
 
+  it("reuses a fresh report for the same listing and destination after tab navigation", async () => {
+    const dom = renderPage();
+    let pageUrl = "https://www.ebay.de/itm/123456789012";
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: result(message.listing)
+      })
+    );
+    const views = [view(), view(), view()];
+    const mount = vi
+      .fn<
+        (
+          document: Document,
+          listing: EcommerceListing,
+          actions: PriceLensReportActions
+        ) => PriceLensView
+      >()
+      .mockReturnValueOnce(views[0]!)
+      .mockReturnValueOnce(views[1]!)
+      .mockReturnValueOnce(views[2]!);
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      getPageUrl: () => pageUrl,
+      sendMessage,
+      mount,
+      reportCacheTtlMs: 60_000
+    });
+
+    await lifecycle.refreshNow();
+    await mount.mock.calls[0]![2].onRequestComparison({
+      country: "DE",
+      postalCode: "30159"
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+
+    pageUrl = "https://www.ebay.de/itm/223456789012";
+    await lifecycle.refreshNow();
+    pageUrl = "https://www.ebay.de/itm/123456789012";
+    await lifecycle.refreshNow();
+
+    await mount.mock.calls[2]![2].onRequestComparison({
+      country: "DE",
+      postalCode: "30159"
+    });
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(views[2]!.renderLoading).not.toHaveBeenCalled();
+    expect(views[2]!.renderComparison).toHaveBeenCalledTimes(1);
+    lifecycle.stop();
+  });
+
+  it("does not reuse a report when the buyer destination changes", async () => {
+    const dom = renderPage();
+    let pageUrl = "https://www.ebay.de/itm/123456789012";
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: result(message.listing)
+      })
+    );
+    const mount = vi.fn<
+      (
+        document: Document,
+        listing: EcommerceListing,
+        actions: PriceLensReportActions
+      ) => PriceLensView
+    >(() => view());
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      getPageUrl: () => pageUrl,
+      sendMessage,
+      mount,
+      reportCacheTtlMs: 60_000
+    });
+
+    await lifecycle.refreshNow();
+    await mount.mock.calls[0]![2].onRequestComparison({
+      country: "DE",
+      postalCode: "30159"
+    });
+
+    pageUrl = "https://www.ebay.de/itm/223456789012";
+    await lifecycle.refreshNow();
+    pageUrl = "https://www.ebay.de/itm/123456789012";
+    await lifecycle.refreshNow();
+
+    await mount.mock.calls[2]![2].onRequestComparison({
+      country: "PL",
+      postalCode: "00-001"
+    });
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls[1]?.[0]).toMatchObject({
+      destination: {country: "PL", postalCode: "00-001"}
+    });
+    lifecycle.stop();
+  });
+
+  it("forces a new provider request when the user refreshes a loaded report", async () => {
+    const dom = renderPage();
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: result(message.listing)
+      })
+    );
+    const mountedView = view();
+    const mount = vi.fn<
+      (
+        document: Document,
+        listing: EcommerceListing,
+        actions: PriceLensReportActions
+      ) => PriceLensView
+    >(() => mountedView);
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      sendMessage,
+      mount,
+      reportCacheTtlMs: 60_000
+    });
+
+    await lifecycle.refreshNow();
+    const actions = mount.mock.calls[0]![2];
+    const destination = {country: "DE", postalCode: "30159"};
+    await actions.onRequestComparison(destination);
+    await actions.onRequestComparison(destination, {forceRefresh: true});
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(mountedView.renderLoading).toHaveBeenCalledTimes(2);
+    expect(mountedView.renderComparison).toHaveBeenCalledTimes(2);
+    lifecycle.stop();
+  });
+
+  it("expires session reports after the configured TTL", async () => {
+    const dom = renderPage();
+    let pageUrl = "https://www.ebay.de/itm/123456789012";
+    let now = 1_000;
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: result(message.listing)
+      })
+    );
+    const mount = vi.fn<
+      (
+        document: Document,
+        listing: EcommerceListing,
+        actions: PriceLensReportActions
+      ) => PriceLensView
+    >(() => view());
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      getPageUrl: () => pageUrl,
+      sendMessage,
+      mount,
+      reportCacheTtlMs: 100,
+      now: () => now
+    });
+
+    await lifecycle.refreshNow();
+    await mount.mock.calls[0]![2].onRequestComparison({country: "DE"});
+
+    pageUrl = "https://www.ebay.de/itm/223456789012";
+    await lifecycle.refreshNow();
+    pageUrl = "https://www.ebay.de/itm/123456789012";
+    now = 1_101;
+    await lifecycle.refreshNow();
+    await mount.mock.calls[2]![2].onRequestComparison({country: "DE"});
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    lifecycle.stop();
+  });
+
+  it("keeps cross-navigation report reuse disabled by default", async () => {
+    const dom = renderPage();
+    let pageUrl = "https://www.ebay.de/itm/123456789012";
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: result(message.listing)
+      })
+    );
+    const mount = vi.fn<
+      (
+        document: Document,
+        listing: EcommerceListing,
+        actions: PriceLensReportActions
+      ) => PriceLensView
+    >(() => view());
+
+    const lifecycle = createPriceLensLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      getPageUrl: () => pageUrl,
+      sendMessage,
+      mount
+    });
+
+    await lifecycle.refreshNow();
+    await mount.mock.calls[0]![2].onRequestComparison({country: "DE"});
+
+    pageUrl = "https://www.ebay.de/itm/223456789012";
+    await lifecycle.refreshNow();
+    pageUrl = "https://www.ebay.de/itm/123456789012";
+    await lifecycle.refreshNow();
+    await mount.mock.calls[2]![2].onRequestComparison({country: "DE"});
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    lifecycle.stop();
+  });
+
   it("shows an explicit unsupported state without sending a comparison request", async () => {
     const dom = new JSDOM(`
       <!doctype html><html><head>

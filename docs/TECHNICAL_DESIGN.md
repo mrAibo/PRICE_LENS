@@ -155,6 +155,9 @@ The page lifecycle layer must:
 - render a ready/idle PriceLens control after safe local extraction
 - send **no comparison/API request until the user explicitly requests a report**
 - prevent duplicate requests after a report has already loaded for the current fingerprint
+- expose an explicit Refresh report action that bypasses reuse and makes a fresh request
+- support bounded in-memory report reuse by listing fingerprint + buyer destination when an explicitly approved positive TTL is configured
+- keep report-reuse TTL at 0 by default until active-provider freshness/cache rules permit it
 - ignore stale asynchronous responses if the listing changes during a requested report
 - render an explicit unsupported state when an item page cannot be normalized safely
 - send no comparison/API request for an unsupported extraction state
@@ -189,7 +192,8 @@ Request:
     },
     "extractionEvidence": ["jsonld"],
     "extractionWarnings": []
-  }
+  },
+  "destination": {"country": "DE", "postalCode": "30159"}
 }
 ```
 
@@ -337,6 +341,19 @@ AMAZON_CREATORS_CACHE_TTL_MS=0
 
 A positive TTL may be enabled only after the applicable provider policy is validated.
 The configuration rejects negative, fractional or unsafe integer TTL values.
+
+The extension also contains a separate **memory-only tab report reuse capability**.
+This is not Chrome storage and is not a durable product-history cache. Its lifecycle
+rules are:
+
+- default report-reuse TTL is `0 ms` (disabled);
+- key = normalized listing fingerprint + explicit buyer country/postal code;
+- entries are bounded (20 by default) and TTL-expire when enabled;
+- changing listing price/variant/destination produces a different key;
+- **Refresh report** always bypasses reuse;
+- stopping the PriceLens lifecycle clears the memory cache;
+- a positive reuse TTL may be enabled only when the most restrictive approved cache/
+  freshness rule among all active providers permits that retention window.
 
 Future persistent/shared cache key priority:
 
