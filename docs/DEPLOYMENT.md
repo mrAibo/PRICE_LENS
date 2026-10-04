@@ -185,6 +185,23 @@ Terraform creates Secret Manager **containers and IAM only**. Credential values 
 added out-of-band. Cloud Run receives only explicitly pinned numeric Secret Manager
 versions; `latest` is rejected by input validation so rotations are deliberate.
 
+The authenticated pilot/session foundation adds two backend-only secrets:
+
+```text
+PRICE_LENS_SESSION_SIGNING_SECRET
+PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON
+```
+
+The signing secret must contain at least 32 UTF-8 bytes. The subject-tier secret is a
+JSON object keyed by Google's stable `sub` identifier, for example
+`{"109876543210987654321":"pilot"}`. Do not use email addresses as entitlement keys.
+
+When `session_auth_enabled=true`, Terraform requires explicit pinned versions for both
+secrets. Rotate the signing secret deliberately because existing PriceLens sessions
+become invalid after a rotation. Updating only the subject-tier map changes entitlement
+on the next comparison because tier is re-resolved server-side rather than trusted from
+the session token.
+
 The initial Cloud Armor comparison throttle remains in preview until measured traffic
 and provider quotas justify enforcement. A separate edge `Content-Length` rule rejects
 declared comparison bodies over 64 KiB; the Node API keeps its independent body-size
