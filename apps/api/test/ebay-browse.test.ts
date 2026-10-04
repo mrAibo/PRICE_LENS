@@ -607,6 +607,197 @@ describe("eBay Browse enrichment", () => {
     expect(result.identity.epid).toBe("666666666");
   });
 
+  it("verifies an explicit Catalog edition aspect before accepting Brand+Model fallback", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleConsole",
+          product: {model: "Console X"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "777777777", brand: "ExampleConsole"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "777777777",
+          brand: "ExampleConsole",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Console X"]},
+            {localizedName: "Edition", localizedValues: ["Digital Edition"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {edition: "Digital Edition"}}
+    });
+
+    expect(result.identity).toMatchObject({
+      brand: "ExampleConsole",
+      model: "Console X",
+      epid: "777777777",
+      variant: {edition: "Digital Edition"}
+    });
+  });
+
+  it("rejects an ePID when the explicit Catalog edition conflicts", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleConsole",
+          product: {model: "Console X"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "777777777", brand: "ExampleConsole"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "777777777",
+          brand: "ExampleConsole",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Console X"]},
+            {localizedName: "Edition", localizedValues: ["Disc Edition"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {edition: "Digital Edition"}}
+    });
+
+    expect(result.identity.epid).toBeUndefined();
+  });
+
+  it("verifies an explicit Catalog model-number aspect before accepting a model qualifier", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleConsole",
+          product: {model: "Console X"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "888888888", brand: "ExampleConsole"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "888888888",
+          brand: "ExampleConsole",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Console X"]},
+            {localizedName: "Model Number", localizedValues: ["CFI-2016A"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {modelQualifier: "CFI-2016A"}}
+    });
+
+    expect(result.identity).toMatchObject({
+      epid: "888888888",
+      variant: {modelQualifier: "CFI-2016A"}
+    });
+  });
+
+  it("rejects an ePID when a required model-qualifier aspect is missing", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleConsole",
+          product: {model: "Console X"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "888888888", brand: "ExampleConsole"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "888888888",
+          brand: "ExampleConsole",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Console X"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {modelQualifier: "CFI-2016A"}}
+    });
+
+    expect(result.identity.epid).toBeUndefined();
+  });
+
   it("does not attempt Brand+Model fallback when an unsupported structured variant is present", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -629,13 +820,13 @@ describe("eBay Browse enrichment", () => {
 
     const result = await enricher.enrich({
       ...baseListing,
-      identity: {variant: {edition: "Limited Edition"}}
+      identity: {variant: {bundleIncluded: true}}
     });
 
     expect(result.identity).toMatchObject({
       brand: "ExampleConsole",
       model: "Console X",
-      variant: {edition: "Limited Edition"}
+      variant: {bundleIncluded: true}
     });
     expect(result.identity.epid).toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
