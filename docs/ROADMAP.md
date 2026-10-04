@@ -394,6 +394,9 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] two-phase bootstrap/runtime infrastructure workflow documented
 - [x] keyless GitHub Actions WIF image-publisher IaC with immutable repository/main trust boundary
 - [x] manual GitHub workflow publishes Git-SHA API images to Artifact Registry without service-account keys
+- [x] separate protected GCS Terraform-state bootstrap with versioning, uniform access and Public Access Prevention
+- [x] production Terraform root declares configurable GCS backend; CI remains credential-free with `-backend=false`
+- [ ] apply remote-state bootstrap in the production GCP project and initialize/migrate `infra/gcp`
 - [ ] apply WIF bootstrap in the production GCP project and configure GitHub repository variables
 - [x] extension build-time API-origin configuration
 - [x] generated extension artifact verification in CI
