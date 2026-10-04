@@ -407,6 +407,35 @@ variable "ebay_catalog_marketplace_id" {
   }
 }
 
+variable "ebay_catalog_brand_model_fallback_enabled" {
+  description = "Enable conservative Brand+Model -> Catalog query -> exact detail-verified unique ePID fallback."
+  type        = bool
+  default     = false
+}
+
+variable "ebay_catalog_brand_model_candidate_limit" {
+  description = "Maximum Catalog query candidates eligible for Brand+Model detail verification."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = floor(var.ebay_catalog_brand_model_candidate_limit) == var.ebay_catalog_brand_model_candidate_limit && var.ebay_catalog_brand_model_candidate_limit >= 1 && var.ebay_catalog_brand_model_candidate_limit <= 10
+    error_message = "ebay_catalog_brand_model_candidate_limit must be an integer between 1 and 10."
+  }
+}
+
+variable "ebay_catalog_brand_model_detail_concurrency" {
+  description = "Maximum concurrent Catalog getProduct requests used to prove a unique Brand+Model ePID."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = floor(var.ebay_catalog_brand_model_detail_concurrency) == var.ebay_catalog_brand_model_detail_concurrency && var.ebay_catalog_brand_model_detail_concurrency >= 1 && var.ebay_catalog_brand_model_detail_concurrency <= 4
+    error_message = "ebay_catalog_brand_model_detail_concurrency must be an integer between 1 and 4."
+  }
+}
+
+
 variable "ebay_marketplace_detail_enrichment_enabled" {
   description = "Enable bounded post-match eBay Browse item-detail enrichment for objective return-policy metadata."
   type        = bool
