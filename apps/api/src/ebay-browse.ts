@@ -33,16 +33,30 @@ export const EBAY_EU_MARKETPLACE_IDS = [
 
 export type EbayEuMarketplaceId = typeof EBAY_EU_MARKETPLACE_IDS[number];
 
-const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, string> = {
-  EBAY_DE: "ebay.de",
-  EBAY_PL: "ebay.pl",
-  EBAY_AT: "ebay.at",
-  EBAY_FR: "ebay.fr",
-  EBAY_IT: "ebay.it",
-  EBAY_ES: "ebay.es",
-  EBAY_NL: "ebay.nl",
-  EBAY_BE: "ebay.be"
+const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, readonly string[]> = {
+  EBAY_DE: ["ebay.de"],
+  EBAY_PL: ["ebay.pl"],
+  EBAY_AT: ["ebay.at"],
+  EBAY_FR: ["ebay.fr"],
+  EBAY_IT: ["ebay.it"],
+  EBAY_ES: ["ebay.es"],
+  EBAY_NL: ["ebay.nl"],
+  EBAY_BE: ["ebay.be", "ebay.com.be"]
 };
+
+const EBAY_CATALOG_MARKETPLACE_IDS = [
+  "EBAY_DE",
+  "EBAY_ES",
+  "EBAY_FR",
+  "EBAY_IT"
+] as const;
+
+type EbayCatalogMarketplaceId =
+  typeof EBAY_CATALOG_MARKETPLACE_IDS[number];
+
+type EbayMarketplaceDiscovery =
+  | {kind: "gtin"; value: string}
+  | {kind: "epid"; value: string};
 
 export interface EbayBrowseEnricherOptions {
   clientId: string;
@@ -52,6 +66,8 @@ export interface EbayBrowseEnricherOptions {
   marketplaceSearchIds?: string[];
   deliveryCountry?: string;
   marketplaceSearchConcurrency?: number;
+  catalogEpidFallbackEnabled?: boolean;
+  catalogMarketplaceId?: string;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -78,6 +94,8 @@ export class EbayBrowseEnricher {
   private readonly marketplaceSearchIds: EbayEuMarketplaceId[];
   private readonly deliveryCountry: string;
   private readonly marketplaceSearchConcurrency: number;
+  private readonly catalogEpidFallbackEnabled: boolean;
+  private readonly catalogMarketplaceId: EbayCatalogMarketplaceId;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -88,6 +106,8 @@ export class EbayBrowseEnricher {
   private readonly itemInFlight = new Map<string, Promise<JsonRecord | null>>();
   private tokenCache?: CachedToken;
   private tokenInFlight?: Promise<string>;
+  private catalogTokenCache?: CachedToken;
+  private catalogTokenInFlight?: Promise<string>;
 
   constructor(options: EbayBrowseEnricherOptions) {
     this.clientId = requireNonEmpty(options.clientId, "eBay client id");
@@ -104,6 +124,18 @@ export class EbayBrowseEnricher {
     this.marketplaceSearchConcurrency = validatePositiveInteger(
       options.marketplaceSearchConcurrency ?? 3,
       "eBay marketplace search concurrency"
+    );
+    this.catalogEpidFallbackEnabled =
+      options.catalogEpidFallbackEnabled ?? false;
+    this.catalogMarketplaceId = validateCatalogMarketplaceId(
+      options.catalogMarketplaceId ??
+        (
+          EBAY_CATALOG_MARKETPLACE_IDS.includes(
+            this.marketplaceId as EbayCatalogMarketplaceId
+          )
+            ? this.marketplaceId
+            : "EBAY_DE"
+        )
     );
     this.timeoutMs = options.timeoutMs ?? 4000;
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "eBay Browse");
