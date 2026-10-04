@@ -29,6 +29,7 @@ export interface ProductIdentity {
   gtin?: string;
   ean?: string;
   upc?: string;
+  epid?: string;
   variant?: ProductVariant;
 }
 
@@ -58,7 +59,14 @@ export type PriceProviderId =
   | "geizhals"
   | "amazon"
   | "fixture";
-export type MatchMethod = "gtin" | "mpn" | "model" | "fuzzy" | "manual" | "unknown";
+export type MatchMethod =
+  | "gtin"
+  | "epid"
+  | "mpn"
+  | "model"
+  | "fuzzy"
+  | "manual"
+  | "unknown";
 
 export interface FxConversion {
   source: "ecb_reference";
