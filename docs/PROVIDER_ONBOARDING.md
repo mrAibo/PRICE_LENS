@@ -50,6 +50,53 @@ EBAY_BROWSE_CACHE_TTL_MS=0
 
 Do not share the Cert ID / Client Secret in a GitHub issue or chat.
 
+### Redacted live validation
+
+After the backend is running with credentials configured, validate the real integration
+through PriceLens itself rather than calling provider APIs manually:
+
+```bash
+npm run providers:live-check -- \
+  --origin http://127.0.0.1:8787 \
+  --ebay-item-id <REAL_EBAY_DE_ITEM_ID> \
+  --country DE \
+  --postal-code <POSTAL_CODE> \
+  --require ebay_enrichment,ebay_market
+```
+
+For a deployed API, use its HTTPS origin. To require additional configured providers:
+
+```bash
+npm run providers:live-check -- \
+  --origin https://api.your-owned-domain.de \
+  --ebay-item-id <REAL_EBAY_DE_ITEM_ID> \
+  --country DE \
+  --require ebay_enrichment,ebay_market,amazon,fx \
+  --output provider-live-check.json
+```
+
+If the API needs a pilot session for private-beta providers, put the short-lived
+PriceLens session in the process environment only:
+
+```bash
+PRICE_LENS_LIVE_SESSION_TOKEN=<SHORT_LIVED_SESSION> \
+npm run providers:live-check -- ...
+```
+
+Do not put the session token on the command line or in the output file.
+
+The report is deliberately redacted. It records provider configuration/state, latency,
+aggregate offer counts, whether strong identity fields were present and whether ECB FX
+normalization was exercised. It does **not** record the eBay item ID, listing title,
+brand/model values, GTIN/EAN/UPC/ePID values, seller names, provider product IDs,
+offer URLs, request IDs, credentials or session tokens.
+
+A required provider fails the command if it is unconfigured or returns an error.
+`ebay_enrichment` additionally requires actual `ebay-browse:` enrichment evidence
+with no enrichment-fallback warning. The harness is therefore suitable as durable
+evidence for the current live-validation gates without committing customer/product
+identifiers.
+
 ### Production
 
 eBay documents separate Sandbox and Production credentials. For Buy API production
