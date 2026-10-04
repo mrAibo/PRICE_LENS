@@ -23,6 +23,9 @@ locals {
     PRICE_LENS_METRICS_EVERY              = tostring(var.metrics_every)
     PRICE_LENS_MAX_CONCURRENT_COMPARISONS = tostring(var.max_concurrent_comparisons)
     PRICE_LENS_PROVIDER_MAX_CONCURRENCY   = tostring(var.provider_max_concurrency)
+    PRICE_LENS_SESSION_AUTH_ENABLED        = var.session_auth_enabled ? "1" : "0"
+    PRICE_LENS_SESSION_TTL_SECONDS         = tostring(var.session_ttl_seconds)
+    PRICE_LENS_GOOGLE_VERIFY_TIMEOUT_MS    = tostring(var.google_identity_verify_timeout_ms)
 
     EBAY_BROWSE_ENABLED                 = var.ebay_browse_enabled ? "1" : "0"
     EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
@@ -92,6 +95,17 @@ check "secret_version_keys" {
 }
 
 check "provider_enablement" {
+  assert {
+    condition = (
+      !var.session_auth_enabled ||
+      (
+        contains(keys(var.secret_versions), "PRICE_LENS_SESSION_SIGNING_SECRET") &&
+        contains(keys(var.secret_versions), "PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON")
+      )
+    )
+    error_message = "Session auth requires pinned PRICE_LENS_SESSION_SIGNING_SECRET and PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON secret versions."
+  }
+
   assert {
     condition = (
       !var.ebay_browse_enabled ||
@@ -315,6 +329,30 @@ resource "google_compute_security_policy" "api" {
     match {
       expr {
         expression = "request.path == '/v1/compare' && request.method == 'POST' && has(request.headers['content-length']) && int(request.headers['content-length']) > ${var.edge_max_body_bytes}"
+      }
+    }
+  }
+
+  rule {
+    action      = "throttle"
+    priority    = 150
+    description = "Per-IP authenticated-session exchange budget"
+    preview     = false
+
+    match {
+      expr {
+        expression = "request.path == '/v1/session/google' && request.method == 'POST'"
+      }
+    }
+
+    rate_limit_options {
+      conform_action = "allow"
+      exceed_action  = "deny(429)"
+      enforce_on_key = "IP"
+
+      rate_limit_threshold {
+        count        = var.auth_exchange_requests_per_interval
+        interval_sec = var.cloud_armor_interval_sec
       }
     }
   }
