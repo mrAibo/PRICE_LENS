@@ -3,7 +3,10 @@ import type {
   ComparisonResult,
   EcommerceListing
 } from "@price-lens/contracts";
-import {requestComparison} from "../src/api/client.js";
+import {
+  exchangeGoogleSession,
+  requestComparison
+} from "../src/api/client.js";
 
 const listing: EcommerceListing = {
   source: "ebay",
@@ -44,6 +47,22 @@ describe("PriceLens API client", () => {
     await expect(
       requestComparison(listing, {fetchImpl})
     ).resolves.toEqual(result);
+  });
+
+  it("adds the short-lived PriceLens bearer session only when provided", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("authorization")).toBe("Bearer aaa.bbb.cccccccccccccccccccccccccccccc");
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: {"content-type": "application/json"}
+      });
+    }) as typeof fetch;
+
+    await requestComparison(listing, {
+      fetchImpl,
+      sessionToken: "aaa.bbb.cccccccccccccccccccccccccccccc"
+    });
   });
 
   it("posts an explicit buyer destination when provided", async () => {
@@ -89,3 +108,50 @@ describe("PriceLens API client", () => {
     ).rejects.toThrow("invalid comparison payload");
   });
 });
+
+describe("PriceLens Google session exchange client", () => {
+  it("exchanges a Google access token for a validated short-lived PriceLens session", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://127.0.0.1:8787/v1/session/google");
+      expect(init?.method).toBe("POST");
+      expect(new Headers(init?.headers).get("authorization")).toBeNull();
+      expect(JSON.parse(String(init?.body))).toEqual({
+        accessToken: "google-access-token-1234567890"
+      });
+      return new Response(
+        JSON.stringify({
+          sessionToken: "aaa.bbb.cccccccccccccccccccccccccccccc",
+          expiresAt: "2026-10-04T07:15:00.000Z",
+          tier: "pilot"
+        }),
+        {
+          status: 200,
+          headers: {"content-type": "application/json"}
+        }
+      );
+    }) as typeof fetch;
+
+    await expect(
+      exchangeGoogleSession("google-access-token-1234567890", {fetchImpl})
+    ).resolves.toEqual({
+      sessionToken: "aaa.bbb.cccccccccccccccccccccccccccccc",
+      expiresAt: "2026-10-04T07:15:00.000Z",
+      tier: "pilot"
+    });
+  });
+
+  it("rejects malformed exchange payloads", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({
+        sessionToken: "bad",
+        expiresAt: "never",
+        tier: "admin"
+      }), {status: 200})
+    ) as typeof fetch;
+
+    await expect(
+      exchangeGoogleSession("google-access-token-1234567890", {fetchImpl})
+    ).rejects.toThrow("invalid session payload");
+  });
+});
+

@@ -1,26 +1,153 @@
-import {requestComparison} from "./api/client.js";
+import {
+  exchangeGoogleSession,
+  requestComparison
+} from "./api/client.js";
+import {
+  createCallbackStorageAdapter,
+  type RuntimeErrorSource
+} from "./browser-api.js";
+import {acquireGooglePilotAccessToken} from "./google-pilot-auth.js";
 import {
   isCompareMessage,
-  type CompareResponse
+  isPilotAuthStatusMessage,
+  isPilotSignInMessage,
+  isPilotSignOutMessage,
+  type CompareMessage,
+  type CompareResponse,
+  type PilotAuthResponse
 } from "./messages.js";
+import {
+  createPilotSessionStore,
+  toPilotAuthStatus
+} from "./pilot-session.js";
+
+declare const __PRICE_LENS_GOOGLE_AUTH_ENABLED__: boolean | undefined;
+
+const googleAuthEnabled =
+  typeof __PRICE_LENS_GOOGLE_AUTH_ENABLED__ === "boolean" &&
+  __PRICE_LENS_GOOGLE_AUTH_ENABLED__;
+
+const runtimeErrorSource = chrome.runtime as unknown as RuntimeErrorSource;
+const pilotSessionStore = createPilotSessionStore(
+  createCallbackStorageAdapter(chrome.storage.session, runtimeErrorSource)
+);
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!isCompareMessage(message)) return false;
+  if (isCompareMessage(message)) {
+    void handleComparison(message)
+      .then((response) => sendResponse(response))
+      .catch((error: unknown) => {
+        const response: CompareResponse = {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Comparison request failed."
+        };
+        sendResponse(response);
+      });
+    return true;
+  }
 
-  void requestComparison(message.listing, {
-    destination: message.destination
-  })
-    .then((result) => {
-      const response: CompareResponse = {ok: true, result};
-      sendResponse(response);
-    })
-    .catch((error: unknown) => {
-      const response: CompareResponse = {
-        ok: false,
-        error: error instanceof Error ? error.message : "Comparison request failed."
-      };
-      sendResponse(response);
-    });
+  if (isPilotAuthStatusMessage(message)) {
+    void readPilotAuthStatus()
+      .then((status) => {
+        const response: PilotAuthResponse = {ok: true, status};
+        sendResponse(response);
+      })
+      .catch((error: unknown) => {
+        const response: PilotAuthResponse = {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Pilot authentication status is unavailable."
+        };
+        sendResponse(response);
+      });
+    return true;
+  }
 
-  return true;
+  if (isPilotSignInMessage(message)) {
+    void signInPilot()
+      .then((status) => {
+        const response: PilotAuthResponse = {ok: true, status};
+        sendResponse(response);
+      })
+      .catch((error: unknown) => {
+        const response: PilotAuthResponse = {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Pilot sign-in failed."
+        };
+        sendResponse(response);
+      });
+    return true;
+  }
+
+  if (isPilotSignOutMessage(message)) {
+    void pilotSessionStore
+      .clearSession()
+      .then(() => {
+        const response: PilotAuthResponse = {
+          ok: true,
+          status: toPilotAuthStatus(googleAuthEnabled)
+        };
+        sendResponse(response);
+      })
+      .catch((error: unknown) => {
+        const response: PilotAuthResponse = {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Pilot sign-out failed."
+        };
+        sendResponse(response);
+      });
+    return true;
+  }
+
+  return false;
 });
+
+async function handleComparison(
+  message: CompareMessage
+): Promise<CompareResponse> {
+  const session = googleAuthEnabled
+    ? await pilotSessionStore.getValidSession().catch(() => undefined)
+    : undefined;
+
+  const result = await requestComparison(message.listing, {
+    destination: message.destination,
+    sessionToken: session?.sessionToken
+  });
+  return {ok: true, result};
+}
+
+async function readPilotAuthStatus() {
+  if (!googleAuthEnabled) {
+    return toPilotAuthStatus(false);
+  }
+
+  const session = await pilotSessionStore
+    .getValidSession()
+    .catch(() => undefined);
+  return toPilotAuthStatus(true, session);
+}
+
+async function signInPilot() {
+  if (!googleAuthEnabled) {
+    throw new Error("Pilot Google sign-in is not configured in this build.");
+  }
+  if (!chrome.identity?.getAuthToken) {
+    throw new Error("Chrome identity is unavailable in this browser.");
+  }
+
+  const accessToken = await acquireGooglePilotAccessToken(chrome.identity);
+  const exchange = await exchangeGoogleSession(accessToken);
+  await pilotSessionStore.setSession(exchange);
+  return toPilotAuthStatus(true, exchange);
+}

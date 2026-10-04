@@ -140,8 +140,23 @@ These are local preferences, not advertising identifiers or account IDs. The
 destination contains no street address and is transmitted only when the user explicitly
 requests a report.
 
-Selecting **Disable PriceLens data sharing** revokes consent and clears the saved buyer
-destination preference.
+An opt-in Chrome pilot build can additionally use `chrome.storage.session` for:
+
+```text
+priceLensPilotSession.v1 = { sessionToken, expiresAt, tier }
+```
+
+This bearer session is issued by the PriceLens backend, is short-lived (15 minutes by
+default), is not a provider credential and is not written to `chrome.storage.local`.
+Expired/malformed sessions are removed instead of being sent.
+
+The Google OAuth access token used to create that session is transient: the extension
+does not write it to PriceLens storage. Pilot Chrome builds request the `identity`
+permission and only the `openid` scope. Public Chrome and Firefox builds do not contain
+that OAuth configuration and remain anonymous/free.
+
+Selecting **Disable PriceLens data sharing** revokes consent, clears the saved buyer
+destination preference and clears any active short-lived PriceLens pilot session.
 
 Comparison reports are not written to Chrome local storage. The content-script lifecycle
 contains a bounded in-memory tab-session reuse capability keyed by the normalized
@@ -220,6 +235,11 @@ Current controls:
   not trigger another provider/API request.
 - **Refresh report** — explicitly requests a fresh comparison and bypasses any eligible
   in-memory tab-session report reuse.
+- **Sign in with Google** — present only in an explicitly configured Chrome pilot build
+  when private-beta sources are restricted; starts an interactive Google OAuth flow and
+  exchanges the access token for a short-lived PriceLens session.
+- **Sign out of pilot access** — clears the short-lived PriceLens session and refreshes
+  the report under public restrictions.
 - **Not now** — performs no comparison and stores no consent.
 - **Disable PriceLens data sharing** — revokes the local consent flag and stops the
   PriceLens lifecycle on the page.

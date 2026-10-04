@@ -161,6 +161,93 @@ describe("PriceLens unsupported UI", () => {
     ]);
   });
 
+  it("offers explicit Google sign-in only when pilot auth is enabled and the report is restricted", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let signInCalls = 0;
+    const view = mountPriceLens(dom.window.document, listing, {
+      pilotAuth: {
+        getStatus: () => ({enabled: true, signedIn: false}),
+        async onSignIn() {
+          signInCalls += 1;
+        },
+        async onSignOut() {}
+      }
+    });
+
+    view.renderComparison({
+      requestId: "pilot-login",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [],
+      providerStatus: [
+        {provider: "idealo", state: "restricted"},
+        {provider: "geizhals", state: "restricted"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    expect(shadow?.textContent).toContain("Sign in with Google");
+    expect(shadow?.textContent).toContain("short-lived Google OAuth access token");
+
+    shadow
+      ?.querySelector<HTMLButtonElement>("[data-price-lens-pilot-signin]")
+      ?.click();
+    await Promise.resolve();
+
+    expect(signInCalls).toBe(1);
+  });
+
+  it("shows pilot enrollment state and a sign-out control without exposing identity data", async () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    let signOutCalls = 0;
+    const view = mountPriceLens(dom.window.document, listing, {
+      onDisableSharing: async () => {},
+      pilotAuth: {
+        getStatus: () => ({
+          enabled: true,
+          signedIn: true,
+          tier: "free",
+          expiresAt: "2026-10-04T07:15:00Z"
+        }),
+        async onSignIn() {},
+        async onSignOut() {
+          signOutCalls += 1;
+        }
+      }
+    });
+
+    view.renderComparison({
+      requestId: "pilot-free",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [],
+      providerStatus: [
+        {provider: "idealo", state: "restricted"},
+        {provider: "geizhals", state: "restricted"}
+      ],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    });
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const text = shadow?.textContent ?? "";
+    expect(text).toContain("not enrolled in the private beta");
+    expect(text).toContain("Pilot sign-in active · free");
+    expect(text).toContain("Sign out of pilot access");
+    expect(text).not.toContain("@");
+
+    shadow
+      ?.querySelector<HTMLButtonElement>("[data-price-lens-pilot-signout]")
+      ?.click();
+    await Promise.resolve();
+
+    expect(signOutCalls).toBe(1);
+  });
+
   it("shows restricted comparison sources as private beta without treating them as outages", () => {
     const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
     const view = mountPriceLens(dom.window.document, listing);

@@ -42,3 +42,22 @@ export function normalizeApiOrigin(rawValue) {
 export function hostPermissionForOrigin(origin) {
   return `${normalizeApiOrigin(origin)}/*`;
 }
+
+
+export function normalizeGoogleOauthClientId(rawValue) {
+  if (rawValue === undefined || rawValue === null || rawValue.trim() === "") {
+    return undefined;
+  }
+
+  const value = rawValue.trim();
+  if (
+    value.length > 512 ||
+    /\s/.test(value) ||
+    !/^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(value)
+  ) {
+    throw new Error(
+      "PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID must be a Google OAuth client ID ending in .apps.googleusercontent.com."
+    );
+  }
+  return value;
+}

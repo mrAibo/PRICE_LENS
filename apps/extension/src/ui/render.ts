@@ -11,6 +11,7 @@ import {
   normalizeBuyerDestination,
   SUPPORTED_BUYER_COUNTRIES
 } from "../buyer-destination.js";
+import type {PilotAuthStatus} from "../pilot-session.js";
 
 export interface PriceLensView {
   renderLoading(): void;
@@ -29,6 +30,12 @@ export interface PriceLensReportActions {
   ) => void | Promise<void>;
 }
 
+export interface PriceLensPilotAuthUiOptions {
+  getStatus: () => PilotAuthStatus;
+  onSignIn: () => void | Promise<void>;
+  onSignOut: () => void | Promise<void>;
+}
+
 export interface PriceLensUiOptions {
   onDisableSharing?: () => void | Promise<void>;
   onRequestComparison?: (
@@ -36,6 +43,7 @@ export interface PriceLensUiOptions {
     options?: PriceLensComparisonRequestOptions
   ) => void | Promise<void>;
   initialDestination?: BuyerDestination;
+  pilotAuth?: PriceLensPilotAuthUiOptions;
 }
 
 export interface PriceLensConsentOptions {
@@ -212,6 +220,8 @@ function render(
   wireRequestComparison(root, options);
   wireRefreshComparison(root, options);
   wireFullExpansion(root);
+  wirePilotSignIn(root, options);
+  wirePilotSignOut(root, options);
   wireDisableSharing(root, options);
 }
 
@@ -313,7 +323,7 @@ function renderResult(
   return `
     ${compact}
     ${renderReportRefresh(result, options)}
-    ${renderRestrictedSources(statuses)}
+    ${renderRestrictedSources(statuses, options)}
     ${expandable ? `
       <button type="button" class="expand-button" data-price-lens-expand>
         + Show full report${result.offers.length > 0 ? ` (${result.offers.length} matched offers)` : ""}
@@ -473,18 +483,60 @@ function renderCompactOffer(
   `;
 }
 
-function renderRestrictedSources(statuses: ProviderStatus[]): string {
+function renderRestrictedSources(
+  statuses: ProviderStatus[],
+  options: PriceLensUiOptions
+): string {
   const restricted = statuses.filter((status) => status.state === "restricted");
   if (restricted.length === 0) return "";
+
+  const sources = escapeHtml(
+    restricted.map((status) => providerLabel(status.provider)).join(" · ")
+  );
+  const auth = options.pilotAuth;
+  const authStatus = auth?.getStatus();
+
+  if (!auth || !authStatus?.enabled) {
+    return `
+      <div class="restricted-box">
+        <strong>Private beta sources</strong>
+        <div class="muted">
+          ${sources} — not available in the public plan yet.
+        </div>
+      </div>
+    `;
+  }
+
+  if (authStatus.signedIn) {
+    const enrolled =
+      authStatus.tier === "pilot" ||
+      authStatus.tier === "pro" ||
+      authStatus.tier === "admin";
+    return `
+      <div class="restricted-box">
+        <strong>Private beta sources</strong>
+        <div class="muted">
+          ${sources} — ${enrolled
+            ? "still restricted by the current server policy."
+            : "this signed-in Google account is not enrolled in the private beta."}
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="restricted-box">
       <strong>Private beta sources</strong>
       <div class="muted">
-        ${escapeHtml(
-          restricted.map((status) => providerLabel(status.provider)).join(" · ")
-        )} — not available in the public plan yet.
+        ${sources} — pilot accounts can request access without exposing provider credentials.
       </div>
+      <button type="button" class="secondary pilot-signin-button" data-price-lens-pilot-signin>
+        Sign in with Google
+      </button>
+      <div class="muted pilot-note">
+        Sign-in sends a short-lived Google OAuth access token only to the PriceLens API for session exchange.
+      </div>
+      <div class="error" data-price-lens-pilot-error hidden></div>
     </div>
   `;
 }
@@ -867,12 +919,26 @@ function formatReportGeneratedAt(generatedAt: string): string | undefined {
 }
 
 function privacyControlMarkup(options: PriceLensUiOptions): string {
-  if (!options.onDisableSharing) return "";
+  const pilotStatus = options.pilotAuth?.getStatus();
+  const signedIn = pilotStatus?.enabled === true && pilotStatus.signedIn;
+  if (!options.onDisableSharing && !signedIn) return "";
+
   return `
     <div class="privacy-control">
-      <button type="button" class="link-button" data-price-lens-disable>
-        Disable PriceLens data sharing
-      </button>
+      ${signedIn ? `
+        <div class="muted pilot-session-state">
+          Pilot sign-in active${pilotStatus.tier ? ` · ${escapeHtml(pilotStatus.tier)}` : ""}
+        </div>
+        <button type="button" class="link-button" data-price-lens-pilot-signout>
+          Sign out of pilot access
+        </button>
+      ` : ""}
+      ${options.onDisableSharing ? `
+        <button type="button" class="link-button" data-price-lens-disable>
+          Disable PriceLens data sharing
+        </button>
+      ` : ""}
+      <div class="error" data-price-lens-pilot-signout-error hidden></div>
     </div>
   `;
 }
@@ -979,6 +1045,66 @@ function fullOfferCount(root: ShadowRoot): string {
   return count > 0 ? ` (${count} matched offers)` : "";
 }
 
+function wirePilotSignIn(
+  root: ShadowRoot,
+  options: PriceLensUiOptions
+): void {
+  if (!options.pilotAuth) return;
+  const button = root.querySelector<HTMLButtonElement>(
+    "[data-price-lens-pilot-signin]"
+  );
+  const error = root.querySelector<HTMLElement>(
+    "[data-price-lens-pilot-error]"
+  );
+  button?.addEventListener("click", () => {
+    if (!button) return;
+    button.disabled = true;
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
+
+    Promise.resolve(options.pilotAuth?.onSignIn()).catch((cause: unknown) => {
+      button.disabled = false;
+      if (error) {
+        error.hidden = false;
+        error.textContent =
+          cause instanceof Error ? cause.message : "Pilot sign-in failed.";
+      }
+    });
+  });
+}
+
+function wirePilotSignOut(
+  root: ShadowRoot,
+  options: PriceLensUiOptions
+): void {
+  if (!options.pilotAuth) return;
+  const button = root.querySelector<HTMLButtonElement>(
+    "[data-price-lens-pilot-signout]"
+  );
+  const error = root.querySelector<HTMLElement>(
+    "[data-price-lens-pilot-signout-error]"
+  );
+  button?.addEventListener("click", () => {
+    if (!button) return;
+    button.disabled = true;
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
+
+    Promise.resolve(options.pilotAuth?.onSignOut()).catch((cause: unknown) => {
+      button.disabled = false;
+      if (error) {
+        error.hidden = false;
+        error.textContent =
+          cause instanceof Error ? cause.message : "Pilot sign-out failed.";
+      }
+    });
+  });
+}
+
 function wireDisableSharing(
   root: ShadowRoot,
   options: PriceLensUiOptions
@@ -1025,6 +1151,10 @@ function baseStyles(): string {
         border-radius:8px;
         background:#fafbfc;
       }
+      .pilot-signin-button { margin-top:8px; }
+      .pilot-note { margin-top:5px; font-size:12px; }
+      .pilot-session-state { margin-bottom:4px; }
+      .privacy-control .link-button + .link-button { margin-left:10px; }
       .error { margin-top:10px; color:#a40000; }
       .report-action { margin-top:12px; }
       .report-refresh {

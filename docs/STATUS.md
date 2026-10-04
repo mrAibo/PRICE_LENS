@@ -203,7 +203,10 @@ This phase is now the active implementation priority before broad search-results
 - [x] missing/tampered/expired sessions fail closed to anonymous/private-beta restrictions
 - [x] Terraform requires pinned Secret Manager versions before session auth can enable
 - [x] Cloud Armor enforces a dedicated per-IP session-exchange request budget
-- [ ] Chrome extension interactive Google sign-in client remains to be connected
+- [x] Chrome extension interactive Google sign-in client is implemented as a build-time opt-in pilot artifact
+- [x] public Chrome/Firefox artifacts retain storage-only permission and no OAuth manifest
+- [x] pilot Chrome artifact requests only identity + openid and stores only the short-lived PriceLens session in chrome.storage.session
+- [ ] live Chrome OAuth client registration / stable extension-ID validation remains pending
 - [ ] Idealo/Geizhals live adapters remain separately blocked on provider approval/contracts
 
 ### Phase 1 — eBay extraction gate
