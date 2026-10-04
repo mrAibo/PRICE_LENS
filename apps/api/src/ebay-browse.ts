@@ -150,10 +150,31 @@ export class EbayBrowseEnricher {
     if (!item) return listing;
 
     const browseIdentity = extractBrowseIdentity(item);
-    const {identity, addedFields, warnings} = mergeIdentity(
-      listing.identity,
-      browseIdentity
-    );
+    const merged = mergeIdentity(listing.identity, browseIdentity);
+    let identity = merged.identity;
+    const addedFields = [...merged.addedFields];
+    const warnings = [...merged.warnings];
+
+    if (
+      this.catalogEpidFallbackEnabled &&
+      !strongestTradeIdentifier(identity) &&
+      !cleanEpid(identity.epid) &&
+      identity.brand &&
+      identity.mpn
+    ) {
+      try {
+        const epid = await this.resolveCatalogEpid(identity);
+        if (epid) {
+          identity = {...identity, epid};
+          addedFields.push("epid");
+        }
+      } catch {
+        warnings.push(
+          "eBay Catalog ePID fallback is currently unavailable; Browse identity was kept."
+        );
+      }
+    }
+
     const browseItemLocationCountry = normalizeResponseCountryCode(
       readString(readRecord(item.itemLocation)?.country)
     );
@@ -194,8 +215,8 @@ export class EbayBrowseEnricher {
     destination?: BuyerDestination
   ): Promise<ProviderCandidate[]> {
     const startedAt = this.now();
-    const gtin = strongestTradeIdentifier(listing.identity);
-    if (!gtin) {
+    const discovery = strongestMarketplaceDiscovery(listing.identity);
+    if (!discovery) {
       safeObserveProviderFanout(this.fanoutObserver, {
         source: "ebay",
         attempted: 0,
@@ -218,7 +239,7 @@ export class EbayBrowseEnricher {
         this.searchSingleMarketplace(
           marketplaceId,
           listing,
-          gtin,
+          discovery,
           effectiveDestination,
           signal
         )
