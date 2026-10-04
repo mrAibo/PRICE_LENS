@@ -156,12 +156,16 @@ export class EbayBrowseEnricher {
       options.catalogEpidFallbackEnabled ?? false;
     this.catalogBrandModelFallbackEnabled =
       options.catalogBrandModelFallbackEnabled ?? false;
-    this.catalogBrandModelCandidateLimit = validatePositiveInteger(
+    this.catalogBrandModelCandidateLimit = validateIntegerRange(
       options.catalogBrandModelCandidateLimit ?? 5,
+      1,
+      10,
       "eBay Catalog Brand+Model candidate limit"
     );
-    this.catalogBrandModelDetailConcurrency = validatePositiveInteger(
+    this.catalogBrandModelDetailConcurrency = validateIntegerRange(
       options.catalogBrandModelDetailConcurrency ?? 2,
+      1,
+      4,
       "eBay Catalog Brand+Model detail concurrency"
     );
     this.catalogMarketplaceId = validateCatalogMarketplaceId(
@@ -787,6 +791,10 @@ export class EbayBrowseEnricher {
       })
     );
 
+    if (settled.some((result) => result.status === "rejected")) {
+      return undefined;
+    }
+
     const verified = new Set<string>();
     for (const result of settled) {
       if (result.status !== "fulfilled") continue;
@@ -1183,15 +1191,19 @@ export function createEbayBrowseEnricherFromEnv(
       env.EBAY_CATALOG_EPID_FALLBACK_ENABLED === "1",
     catalogBrandModelFallbackEnabled:
       env.EBAY_CATALOG_BRAND_MODEL_FALLBACK_ENABLED === "1",
-    catalogBrandModelCandidateLimit: parsePositiveIntegerEnv(
+    catalogBrandModelCandidateLimit: parseIntegerRangeEnv(
       env.EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT,
       "EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT",
-      5
+      5,
+      1,
+      10
     ),
-    catalogBrandModelDetailConcurrency: parsePositiveIntegerEnv(
+    catalogBrandModelDetailConcurrency: parseIntegerRangeEnv(
       env.EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY,
       "EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY",
-      2
+      2,
+      1,
+      4
     ),
     catalogMarketplaceId:
       env.EBAY_CATALOG_MARKETPLACE_ID?.trim() || undefined,
@@ -1550,6 +1562,45 @@ function parseNonNegativeIntegerEnv(
 function validateNonNegativeInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+  return value;
+}
+
+function parseIntegerRangeEnv(
+  raw: string | undefined,
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number
+): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(
+      `${name} must be an integer between ${minimum} and ${maximum}.`
+    );
+  }
+  return validateIntegerRange(
+    Number(raw.trim()),
+    minimum,
+    maximum,
+    name
+  );
+}
+
+function validateIntegerRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  name: string
+): number {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < minimum ||
+    value > maximum
+  ) {
+    throw new Error(
+      `${name} must be an integer between ${minimum} and ${maximum}.`
+    );
   }
   return value;
 }
