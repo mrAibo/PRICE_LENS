@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `55abf6ce6180a1fbf13f851084b3871af68b20f2` (PR #60). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `bbdd0168a6e29b86683d9907218ef8e402f6eae2` (PR #63). New implementation branches should start from the current `main`.
 
 ## Completed
 
