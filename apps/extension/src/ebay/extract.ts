@@ -510,7 +510,44 @@ function normalizeSearchText(value: string): string {
 }
 
 function cleanTitle(value: string): string {
-  return value.replace(/^details about\s+/i, "").trim();
+  return decodeHtmlCharacterReferences(value)
+    .replace(/^details about\s+/i, "")
+    .trim();
+}
+
+function decodeHtmlCharacterReferences(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    nbsp: " ",
+    quot: '"'
+  };
+
+  return value.replace(
+    /&(#x[0-9a-f]+|#\d+|amp|apos|gt|lt|nbsp|quot);/gi,
+    (match, token: string) => {
+      if (token.startsWith("#x") || token.startsWith("#X")) {
+        const codePoint = Number.parseInt(token.slice(2), 16);
+        return validCodePoint(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+      if (token.startsWith("#")) {
+        const codePoint = Number.parseInt(token.slice(1), 10);
+        return validCodePoint(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+      return named[token.toLowerCase()] ?? match;
+    }
+  );
+}
+
+function validCodePoint(value: number): boolean {
+  return (
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 0x10ffff &&
+    !(value >= 0xd800 && value <= 0xdfff)
+  );
 }
 
 function canonicalizeUrl(pageUrl: string): string {
