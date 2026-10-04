@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `288bfdd4a1bf14a6c98f8d328947c7f802f5417a` (PR #87). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `fb70b80d7d29768e83042b50bf9ff3a5002b292e` (PR #88). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -398,6 +398,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #85 — fifth reviewed weak-identity real eBay fixture — merged into `main`
 - PR #86 — destination-dependent shipping-unknown real eBay fixture + anonymizer hardening — merged into `main`
 - PR #87 — Phase 1 observed extraction evidence gate closed — merged into `main`
+- PR #88 — eBay Production approval packet (EPN software + Buy API/Growth Check) — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
