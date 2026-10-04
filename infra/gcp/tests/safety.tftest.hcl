@@ -126,7 +126,7 @@ run "session_auth_accepts_pinned_server_secrets" {
     project_id           = "price-lens-test"
     session_auth_enabled = true
     secret_versions = {
-      PRICE_LENS_SESSION_SIGNING_SECRET   = "1"
+      PRICE_LENS_SESSION_SIGNING_SECRET    = "1"
       PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON = "1"
     }
   }
