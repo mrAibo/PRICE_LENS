@@ -137,6 +137,30 @@ only then set `reviewed: true`.
 
 This review gate is critical: otherwise the extractor would be grading its own output.
 
+## Minimum observed corpus to close Issue #10
+
+The first independently reviewed real-layout batch should contain at least these
+classes before the issue is closed:
+
+| Suggested fixture id | Required live layout evidence |
+| --- | --- |
+| `observed-bin-free-shipping` | Buy It Now, free domestic shipping |
+| `observed-bin-paid-shipping` | Buy It Now, explicit paid DE shipping |
+| `observed-shipping-unknown` | shipping unresolved until destination/selection |
+| `observed-selected-variant` | multi-variant listing with one visibly selected option |
+| `observed-used` | used condition |
+| `observed-refurbished-or-open-box` | refurbished or opened-box condition |
+| `observed-jsonld-incomplete` | incomplete/absent structured data with safe DOM fallback |
+| `observed-weak-identity` | no trustworthy GTIN/MPN and no identity invention |
+
+Add category-specific variant examples (phone/laptop/console/camera or equivalent)
+when available. Every observed fixture must be generated from a saved live public
+eBay.de item page, independently checked against the saved page/screenshot, and only
+then changed to `reviewed:true`.
+
+A zero-size `observed-reviewed` corpus is an explicit blocked state, not a passing
+metric.
+
 ## Per-field metrics command
 
 Run:
