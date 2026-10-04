@@ -1,7 +1,5 @@
 locals {
-  state_bucket_name = length(trimspace(var.state_bucket_name)) > 0
-    ? trimspace(var.state_bucket_name)
-    : "${var.project_id}-price-lens-tfstate"
+  state_bucket_name = length(trimspace(var.state_bucket_name)) > 0 ? trimspace(var.state_bucket_name) : "${var.project_id}-price-lens-tfstate"
 
   labels = merge(
     {
