@@ -39,6 +39,9 @@ Search behavior:
 - optional Catalog fallback can resolve Brand+MPN to ePID only when exactly one
   catalog product matches the normalized Brand+MPN pair; ambiguous catalog results
   are rejected;
+- optional Brand+Model fallback can query Catalog only when stronger identifiers and
+  structured variants are absent, then requires exact Brand + explicit Model detail
+  verification through `getProduct` and a unique verified ePID;
 - requests up to 25 results;
 - requests `buyingOptions:{FIXED_PRICE}`;
 - locally rejects non-fixed-price results if eBay returns them anyway;
@@ -50,8 +53,10 @@ Search behavior:
 The discovery rule remains intentionally conservative. Exact GTIN/EAN/UPC and exact
 ePID are strong discovery identifiers. Brand+MPN is accepted only through the optional
 eBay Catalog API path when it resolves to one unique exact catalog product; a raw
-Brand+MPN keyword result is never auto-accepted. Controlled Brand+Model/title fallbacks
-remain future work because they require stronger candidate verification.
+Brand+MPN keyword result is never auto-accepted. Brand+Model now has a separate
+feature-gated path, but Catalog query results are discovery-only: bounded `getProduct`
+details must prove exact Brand + explicit Model and uniqueness before an ePID can be
+used. Title-only verification is explicitly rejected.
 
 ## Matching policy
 
@@ -158,7 +163,7 @@ an approval gate.
 ## Planned extensions
 
 - live-validate direct ePID search and Catalog Brand+MPN -> unique ePID resolution;
-- controlled Brand + Model fallback with detail lookups before automatic matching;
+- live-validate the controlled Brand+Model Catalog query + detail-verification path;
 - category-specific variant verification;
 - configurable result limit and provider quota budgeting;
 - live validation of accepted-candidate return-policy detail responses;

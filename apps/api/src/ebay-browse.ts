@@ -70,6 +70,9 @@ export interface EbayBrowseEnricherOptions {
   deliveryCountry?: string;
   marketplaceSearchConcurrency?: number;
   catalogEpidFallbackEnabled?: boolean;
+  catalogBrandModelFallbackEnabled?: boolean;
+  catalogBrandModelCandidateLimit?: number;
+  catalogBrandModelDetailConcurrency?: number;
   catalogMarketplaceId?: string;
   marketplaceDetailEnrichmentEnabled?: boolean;
   marketplaceDetailLimit?: number;
@@ -101,6 +104,9 @@ export class EbayBrowseEnricher {
   private readonly deliveryCountry: string;
   private readonly marketplaceSearchConcurrency: number;
   private readonly catalogEpidFallbackEnabled: boolean;
+  private readonly catalogBrandModelFallbackEnabled: boolean;
+  private readonly catalogBrandModelCandidateLimit: number;
+  private readonly catalogBrandModelDetailConcurrency: number;
   private readonly catalogMarketplaceId: EbayCatalogMarketplaceId;
   private readonly marketplaceDetailEnrichmentEnabled: boolean;
   private readonly marketplaceDetailLimit: number;
@@ -120,6 +126,10 @@ export class EbayBrowseEnricher {
   private readonly catalogEpidInFlight = new Map<
     string,
     Promise<string | undefined>
+  >();
+  private readonly catalogProductInFlight = new Map<
+    string,
+    Promise<JsonRecord | undefined>
   >();
   private readonly marketplaceDetailInFlight = new Map<
     string,
@@ -144,6 +154,20 @@ export class EbayBrowseEnricher {
     );
     this.catalogEpidFallbackEnabled =
       options.catalogEpidFallbackEnabled ?? false;
+    this.catalogBrandModelFallbackEnabled =
+      options.catalogBrandModelFallbackEnabled ?? false;
+    this.catalogBrandModelCandidateLimit = validateIntegerRange(
+      options.catalogBrandModelCandidateLimit ?? 5,
+      1,
+      10,
+      "eBay Catalog Brand+Model candidate limit"
+    );
+    this.catalogBrandModelDetailConcurrency = validateIntegerRange(
+      options.catalogBrandModelDetailConcurrency ?? 2,
+      1,
+      4,
+      "eBay Catalog Brand+Model detail concurrency"
+    );
     this.catalogMarketplaceId = validateCatalogMarketplaceId(
       options.catalogMarketplaceId ??
         (
@@ -198,6 +222,28 @@ export class EbayBrowseEnricher {
       } catch {
         warnings.push(
           "eBay Catalog ePID fallback is currently unavailable; Browse identity was kept."
+        );
+      }
+    }
+
+    if (
+      this.catalogBrandModelFallbackEnabled &&
+      !strongestTradeIdentifier(identity) &&
+      !cleanEpid(identity.epid) &&
+      identity.brand &&
+      identity.model &&
+      !isMeaningfulIdentifier(identity.mpn) &&
+      !hasStructuredVariant(identity)
+    ) {
+      try {
+        const epid = await this.resolveCatalogBrandModelEpid(identity);
+        if (epid) {
+          identity = {...identity, epid};
+          addedFields.push("epid");
+        }
+      } catch {
+        warnings.push(
+          "eBay Catalog Brand+Model fallback is currently unavailable; Browse identity was kept."
         );
       }
     }
@@ -658,6 +704,196 @@ export class EbayBrowseEnricher {
       : undefined;
   }
 
+  private async resolveCatalogBrandModelEpid(
+    identity: ProductIdentity
+  ): Promise<string | undefined> {
+    const brand = identity.brand?.trim();
+    const model = identity.model?.trim();
+    if (!brand || !model || hasStructuredVariant(identity)) return undefined;
+
+    const key = [
+      "brand-model",
+      normalizeToken(brand),
+      normalizeToken(model),
+      this.catalogMarketplaceId
+    ].join(":");
+    const active = this.catalogEpidInFlight.get(key);
+    if (active) return active;
+
+    const pending = this.fetchCatalogBrandModelEpid(brand, model).finally(() => {
+      if (this.catalogEpidInFlight.get(key) === pending) {
+        this.catalogEpidInFlight.delete(key);
+      }
+    });
+    this.catalogEpidInFlight.set(key, pending);
+    return pending;
+  }
+
+  private async fetchCatalogBrandModelEpid(
+    brand: string,
+    model: string
+  ): Promise<string | undefined> {
+    const query = `${brand} ${model}`;
+    let response = await this.fetchCatalogQuerySearch(query, false);
+    if (response.status === 401) {
+      this.catalogTokenCache = undefined;
+      response = await this.fetchCatalogQuerySearch(query, true);
+    }
+
+    if (response.status === 429) {
+      throw new Error("eBay Catalog Brand+Model search rate limit reached.");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `eBay Catalog Brand+Model search failed with HTTP ${response.status}.`
+      );
+    }
+
+    const payload = await readJsonRecord(
+      response,
+      "eBay Catalog Brand+Model search"
+    );
+    const summaries = Array.isArray(payload.productSummaries)
+      ? payload.productSummaries
+      : [];
+    const expectedBrand = normalizeToken(brand);
+    const candidateEpids: string[] = [];
+
+    for (const value of summaries) {
+      const product = readRecord(value);
+      if (!product) continue;
+
+      const epid = cleanEpid(readString(product.epid));
+      const productBrand = readString(product.brand);
+      if (!epid) continue;
+      if (
+        productBrand &&
+        normalizeToken(productBrand) !== expectedBrand
+      ) {
+        continue;
+      }
+
+      candidateEpids.push(epid);
+      if (candidateEpids.length >= this.catalogBrandModelCandidateLimit) {
+        break;
+      }
+    }
+
+    if (candidateEpids.length === 0) return undefined;
+
+    const settled = await mapWithConcurrency(
+      candidateEpids,
+      this.catalogBrandModelDetailConcurrency,
+      async (epid) => ({
+        epid,
+        product: await this.getCatalogProduct(epid)
+      })
+    );
+
+    if (settled.some((result) => result.status === "rejected")) {
+      return undefined;
+    }
+
+    const verified = new Set<string>();
+    for (const result of settled) {
+      if (result.status !== "fulfilled") continue;
+      const {epid, product} = result.value;
+      if (
+        product &&
+        catalogProductMatchesBrandModel(product, epid, brand, model)
+      ) {
+        verified.add(epid);
+      }
+    }
+
+    return verified.size === 1
+      ? [...verified][0]
+      : undefined;
+  }
+
+  private async getCatalogProduct(
+    epid: string
+  ): Promise<JsonRecord | undefined> {
+    const active = this.catalogProductInFlight.get(epid);
+    if (active) return active;
+
+    const pending = this.fetchCatalogProductWithRefresh(epid).finally(() => {
+      if (this.catalogProductInFlight.get(epid) === pending) {
+        this.catalogProductInFlight.delete(epid);
+      }
+    });
+    this.catalogProductInFlight.set(epid, pending);
+    return pending;
+  }
+
+  private async fetchCatalogProductWithRefresh(
+    epid: string
+  ): Promise<JsonRecord | undefined> {
+    let response = await this.fetchCatalogProduct(epid, false);
+    if (response.status === 401) {
+      this.catalogTokenCache = undefined;
+      response = await this.fetchCatalogProduct(epid, true);
+    }
+
+    if (response.status === 404) return undefined;
+    if (response.status === 429) {
+      throw new Error("eBay Catalog product detail rate limit reached.");
+    }
+    if (!response.ok) {
+      throw new Error(
+        `eBay Catalog product detail failed with HTTP ${response.status}.`
+      );
+    }
+
+    return readJsonRecord(response, "eBay Catalog product detail");
+  }
+
+  private async fetchCatalogQuerySearch(
+    query: string,
+    forceTokenRefresh: boolean
+  ): Promise<Response> {
+    const token = await this.getCatalogToken(forceTokenRefresh);
+    const endpoint = new URL(
+      "/commerce/catalog/v1_beta/product_summary/search",
+      this.apiBaseUrl()
+    );
+    endpoint.searchParams.set("q", query);
+    endpoint.searchParams.set(
+      "limit",
+      String(this.catalogBrandModelCandidateLimit)
+    );
+
+    return this.fetchWithTimeout(endpoint, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-ebay-c-marketplace-id": this.catalogMarketplaceId,
+        accept: "application/json"
+      }
+    });
+  }
+
+  private async fetchCatalogProduct(
+    epid: string,
+    forceTokenRefresh: boolean
+  ): Promise<Response> {
+    const token = await this.getCatalogToken(forceTokenRefresh);
+    const endpoint = new URL(
+      `/commerce/catalog/v1_beta/product/${encodeURIComponent(epid)}`,
+      this.apiBaseUrl()
+    );
+
+    return this.fetchWithTimeout(endpoint, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-ebay-c-marketplace-id": this.catalogMarketplaceId,
+        accept: "application/json"
+      }
+    });
+  }
+
   private async fetchCatalogProductSearch(
     mpn: string,
     forceTokenRefresh: boolean
@@ -953,6 +1189,22 @@ export function createEbayBrowseEnricherFromEnv(
     ),
     catalogEpidFallbackEnabled:
       env.EBAY_CATALOG_EPID_FALLBACK_ENABLED === "1",
+    catalogBrandModelFallbackEnabled:
+      env.EBAY_CATALOG_BRAND_MODEL_FALLBACK_ENABLED === "1",
+    catalogBrandModelCandidateLimit: parseIntegerRangeEnv(
+      env.EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT,
+      "EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT",
+      5,
+      1,
+      10
+    ),
+    catalogBrandModelDetailConcurrency: parseIntegerRangeEnv(
+      env.EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY,
+      "EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY",
+      2,
+      1,
+      4
+    ),
     catalogMarketplaceId:
       env.EBAY_CATALOG_MARKETPLACE_ID?.trim() || undefined,
     marketplaceDetailEnrichmentEnabled:
@@ -1310,6 +1562,45 @@ function parseNonNegativeIntegerEnv(
 function validateNonNegativeInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+  return value;
+}
+
+function parseIntegerRangeEnv(
+  raw: string | undefined,
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number
+): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(
+      `${name} must be an integer between ${minimum} and ${maximum}.`
+    );
+  }
+  return validateIntegerRange(
+    Number(raw.trim()),
+    minimum,
+    maximum,
+    name
+  );
+}
+
+function validateIntegerRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  name: string
+): number {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < minimum ||
+    value > maximum
+  ) {
+    throw new Error(
+      `${name} must be an integer between ${minimum} and ${maximum}.`
+    );
   }
   return value;
 }
@@ -1680,6 +1971,67 @@ function aspectMap(value: unknown): Map<string, string> {
     result.set(normalizeWords(name), aspectValue);
   }
   return result;
+}
+
+function catalogProductMatchesBrandModel(
+  product: JsonRecord,
+  expectedEpid: string,
+  brand: string,
+  model: string
+): boolean {
+  const epid = cleanEpid(readString(product.epid));
+  const productBrand = readString(product.brand);
+  if (
+    epid !== expectedEpid ||
+    !productBrand ||
+    normalizeToken(productBrand) !== normalizeToken(brand)
+  ) {
+    return false;
+  }
+
+  const modelValues = readCatalogAspectValues(
+    product.aspects,
+    "Model",
+    "Modell",
+    "Model Number",
+    "Modellnummer"
+  );
+  const expectedModel = normalizeToken(model);
+  return modelValues.some(
+    (candidate) => normalizeToken(candidate) === expectedModel
+  );
+}
+
+function readCatalogAspectValues(
+  value: unknown,
+  ...names: string[]
+): string[] {
+  if (!Array.isArray(value)) return [];
+  const expectedNames = new Set(names.map((name) => normalizeWords(name)));
+  const values: string[] = [];
+
+  for (const entry of value) {
+    const record = readRecord(entry);
+    const localizedName = readString(record?.localizedName);
+    if (
+      !localizedName ||
+      !expectedNames.has(normalizeWords(localizedName))
+    ) {
+      continue;
+    }
+
+    for (const candidate of readStringArray(record?.localizedValues)) {
+      values.push(candidate);
+    }
+  }
+
+  return values;
+}
+
+function hasStructuredVariant(identity: ProductIdentity): boolean {
+  const variant = identity.variant;
+  if (!variant) return false;
+  return Object.values(variant).some((value) => value !== undefined);
 }
 
 function canonicalTradeItemIdentifiers(identity: ProductIdentity): Set<string> {

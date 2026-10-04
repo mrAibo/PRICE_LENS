@@ -90,6 +90,17 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_CATALOG_BRAND_MODEL_FALLBACK_ENABLED == "0"
+    error_message = "Brand+Model Catalog fallback must remain opt-in until live Catalog validation."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT == "5" && local.literal_env.EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY == "2"
+    error_message = "Brand+Model Catalog fallback must keep bounded candidate and detail-concurrency defaults."
+  }
+
+
+  assert {
     condition     = local.literal_env.EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED == "0"
     error_message = "eBay item-detail enrichment must remain opt-in until live Browse validation."
   }

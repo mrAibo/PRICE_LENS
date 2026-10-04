@@ -22,8 +22,11 @@ enrichment. The browser extension never receives eBay developer credentials.
 - conflict-safe merge: page identity wins when Browse disagrees
 - direct ePID extraction when Browse product data exposes it
 - optional Brand+MPN -> unique ePID Catalog fallback using the Catalog read-only OAuth scope
-- ambiguous Catalog Brand+MPN matches produce no ePID
-- concurrent identical Catalog lookups are coalesced without persistent product caching
+- optional conservative Brand+Model -> Catalog query fallback when GTIN/ePID/MPN and structured variants are absent
+- Brand+Model search summaries are never trusted by title alone: bounded candidates are verified through Catalog `getProduct`
+- Brand+Model accepts an ePID only when exactly one detail has exact Brand + explicit Model aspect
+- ambiguous matches, missing Model aspects or incomplete detail verification produce no ePID
+- concurrent identical Catalog lookups/details are coalesced without persistent product caching
 - fail-open API behavior: comparison continues with page/Browse identity if Catalog or Browse fails
 - mock/contract tests with no live credentials
 
@@ -36,6 +39,9 @@ EBAY_BROWSE_ENABLED=1
 EBAY_ENVIRONMENT=sandbox
 EBAY_MARKETPLACE_ID=EBAY_DE
 EBAY_CATALOG_EPID_FALLBACK_ENABLED=0
+EBAY_CATALOG_BRAND_MODEL_FALLBACK_ENABLED=0
+EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT=5
+EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY=2
 EBAY_CATALOG_MARKETPLACE_ID=EBAY_DE
 EBAY_CLIENT_ID=<Sandbox App ID / Client ID>
 EBAY_CLIENT_SECRET=<Sandbox Cert ID / Client Secret>
@@ -70,9 +76,17 @@ enabling a cache.
 When enabled, `POST /v1/compare` first attempts eBay identity enrichment. Browse data
 can fill missing brand, model, MPN, GTIN/EAN/UPC and direct ePID identity fields.
 
-When the Catalog fallback is explicitly enabled and no GTIN/ePID exists, exact
-Brand+MPN may be resolved to ePID only when one unique exact Catalog product remains.
-PriceLens does not turn Brand+MPN into an unverified broad Browse keyword match.
+When the Brand+MPN Catalog fallback is explicitly enabled and no GTIN/ePID exists,
+exact Brand+MPN may be resolved to ePID only when one unique exact Catalog product
+remains. PriceLens does not turn Brand+MPN into an unverified broad Browse keyword
+match.
+
+A separate Brand+Model fallback is even more restrictive. It is eligible only when
+GTIN/ePID/MPN are absent and the listing has no structured variant dimensions. Catalog
+keyword search is used only for discovery; each bounded candidate is fetched with
+`getProduct`, Brand must match exactly, and Model must appear as an explicit Catalog
+Model aspect. Every candidate detail lookup needed to prove uniqueness must complete;
+otherwise the fallback fails closed.
 
 Enrichment does not silently overwrite an existing page identity. Conflicts produce an
 extraction warning and the page value is retained.
