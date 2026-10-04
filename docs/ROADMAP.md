@@ -153,6 +153,8 @@ Still required:
 - [x] ePID fallback where a trustworthy product ID is available
 - [x] exact Brand + MPN fallback through unique eBay Catalog ePID resolution
 - [x] controlled Brand + Model Catalog fallback with exact detail verification
+- [x] verify storage/RAM/screen/pack variants against Catalog detail before Brand+Model ePID acceptance
+- [ ] normalize edition/model-qualifier/bundle Catalog aspects before allowing those Brand+Model fallbacks
 - [ ] live-validate Brand+Model Catalog search/detail behavior
 - [x] seller account type + estimated delivery window from eBay search metadata
 - [x] return-policy context via bounded accepted-candidate detail lookup
