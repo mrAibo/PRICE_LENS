@@ -27,6 +27,11 @@ exact normalized Brand+MPN match, and accept the result only when one unique ePI
 remains. Keep `EBAY_CATALOG_EPID_FALLBACK_ENABLED=0` until Sandbox behavior and
 permissions are verified.
 
+Likewise, keep `EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED=0` until Browse
+`getItem` return-policy fields are validated live. When enabled, detail calls happen
+only after an automatic product match, are capped per report, and are optional metadata:
+a detail failure must not remove an otherwise valid price offer.
+
 Local backend configuration:
 
 ```text
@@ -35,6 +40,9 @@ EBAY_ENVIRONMENT=sandbox
 EBAY_MARKETPLACE_ID=EBAY_DE
 EBAY_CATALOG_EPID_FALLBACK_ENABLED=0
 EBAY_CATALOG_MARKETPLACE_ID=EBAY_DE
+EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED=0
+EBAY_MARKETPLACE_DETAIL_LIMIT=5
+EBAY_MARKETPLACE_DETAIL_CONCURRENCY=2
 EBAY_CLIENT_ID=<Sandbox App ID>
 EBAY_CLIENT_SECRET=<Sandbox Cert ID>
 EBAY_BROWSE_CACHE_TTL_MS=0
