@@ -11,7 +11,7 @@ import type {
   ProviderStatus
 } from "@price-lens/contracts";
 import {
-  assessLandedCostStatus,
+  assessLandedCost,
   calculateLandedPrice,
   createComparisonResult
 } from "./comparison.js";
@@ -221,7 +221,7 @@ async function runProvider(
       }
 
       const landed = calculateLandedPrice(candidate.itemPrice, candidate.shipping);
-      const landedCostStatus = assessLandedCostStatus(
+      const landedCost = assessLandedCost(
         landed.complete,
         candidate.itemLocationCountry,
         destination,
@@ -241,8 +241,8 @@ async function runProvider(
         itemPrice: candidate.itemPrice,
         shipping: candidate.shipping,
         landedPrice: landed.value,
-        landedPriceComplete: landedCostStatus === "complete",
-        landedCostStatus,
+        landedPriceComplete: landedCost.complete,
+        landedCostStatus: landedCost.status,
         confidence: match.confidence,
         matchMethod: match.method,
         matchReason: match.reason,
