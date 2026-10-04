@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `bbdd0168a6e29b86683d9907218ef8e402f6eae2` (PR #63). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `7f84c6e848b401b47b488f5adc27a4a2feb85e7d` (PR #64). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -336,6 +336,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #57 — Amazon EU marketplace fan-out + locale-specific Partner Tag gating — merged into `main`
 - PR #58 — server-owned private-beta provider entitlements + public placeholders — merged into `main`
 - PR #59 — privacy-safe international fan-out telemetry — merged into `main`
+- PR #64 — opt-in Chrome pilot Google sign-in + session-only bearer storage — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
