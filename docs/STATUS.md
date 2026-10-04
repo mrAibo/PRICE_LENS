@@ -244,15 +244,17 @@ This phase is now the active implementation priority before broad search-results
 
 ### Phase 1 — eBay extraction gate
 
-Still required:
+Status: **complete for the current observed-layout gate**
+
+Completed:
 
 - [x] initial labelled synthetic eBay.de fixture corpus
 - [x] initial regression-evidence report (synthetic corpus)
-- [ ] representative anonymized real-layout fixture corpus (**6 reviewed real fixtures / 108 labelled fields collected so far**)
-- [ ] empirical field-level extraction accuracy report over representative layouts (**6-fixture observed report available; incomplete/absent JSON-LD layout still required**)
+- [x] representative anonymized real-layout fixture corpus (**6 reviewed real fixtures / 108 labelled fields**)
+- [x] empirical field-level extraction accuracy report over representative layouts (**6-fixture observed report / 108 labelled fields**)
 - [x] coverage for representative shipping layouts (**paid domestic + free + local-pickup/no-shipping + destination-dependent unknown covered**)
 - [x] initial coverage for variant/item-specific layouts
-- [ ] broaden variant/item-specific fixture coverage across categories (**selected multi-variant storage now covered on a live phone listing**)
+- [x] broaden initial variant/item-specific live coverage (**selected multi-variant storage covered on a live phone listing; future categories extend the corpus as needed**)
 - [x] explicit unsupported-state behavior for pages that cannot be normalized safely
 
 ### Phase 2 — matcher/comparison gate
@@ -398,8 +400,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 ## Current engineering priorities
 
-1. Issue #10 — six reviewed real fixtures / 108 labelled fields now cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping and destination-dependent shipping unknown. The remaining minimum real-layout gate is incomplete/absent Product JSON-LD with safe DOM fallback.
-2. Issue #12 Sandbox credential/Browse-enrichment gate is complete. Continue Issue #52 with broader same-product/condition/shipping validation and eBay Production approval; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
+1. Phase 1 / Issue #10 — complete for the current observed gate. Six reviewed real fixtures / 108 labelled fields cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping, destination-dependent shipping unknown, and incomplete Product JSON-LD identity with safe DOM fallback.
+2. Issue #12 Sandbox credential/Browse-enrichment gate is complete and EPN account exists. Continue Issue #52 with broader same-product/condition/shipping validation, Software/Downloadable Tools approval, Buy API Production approval and Growth Check; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
