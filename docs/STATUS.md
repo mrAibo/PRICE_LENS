@@ -196,7 +196,14 @@ This phase is now the active implementation priority before broad search-results
 - [x] comparison payload cannot self-assign pilot/pro/admin access
 - [x] access resolver failures and malformed contexts fail closed to public restrictions
 - [x] UI shows restricted providers as Private beta rather than outage/unconfigured
-- [ ] authenticated login/session integration is still required before real pilot entitlements
+- [x] backend Google identity exchange verifies an explicit OAuth access token through Google userinfo
+- [x] backend issues HMAC-signed PriceLens sessions with a 15-minute default lifetime
+- [x] pilot/pro/admin entitlement uses a pinned server-side Google-subject map, never email/client claims
+- [x] entitlement is re-resolved on every comparison, so pilot revocation takes effect immediately
+- [x] missing/tampered/expired sessions fail closed to anonymous/private-beta restrictions
+- [x] Terraform requires pinned Secret Manager versions before session auth can enable
+- [x] Cloud Armor enforces a dedicated per-IP session-exchange request budget
+- [ ] Chrome extension interactive Google sign-in client remains to be connected
 - [ ] Idealo/Geizhals live adapters remain separately blocked on provider approval/contracts
 
 ### Phase 1 — eBay extraction gate
