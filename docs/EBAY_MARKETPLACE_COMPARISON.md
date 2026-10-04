@@ -2,7 +2,7 @@
 
 Status: **initial implementation complete / live Browse validation pending**
 
-Checked against current eBay Browse API documentation on **2026-10-03**.
+Checked against current eBay Browse API documentation on **2026-10-04**.
 
 ## Goal
 
@@ -89,6 +89,9 @@ For each available condition group it shows:
 - landed-price range and median when multiple complete prices are present;
 - seller username where available;
 - seller positive-feedback percentage and feedback score where available;
+- business/private seller account type where eBay exposes it;
+- the estimated delivery window and shipping carrier/service associated with the
+  selected lowest-cost shipping option when available;
 - a direct link to the cheapest accepted listing.
 
 Shipping-unknown offers remain visible but are labelled as incomplete and are not
@@ -96,17 +99,19 @@ treated as complete landed prices.
 
 ## Seller quality
 
-The initial version surfaces objective eBay seller fields only. It does not create an
-opaque PriceLens seller score.
+PriceLens surfaces objective eBay seller/delivery fields only. It does not create an
+opaque seller score.
 
-Possible later inputs include:
+The current search-level context includes feedback percentage/count, business/private
+seller account type, and estimated delivery window when present in the Browse response.
+The delivery window is kept with the same shipping option selected for landed-price
+calculation, so a faster paid method is not accidentally shown beside a cheaper/free
+shipping price.
 
-- feedback percentage;
-- feedback count;
-- return policy;
-- business/private seller account;
-- delivery estimate;
-- eBay-qualified programmes.
+Return-policy terms remain a separate future detail-enrichment step because the full
+Browse item resource provides richer item details than search summaries. That detail
+lookup must be bounded to already accepted candidates rather than issuing one request
+for every search hit.
 
 Any later recommendation score must remain explainable.
 
@@ -135,7 +140,7 @@ an approval gate.
 - controlled Brand + Model fallback with detail lookups before automatic matching;
 - category-specific variant verification;
 - configurable result limit and provider quota budgeting;
-- return-policy/delivery metadata;
-- richer seller context;
+- bounded accepted-candidate detail lookup for return-policy terms;
+- optional eBay-qualified programme context;
 - separate auction section (never mixed with fixed-price comparisons);
 - representative live fixtures and measured same-product precision.
