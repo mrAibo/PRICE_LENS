@@ -260,6 +260,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 ### eBay enrichment + same-product marketplace
 
 - [x] redacted `providers:live-check` harness probes /ready, /health and a real user-triggered /v1/compare without persisting product/seller/request identifiers
+- [x] protected manual GitHub provider-validation workflow uploads the redacted report artifact while keeping provider credentials exclusively in the backend
 - [ ] eBay developer credentials / Sandbox live validation
 - [x] Browse API enrichment client
 - [x] server-side OAuth token lifecycle
