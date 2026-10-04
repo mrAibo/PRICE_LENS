@@ -147,6 +147,7 @@ Delivered:
 
 Still required:
 
+- [x] redacted end-to-end live provider validation harness
 - [ ] live Sandbox/Production response validation
 - [ ] representative condition-id/category fixtures from live eBay.de data
 - [ ] approved shipping/delivery semantics for the intended buyer geography
