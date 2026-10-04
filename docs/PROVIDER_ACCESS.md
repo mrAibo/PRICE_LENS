@@ -12,7 +12,7 @@ PriceLens does not treat public HTML scraping as the default production integrat
 | --- | --- | --- | --- |
 | Idealo | iPN / premium publisher API | Application/access required | Do not confuse with merchant PWS 2.0. Keep scraping research-only. |
 | Geizhals | Publisher Programme / agreed product-data access | Partnership details required | Ask Business Development for machine-readable feed/API terms before production adapter. |
-| Amazon DE | Amazon Associates + Creators API | Provider scaffold implemented; live eligibility/onboarding required | Creators API OAuth/SearchItems implemented. OffersV2 shipping remains incomplete. |
+| Amazon DE | Amazon Associates + Creators API | Provider scaffold implemented; live eligibility plus explicit browser-extension permission required | Creators API OAuth/SearchItems implemented. Keep disabled in the extension until Amazon gives prior written approval; OffersV2 shipping remains incomplete. |
 | eBay | Official Browse API for enrichment | Client implemented; live Sandbox/Production credentials still required | Page extraction stays functional without API enrichment. |
 
 ## Idealo
@@ -73,15 +73,18 @@ The Creators API supports operations including product search and item retrieval
 
 Amazon's current documentation also states that access requires Amazon Associates participation and Creators API onboarding; the current introduction lists a qualifying-sales requirement for API access.
 
+Amazon Germany's participation requirements additionally prohibit using Amazon content or Partner Links through client-side software such as a browser plug-in/extension without Amazon's express prior written approval. A normal Associates website approval therefore does not by itself authorize PriceLens to surface Amazon affiliate content inside the extension.
+
 ### PriceLens decision
 
 1. Target **Creators API**, not a new PA-API 5.0 implementation.
 2. The backend Creators OAuth/SearchItems provider scaffold is implemented and covered by mock contract tests.
 3. Complete/verify German Amazon Associates/Creators eligibility before live validation.
-4. Keep Credential ID / Credential Secret exclusively in the backend.
-5. Amazon OffersV2 no longer exposes legacy shipping charges, so PriceLens keeps those landed prices incomplete and excludes them from `bestOffer`.
-6. Confirm current price-display, freshness/caching and attribution rules with the approved account before public release.
-7. Keep the provider optional so missing Amazon eligibility never blocks other comparisons.
+4. Obtain explicit written Amazon approval for the PriceLens browser-extension use case before enabling Amazon in any extension release. A companion website may be used honestly for Associates onboarding/content, but must not be used to conceal the actual extension promotional method.
+5. Keep Credential ID / Credential Secret exclusively in the backend.
+6. Amazon OffersV2 no longer exposes legacy shipping charges, so PriceLens keeps those landed prices incomplete and excludes them from `bestOffer`.
+7. Confirm current price-display, freshness/caching and attribution rules with the approved account before public release.
+8. Keep the provider optional so missing Amazon eligibility or extension permission never blocks other comparisons.
 
 Official references:
 
@@ -89,6 +92,7 @@ Official references:
 - https://partnernet.amazon.de/creatorsapi/docs/en-us/onboarding/register-for-creators-api
 - https://partnernet.amazon.de/creatorsapi/docs/en-us/get-started/using-curl
 - https://partnernet.amazon.de/creatorsapi/docs/en-us/api-reference/resources/offersV2
+- https://partnernet.amazon.de/help/operating/participation
 
 ## Provider implementation gate
 
