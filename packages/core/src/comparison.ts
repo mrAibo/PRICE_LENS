@@ -43,7 +43,7 @@ export function assessLandedCost(
   const origin = normalizeCountryCode(originCountry);
 
   if (!origin) {
-    return {complete: false, status: "origin_unknown"};
+    return {complete: true, status: "origin_unknown"};
   }
   if (origin === destinationCountry) {
     return {complete: true, status: "complete"};
@@ -151,7 +151,13 @@ export function comparableLandedPrice(
   offer: MarketOffer,
   comparisonCurrency?: string
 ): Money | undefined {
-  if (!offer.landedPriceComplete) return undefined;
+  if (
+    !offer.landedPriceComplete ||
+    offer.landedCostStatus === "origin_unknown" ||
+    offer.landedCostStatus === "import_costs_unknown"
+  ) {
+    return undefined;
+  }
 
   if (!comparisonCurrency) return offer.landedPrice;
   const normalizedComparisonCurrency = normalizeCurrency(comparisonCurrency);
