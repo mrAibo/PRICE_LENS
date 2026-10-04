@@ -843,7 +843,7 @@ function renderReportRefresh(
     <div class="report-refresh">
       <div class="muted">
         ${generated ? `Report generated ${escapeHtml(generated)}.` : "Recent report."}
-        Reopening the same item can reuse the recent result in this tab.
+        Use Refresh report to query the enabled sources again.
       </div>
       <button type="button" class="secondary refresh-button" data-price-lens-refresh>
         Refresh report
