@@ -215,9 +215,9 @@ run "ebay_detail_enrichment_requires_marketplace_comparison" {
   command = plan
 
   variables {
-    project_id                                  = "price-lens-test"
-    ebay_browse_enabled                         = true
-    ebay_marketplace_detail_enrichment_enabled  = true
+    project_id                                 = "price-lens-test"
+    ebay_browse_enabled                        = true
+    ebay_marketplace_detail_enrichment_enabled = true
     secret_versions = {
       EBAY_CLIENT_ID     = "1"
       EBAY_CLIENT_SECRET = "1"
