@@ -68,6 +68,15 @@ export function evaluateProviderCandidate(
     };
   }
 
+  if (hasExactEpid(listing.identity, candidate.identity)) {
+    return {
+      decision: "auto_match",
+      confidence: 1,
+      method: "epid",
+      reason: "Exact eBay catalog product ID (ePID) match."
+    };
+  }
+
   if (hasExactTradeItemIdentifier(listing.identity, candidate.identity)) {
     return {
       decision: "auto_match",
@@ -166,6 +175,16 @@ export function findHardMismatch(
     !setsIntersect(listingGtins, candidateGtins)
   ) {
     return "Conflicting GTIN/EAN/UPC identifiers.";
+  }
+
+  const listingEpid = cleanEpid(listingIdentity.epid);
+  const candidateEpid = cleanEpid(candidateIdentity.epid);
+  if (
+    listingEpid &&
+    candidateEpid &&
+    listingEpid !== candidateEpid
+  ) {
+    return "Conflicting eBay catalog product IDs (ePID).";
   }
 
   const listingMpn = normalizeToken(listingIdentity.mpn);
@@ -435,6 +454,22 @@ function normalizeWords(value: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function hasExactEpid(
+  left: ProductIdentity,
+  right: ProductIdentity
+): boolean {
+  const leftEpid = cleanEpid(left.epid);
+  const rightEpid = cleanEpid(right.epid);
+  return !!(leftEpid && rightEpid && leftEpid === rightEpid);
+}
+
+function cleanEpid(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized && /^\d{1,32}$/.test(normalized)
+    ? normalized
+    : undefined;
 }
 
 function hasExactTradeItemIdentifier(
