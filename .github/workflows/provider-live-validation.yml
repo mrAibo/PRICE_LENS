@@ -1,0 +1,90 @@
+name: Provider live validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      requirements:
+        description: Comma-separated live gates to require
+        required: true
+        default: ebay_enrichment,ebay_market
+        type: string
+      timeout_ms:
+        description: Per-request timeout in milliseconds
+        required: true
+        default: "15000"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-live-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: redacted provider validation
+    runs-on: ubuntu-latest
+    environment: production-live-validation
+    timeout-minutes: 10
+    env:
+      PRICE_LENS_LIVE_API_ORIGIN: ${{ vars.PRICE_LENS_LIVE_API_ORIGIN }}
+      PRICE_LENS_LIVE_EBAY_ITEM_ID: ${{ secrets.PRICE_LENS_LIVE_EBAY_ITEM_ID }}
+      PRICE_LENS_LIVE_COUNTRY: ${{ vars.PRICE_LENS_LIVE_COUNTRY }}
+      PRICE_LENS_LIVE_POSTAL_CODE: ${{ secrets.PRICE_LENS_LIVE_POSTAL_CODE }}
+      PRICE_LENS_LIVE_SESSION_TOKEN: ${{ secrets.PRICE_LENS_LIVE_SESSION_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate workflow configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PRICE_LENS_LIVE_API_ORIGIN" || {
+            echo "Missing production-live-validation variable PRICE_LENS_LIVE_API_ORIGIN." >&2
+            exit 1
+          }
+          test -n "$PRICE_LENS_LIVE_EBAY_ITEM_ID" || {
+            echo "Missing production-live-validation secret PRICE_LENS_LIVE_EBAY_ITEM_ID." >&2
+            exit 1
+          }
+
+      - name: Run redacted live provider check
+        shell: bash
+        run: |
+          set -euo pipefail
+          country="${PRICE_LENS_LIVE_COUNTRY:-DE}"
+          args=(
+            --origin "$PRICE_LENS_LIVE_API_ORIGIN"
+            --ebay-item-id "$PRICE_LENS_LIVE_EBAY_ITEM_ID"
+            --country "$country"
+            --require "${{ inputs.requirements }}"
+            --timeout-ms "${{ inputs.timeout_ms }}"
+            --output provider-live-check.json
+          )
+
+          if [[ -n "${PRICE_LENS_LIVE_POSTAL_CODE:-}" ]]; then
+            args+=(--postal-code "$PRICE_LENS_LIVE_POSTAL_CODE")
+          fi
+
+          npm run providers:live-check -- "${args[@]}"
+
+      - name: Upload redacted evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-live-check
+          path: provider-live-check.json
+          if-no-files-found: warn
+          retention-days: 7
