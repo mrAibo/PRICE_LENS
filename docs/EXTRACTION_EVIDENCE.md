@@ -18,8 +18,8 @@ Location:
 Current gate:
 
 - synthetic regression: **9 fixtures / 77 labelled scalar field checks**
-- observed reviewed: **3 real eBay.de fixtures / 54 labelled scalar field checks**
-- observed classes: used + paid domestic shipping; refurbished + free domestic shipping; selected multi-variant phone with explicit 128 GB storage
+- observed reviewed: **4 real eBay.de fixtures / 72 labelled scalar field checks**
+- observed classes: used + paid domestic shipping; refurbished + free domestic shipping; selected multi-variant phone with explicit 128 GB storage; local-pickup-only watch listing with shipping unavailable and direct `dt/dd` Brand/Model specifics
 - CI rejects any mismatch
 - CI also rejects accidental synthetic corpus shrinkage below 9 fixtures / 70 labelled fields
 
@@ -41,7 +41,7 @@ Current fixture classes:
 
 A green CI run means **100% of the labelled checks in the synthetic regression corpus passed**.
 
-The independently reviewed observed corpus currently reports **54/54 labelled fields passing across 3 real layouts**. These captures exposed and permanently fixed three real gaps: `https://schema.org/UsedCondition` normalization, HTML character references inside live JSON-LD titles, and selected SKU storage values that were previously missed when only the generic item-specific/title state was available.
+The independently reviewed observed corpus currently reports **72/72 labelled fields passing across 4 real layouts**. These captures exposed and permanently fixed three extractor gaps — `https://schema.org/UsedCondition` normalization, HTML character references inside live JSON-LD titles, and selected SKU storage values — plus one evidence-pipeline gap where newer eBay direct `dt/dd` item-specifics were being dropped by the anonymizer.
 
 That number is a regression metric only. It must **not** be described as 100% eBay extraction accuracy.
 
@@ -191,10 +191,8 @@ It prints two independent corpora:
 An unreviewed observed fixture is intentionally excluded from real-layout metrics.
 
 At this checkpoint the infrastructure for real-layout measurement is complete and
-three reviewed observed fixtures are committed. Their 54/54 result is evidence for
-those specific layouts only, not a general real-world accuracy claim. Shipping-unknown,
-incomplete/absent JSON-LD fallback, weak-identity and broader category layouts still
-need observed evidence before Issue #10 can close.
+four reviewed observed fixtures are committed. Their 72/72 result is evidence for
+those specific layouts only, not a general real-world accuracy claim. Local-pickup/no-shipping is now covered and remains `shipping=null`, but the stricter destination-dependent shipping-unknown case, incomplete/absent JSON-LD fallback, weak-identity and additional category layouts still need observed evidence before Issue #10 can close.
 
 ## Search-result layout evidence
 
