@@ -153,7 +153,7 @@ Initial implementation now exists behind the same stored comparison consent:
 - [x] newly appended infinite-scroll cards can be discovered incrementally
 - [x] incomplete current shipping suppresses delivered-price savings claims
 - [x] compact cheaper-first results are bounded; additional accepted offers stay locally expandable
-- [ ] per-card provider degradation/review-candidate detail remains to be surfaced
+- [x] per-card partial/private-beta/review-only uncertainty is surfaced and expands locally
 - [ ] real eBay.de search-layout fixtures and live-layout validation remain pending
 
 Search-card extraction intentionally carries no invented GTIN/MPN. It relies on the
