@@ -126,6 +126,11 @@ check "provider_enablement" {
   }
 
   assert {
+    condition     = !var.ebay_catalog_epid_fallback_enabled || var.ebay_browse_enabled
+    error_message = "eBay Catalog ePID fallback requires ebay_browse_enabled=true so the same approved eBay application credentials are used."
+  }
+
+  assert {
     condition = (
       !var.amazon_creators_enabled ||
       (
