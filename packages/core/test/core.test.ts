@@ -156,6 +156,51 @@ describe("comparison", () => {
     expect(result.delta?.absolute.currency).toBe("EUR");
   });
 
+  it("marks the current listing incomplete when it crosses a customs boundary", () => {
+    const offers: MarketOffer[] = [
+      {
+        provider: "ebay_market",
+        providerProductId: "eu-safe",
+        productTitle: "EU offer",
+        itemLocationCountry: "PL",
+        url: "https://www.ebay.pl/itm/2",
+        condition: "new",
+        itemPrice: {amount: 320, currency: "EUR"},
+        shipping: {amount: 0, currency: "EUR"},
+        landedPrice: {amount: 320, currency: "EUR"},
+        landedPriceComplete: true,
+        landedCostStatus: "complete",
+        confidence: 1,
+        matchMethod: "gtin",
+        matchReason: "exact GTIN",
+        fetchedAt: "2026-10-04T00:00:00Z"
+      }
+    ];
+
+    const result = createComparisonResult(
+      {
+        ...listing,
+        itemLocationCountry: "US"
+      },
+      offers,
+      [{provider: "ebay_market", state: "ok"}],
+      "req-current-import",
+      [],
+      {country: "DE", postalCode: "30159"}
+    );
+
+    expect(result.ebayLandedPrice).toEqual({
+      amount: 1003.99,
+      currency: "EUR"
+    });
+    expect(result.ebayLandedPriceComplete).toBe(false);
+    expect(result.ebayLandedCostStatus).toBe("import_costs_unknown");
+    expect(result.delta).toBeUndefined();
+    expect(result.warnings).toContain(
+      "eBay item ships across a customs boundary; import VAT, duties or handling fees are not confirmed."
+    );
+  });
+
   it("selects the cheapest complete landed offer", () => {
     const offers: MarketOffer[] = [
       {
