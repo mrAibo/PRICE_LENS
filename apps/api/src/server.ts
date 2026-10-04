@@ -15,6 +15,7 @@ import {createFixtureProvider} from "./fixture-provider.js";
 import type {ProviderCacheObserver} from "./provider-cache.js";
 import type {ProviderFanoutObserver} from "./provider-fanout.js";
 import {installGracefulShutdown} from "./shutdown.js";
+import {createSessionAuthFromEnv} from "./session-auth.js";
 
 const port = Number.parseInt(process.env.PORT ?? "8787", 10);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -55,6 +56,8 @@ const fanoutObserver: ProviderFanoutObserver | undefined = diagnostics
       })
   : undefined;
 
+const sessionAuth = createSessionAuthFromEnv(process.env);
+
 const ebayEnricher = createEbayBrowseEnricherFromEnv(process.env, {
   cacheObserver,
   fanoutObserver
@@ -78,6 +81,12 @@ const providers = [
 
 const server = createPriceLensServer({
   providers,
+  resolveProviderAccess: sessionAuth
+    ? (request) => sessionAuth.resolveProviderAccess(request)
+    : undefined,
+  exchangeGoogleSession: sessionAuth
+    ? (accessToken) => sessionAuth.exchangeGoogleAccessToken(accessToken)
+    : undefined,
   diagnostics,
   enrichListing: ebayEnricher
     ? (listing) => ebayEnricher.enrich(listing)
@@ -97,6 +106,7 @@ installGracefulShutdown(server, {timeoutMs: 9_000});
 server.listen(port, host, () => {
   const notes = [
     fixtureProviderEnabled ? "fixture provider enabled" : undefined,
+    sessionAuth ? "pilot session auth enabled" : undefined,
     ebayEnricher ? "eBay Browse enrichment enabled" : undefined,
     ebayMarketplaceProvider ? "eBay same-product market enabled" : undefined,
     fxNormalizer ? "ECB reference FX enabled" : undefined,

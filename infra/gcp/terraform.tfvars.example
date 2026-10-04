@@ -23,9 +23,15 @@ deploy_runtime = false
 #   EBAY_CLIENT_SECRET                = "1"
 #   AMAZON_CREATORS_CREDENTIAL_ID     = "1"
 #   AMAZON_CREATORS_CREDENTIAL_SECRET = "1"
+#   PRICE_LENS_SESSION_SIGNING_SECRET  = "1"
+#   PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON = "1"
 # }
 #
-# ebay_browse_enabled                  = false
+# session_auth_enabled                   = false
+# session_ttl_seconds                    = 900
+# google_identity_verify_timeout_ms       = 3000
+# auth_exchange_requests_per_interval     = 20
+# ebay_browse_enabled                     = false
 # ebay_marketplace_comparison_enabled  = false
 # ebay_environment                      = "sandbox"
 # ebay_delivery_country                 = "DE"

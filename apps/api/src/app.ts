@@ -15,6 +15,7 @@ import {
   type OfferNormalizer,
   type PriceProvider
 } from "@price-lens/core";
+import type {PriceLensSessionExchange} from "./session-auth.js";
 import {
   PUBLIC_PROVIDER_ACCESS,
   normalizeProviderAccessContext,
@@ -43,6 +44,9 @@ export interface PriceLensApiOptions {
   resolveProviderAccess?: (
     request: IncomingMessage
   ) => ProviderAccessContext | Promise<ProviderAccessContext>;
+  exchangeGoogleSession?: (
+    accessToken: string
+  ) => Promise<PriceLensSessionExchange>;
 }
 
 export function createPriceLensServer(
@@ -76,6 +80,64 @@ export function createPriceLensServer(
         status: "ready",
         service: "price-lens-api"
       });
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/v1/session/google") {
+      if (!options.exchangeGoogleSession) {
+        request.resume();
+        sendJson(response, 404, {
+          error: "not_found",
+          message: "Route not found",
+          requestId
+        });
+        return;
+      }
+
+      if (!hasJsonContentType(request)) {
+        request.resume();
+        sendJson(response, 415, {
+          error: "unsupported_media_type",
+          message: "Content-Type must be application/json.",
+          requestId
+        });
+        return;
+      }
+
+      let accessToken: string;
+      try {
+        const parsed = await readJsonBody(request);
+        if (!isGoogleSessionRequest(parsed)) {
+          sendJson(response, 400, {
+            error: "invalid_request",
+            message: "Expected a Google access token.",
+            requestId
+          });
+          return;
+        }
+        accessToken = parsed.accessToken;
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid request";
+        const status: 400 | 413 = message.includes("too large") ? 413 : 400;
+        sendJson(response, status, {
+          error: status === 413 ? "payload_too_large" : "invalid_json",
+          message,
+          requestId
+        });
+        return;
+      }
+
+      try {
+        const exchange = await options.exchangeGoogleSession(accessToken);
+        sendJson(response, 200, exchange);
+      } catch {
+        sendJson(response, 401, {
+          error: "authentication_failed",
+          message: "Google authentication failed.",
+          requestId
+        });
+      }
       return;
     }
 
@@ -372,6 +434,19 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   }
 
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+function isGoogleSessionRequest(
+  value: unknown
+): value is {accessToken: string} {
+  if (!isRecord(value)) return false;
+  if (Object.keys(value).some((key) => key !== "accessToken")) return false;
+  return (
+    typeof value.accessToken === "string" &&
+    value.accessToken.length >= 16 &&
+    value.accessToken.length <= 8192 &&
+    !/\s/.test(value.accessToken)
+  );
 }
 
 function isComparisonRequest(value: unknown): value is ComparisonRequest {

@@ -5,6 +5,7 @@ import type {EcommerceListing} from "@price-lens/contracts";
 import type {PriceProvider} from "@price-lens/core";
 import {createPriceLensServer} from "../src/app.js";
 import {createFixtureProvider} from "../src/fixture-provider.js";
+import {PriceLensSessionAuth} from "../src/session-auth.js";
 
 const servers: ReturnType<typeof createPriceLensServer>[] = [];
 
@@ -249,6 +250,68 @@ describe("PriceLens HTTP API", () => {
     }
   );
 
+  it("exchanges a Google assertion only when session auth is configured", async () => {
+    const disabledUrl = await startServer();
+    const disabled = await fetch(`${disabledUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+    expect(disabled.status).toBe(404);
+
+    const baseUrl = await startServer([], {
+      exchangeGoogleSession: async (accessToken) => {
+        expect(accessToken).toBe("google-access-token-123456");
+        return {
+          sessionToken: "header.payload.signature",
+          expiresAt: "2026-10-04T02:00:00.000Z",
+          tier: "pilot"
+        };
+      }
+    });
+    const response = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      sessionToken: "header.payload.signature",
+      expiresAt: "2026-10-04T02:00:00.000Z",
+      tier: "pilot"
+    });
+  });
+
+  it("rejects malformed or failed Google session exchanges without leaking upstream details", async () => {
+    const baseUrl = await startServer([], {
+      exchangeGoogleSession: async () => {
+        throw new Error("userinfo upstream included sensitive details");
+      }
+    });
+
+    const malformed = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "short"})
+    });
+    expect(malformed.status).toBe(400);
+
+    const failed = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+    expect(failed.status).toBe(401);
+    const payload = await failed.json();
+    expect(payload).toMatchObject({
+      error: "authentication_failed",
+      message: "Google authentication failed."
+    });
+    expect(JSON.stringify(payload)).not.toContain("sensitive");
+  });
+
   it("keeps Idealo and Geizhals restricted for anonymous public requests", async () => {
     let idealoCalls = 0;
     let geizhalsCalls = 0;
@@ -288,6 +351,60 @@ describe("PriceLens HTTP API", () => {
         expect.objectContaining({provider: "geizhals", state: "restricted"})
       ])
     );
+  });
+
+  it("lets a server-authenticated pilot invoke a restricted provider without trusting client tier claims", async () => {
+    let idealoCalls = 0;
+    const idealo: PriceProvider = {
+      id: "idealo",
+      async search() {
+        idealoCalls += 1;
+        return [];
+      }
+    };
+    const auth = new PriceLensSessionAuth({
+      signingSecret: "0123456789abcdef0123456789abcdef",
+      subjectTiers: new Map([["pilot-subject", "pilot"]]),
+      now: () => Date.parse("2026-10-04T01:30:00.000Z"),
+      fetchImpl: async () =>
+        new Response(JSON.stringify({sub: "pilot-subject"}), {status: 200})
+    });
+    const baseUrl = await startServer([idealo], {
+      resolveProviderAccess: (request) => auth.resolveProviderAccess(request),
+      exchangeGoogleSession: (accessToken) =>
+        auth.exchangeGoogleAccessToken(accessToken)
+    });
+
+    const exchange = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        accessToken: "google-access-token-pilot-123456"
+      })
+    });
+    const session = await exchange.json() as {sessionToken: string};
+    expect(exchange.status).toBe(200);
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${session.sessionToken}`
+      },
+      body: JSON.stringify({
+        listing,
+        accessTier: "anonymous",
+        restrictedProviders: ["idealo"]
+      })
+    });
+
+    expect(response.status).toBe(200);
+    expect(idealoCalls).toBe(1);
+    await expect(response.json()).resolves.toMatchObject({
+      providerStatus: expect.arrayContaining([
+        expect.objectContaining({provider: "idealo", state: "no_match"})
+      ])
+    });
   });
 
   it("fails closed to public restrictions if access resolution fails", async () => {

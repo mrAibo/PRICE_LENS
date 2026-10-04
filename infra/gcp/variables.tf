@@ -177,10 +177,12 @@ variable "provider_secret_ids" {
   description = "Secret Manager secret IDs created for backend-only provider credentials. Values are names, never secret contents."
   type        = map(string)
   default = {
-    EBAY_CLIENT_ID                    = "price-lens-ebay-client-id"
-    EBAY_CLIENT_SECRET                = "price-lens-ebay-client-secret"
-    AMAZON_CREATORS_CREDENTIAL_ID     = "price-lens-amazon-creators-credential-id"
-    AMAZON_CREATORS_CREDENTIAL_SECRET = "price-lens-amazon-creators-credential-secret"
+    EBAY_CLIENT_ID                       = "price-lens-ebay-client-id"
+    EBAY_CLIENT_SECRET                   = "price-lens-ebay-client-secret"
+    AMAZON_CREATORS_CREDENTIAL_ID        = "price-lens-amazon-creators-credential-id"
+    AMAZON_CREATORS_CREDENTIAL_SECRET    = "price-lens-amazon-creators-credential-secret"
+    PRICE_LENS_SESSION_SIGNING_SECRET    = "price-lens-session-signing-secret"
+    PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON = "price-lens-google-subject-tiers-json"
   }
 }
 
@@ -195,6 +197,45 @@ variable "secret_versions" {
       can(regex("^[1-9][0-9]*$", version))
     ])
     error_message = "secret_versions values must be explicit positive numeric Secret Manager versions, not 'latest' or secret material."
+  }
+}
+
+variable "session_auth_enabled" {
+  description = "Enable Google-verified short-lived PriceLens sessions for trusted pilot/pro entitlements."
+  type        = bool
+  default     = false
+}
+
+variable "session_ttl_seconds" {
+  description = "Short-lived PriceLens session lifetime."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = floor(var.session_ttl_seconds) == var.session_ttl_seconds && var.session_ttl_seconds >= 60 && var.session_ttl_seconds <= 3600
+    error_message = "session_ttl_seconds must be an integer between 60 and 3600."
+  }
+}
+
+variable "google_identity_verify_timeout_ms" {
+  description = "Timeout for server-side Google userinfo verification during session exchange."
+  type        = number
+  default     = 3000
+
+  validation {
+    condition     = floor(var.google_identity_verify_timeout_ms) == var.google_identity_verify_timeout_ms && var.google_identity_verify_timeout_ms >= 250 && var.google_identity_verify_timeout_ms <= 15000
+    error_message = "google_identity_verify_timeout_ms must be an integer between 250 and 15000."
+  }
+}
+
+variable "auth_exchange_requests_per_interval" {
+  description = "Per-IP Cloud Armor budget for Google-to-PriceLens session exchanges."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.auth_exchange_requests_per_interval >= 1
+    error_message = "auth_exchange_requests_per_interval must be at least 1."
   }
 }
 
