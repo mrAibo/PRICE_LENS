@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from "vitest";
 import type {EcommerceListing} from "@price-lens/contracts";
+import type {ProviderCandidate} from "@price-lens/core";
 import {
   EbayBrowseEnricher,
   createEbayBrowseEnricherFromEnv
@@ -1273,6 +1274,244 @@ describe("eBay same-product marketplace search", () => {
   });
 });
 
+describe("eBay accepted-candidate detail enrichment", () => {
+  function ebayCandidate(
+    id: string,
+    marketplace = "EBAY_DE"
+  ): ProviderCandidate {
+    return {
+      provider: "ebay_market",
+      providerProductId: id,
+      productTitle: "Sony WH-1000XM6",
+      marketplace,
+      itemLocationCountry: "DE",
+      url: "https://www.ebay.de/itm/650000000001",
+      condition: "new",
+      identity: {ean: "4548736162657"},
+      itemPrice: {amount: 299, currency: "EUR"},
+      shipping: {amount: 0, currency: "EUR"},
+      fetchedAt: "2026-10-04T12:00:00.000Z"
+    };
+  }
+
+  it("fetches return terms only for accepted candidates and sends destination context", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "detail-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemId: "v1|650000000001|0",
+          returnTerms: {
+            returnsAccepted: true,
+            returnPeriod: {
+              value: 30,
+              unit: "CALENDAR_DAY"
+            },
+            returnShippingCostPayer: "BUYER"
+          }
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceDetailEnrichmentEnabled: true,
+      fetchImpl
+    });
+
+    const [result] = await enricher.enrichAcceptedMarketplaceCandidates(
+      [ebayCandidate("v1|650000000001|0")],
+      undefined,
+      {country: "DE", postalCode: "30159"}
+    );
+
+    expect(result).toMatchObject({
+      providerProductId: "v1|650000000001|0",
+      returnPolicy: {
+        returnsAccepted: true,
+        returnPeriodValue: 30,
+        returnPeriodUnit: "CALENDAR_DAY",
+        returnShippingCostPayer: "BUYER"
+      }
+    });
+
+    const detailCall = fetchImpl.mock.calls[1]!;
+    const detailUrl = new URL(String(detailCall[0]));
+    expect(detailUrl.pathname).toContain("/buy/browse/v1/item/");
+    expect(decodeURIComponent(detailUrl.pathname)).toContain(
+      "v1|650000000001|0"
+    );
+    const headers = new Headers(detailCall[1]?.headers);
+    expect(headers.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
+    expect(headers.get("x-ebay-c-enduserctx")).toBe(
+      "contextualLocation=country%3DDE%2Czip%3D30159"
+    );
+  });
+
+  it("is disabled by default and bounds optional detail enrichment by limit", async () => {
+    const disabledFetch = vi.fn<typeof fetch>();
+    const disabled = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl: disabledFetch
+    });
+    const candidates = [
+      ebayCandidate("v1|650000000001|0"),
+      ebayCandidate("v1|650000000002|0")
+    ];
+
+    await expect(
+      disabled.enrichAcceptedMarketplaceCandidates(candidates)
+    ).resolves.toBe(candidates);
+    expect(disabledFetch).not.toHaveBeenCalled();
+
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        return jsonResponse({access_token: "limited-token", expires_in: 7200});
+      }
+      return jsonResponse({
+        returnTerms: {
+          returnsAccepted: false
+        }
+      });
+    });
+    const limited = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceDetailEnrichmentEnabled: true,
+      marketplaceDetailLimit: 1,
+      fetchImpl
+    });
+
+    const enriched = await limited.enrichAcceptedMarketplaceCandidates(
+      candidates,
+      undefined,
+      {country: "DE"}
+    );
+
+    expect(enriched[0]?.returnPolicy).toEqual({returnsAccepted: false});
+    expect(enriched[1]?.returnPolicy).toBeUndefined();
+    const detailCalls = fetchImpl.mock.calls.filter(([input]) =>
+      String(input).includes("/buy/browse/v1/item/")
+    );
+    expect(detailCalls).toHaveLength(1);
+  });
+
+  it("fails open for detail errors and ignores unsafe return-term fields", async () => {
+    const rateLimitedFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "rate-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse({errors: []}, 429));
+    const rateLimited = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceDetailEnrichmentEnabled: true,
+      fetchImpl: rateLimitedFetch
+    });
+    const candidate = ebayCandidate("v1|650000000003|0");
+
+    await expect(
+      rateLimited.enrichAcceptedMarketplaceCandidates(
+        [candidate],
+        undefined,
+        {country: "DE"}
+      )
+    ).resolves.toEqual([candidate]);
+
+    const unsafeFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "unsafe-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          returnTerms: {
+            returnsAccepted: true,
+            returnPeriod: {
+              value: -5,
+              unit: "<script>"
+            },
+            returnShippingCostPayer: "UNKNOWN"
+          }
+        })
+      );
+    const unsafe = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceDetailEnrichmentEnabled: true,
+      fetchImpl: unsafeFetch
+    });
+
+    const [safeResult] = await unsafe.enrichAcceptedMarketplaceCandidates(
+      [candidate],
+      undefined,
+      {country: "DE"}
+    );
+    expect(safeResult?.returnPolicy).toEqual({returnsAccepted: true});
+  });
+
+  it("coalesces concurrent identical item-detail lookups", async () => {
+    let resolveDetail!: (value: Response) => void;
+    const pendingDetail = new Promise<Response>((resolve) => {
+      resolveDetail = resolve;
+    });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "shared-detail-token", expires_in: 7200})
+      )
+      .mockReturnValueOnce(pendingDetail);
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceDetailEnrichmentEnabled: true,
+      fetchImpl
+    });
+    const candidate = ebayCandidate("v1|650000000004|0");
+
+    const first = enricher.enrichAcceptedMarketplaceCandidates(
+      [candidate],
+      undefined,
+      {country: "DE", postalCode: "30159"}
+    );
+    const second = enricher.enrichAcceptedMarketplaceCandidates(
+      [candidate],
+      undefined,
+      {country: "DE", postalCode: "30159"}
+    );
+
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+    resolveDetail(
+      jsonResponse({
+        returnTerms: {
+          returnsAccepted: true,
+          returnPeriod: {value: "14", unit: "CALENDAR_DAY"},
+          returnShippingCostPayer: "SELLER"
+        }
+      })
+    );
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+    expect(firstResult[0]?.returnPolicy).toMatchObject({
+      returnsAccepted: true,
+      returnPeriodValue: 14,
+      returnShippingCostPayer: "SELLER"
+    });
+    expect(secondResult[0]?.returnPolicy).toEqual(
+      firstResult[0]?.returnPolicy
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("eBay Browse environment configuration", () => {
   it("is disabled unless explicitly enabled", () => {
     expect(
@@ -1363,6 +1602,26 @@ describe("eBay Browse environment configuration", () => {
         EBAY_CATALOG_MARKETPLACE_ID: "EBAY_PL"
       })
     ).toThrow("Unsupported eBay Catalog marketplace ID");
+  });
+
+  it("rejects invalid marketplace detail limits and concurrency", () => {
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_MARKETPLACE_DETAIL_LIMIT: "-1"
+      })
+    ).toThrow("EBAY_MARKETPLACE_DETAIL_LIMIT");
+
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_MARKETPLACE_DETAIL_CONCURRENCY: "0"
+      })
+    ).toThrow("EBAY_MARKETPLACE_DETAIL_CONCURRENCY");
   });
 
   it("accepts an explicit production configuration", () => {
