@@ -55,7 +55,7 @@ resource "google_service_account_iam_member" "github_image_publisher_wif" {
 
   service_account_id = google_service_account.github_image_publisher[0].name
   role               = "roles/iam.workloadIdentityUser"
-  member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository/${var.github_repository}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[0].name}/attribute.repository/${var.github_repository}"
 }
 
 resource "google_artifact_registry_repository_iam_member" "github_image_publisher" {
