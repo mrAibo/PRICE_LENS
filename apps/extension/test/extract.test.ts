@@ -67,6 +67,43 @@ describe("eBay listing extraction", () => {
     expect(listing?.extractionEvidence).toContain("jsonld:Offer.shippingDetails");
   });
 
+  it("preserves the visible primary currency when JSON-LD contains an approximate conversion", () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><head>
+      <script type="application/ld+json">
+      {
+        "@context":"https://schema.org",
+        "@type":"Product",
+        "name":"International Bike",
+        "offers":{
+          "@type":"Offer",
+          "price":"735.28",
+          "priceCurrency":"EUR",
+          "itemCondition":"https://schema.org/UsedCondition"
+        }
+      }
+      </script>
+      </head><body>
+        <div data-testid="x-price-primary">£625,00</div>
+        <div data-testid="x-price-approx">Ca. EUR 735,28</div>
+      </body></html>
+    `);
+
+    const listing = extractEbayListing(
+      dom.window.document,
+      "https://www.ebay.de/itm/123456789012"
+    );
+
+    expect(listing?.price).toEqual({amount: 625, currency: "GBP"});
+    expect(listing?.extractionEvidence).toContain("dom:primary-price");
+    expect(listing?.extractionEvidence).toContain(
+      "price:primary-currency-overrides-jsonld"
+    );
+    expect(listing?.extractionEvidence).not.toContain(
+      "jsonld:Product.offers.price"
+    );
+  });
+
   it("falls back to the current DOM variant when JSON-LD offers disagree", () => {
     const dom = new JSDOM(`
       <!doctype html><html><head>

@@ -27,7 +27,8 @@ describe("eBay item fixture capture tool", () => {
       `<!doctype html><html><head>
         <script type="application/ld+json">
         {"@context":"https://schema.org","@type":"Product","name":"Phone 128GB/256GB",
-         "offers":{"@type":"Offer","price":"654.99","priceCurrency":"EUR",
+         "offers":{"@type":"Offer","url":"https://www.ebay.de/itm/123456789012",
+                   "price":"654.99","priceCurrency":"EUR",
                    "itemCondition":"https://schema.org/NewCondition"}}
         </script>
       </head><body>
@@ -76,6 +77,7 @@ describe("eBay item fixture capture tool", () => {
     expect(fixture.reviewed).toBe(false);
     expect(fixture.url).toMatch(/^https:\/\/www\.ebay\.de\/itm\/\d{9,15}$/);
     expect(fixture.url).not.toContain("?");
+    expect(fixture.html).not.toContain("123456789012");
     expect(fixture.html).not.toContain("real-seller-name");
     expect(fixture.html).not.toContain("Schwarz");
     expect(fixture.html).toContain("Speicherkapazität:");

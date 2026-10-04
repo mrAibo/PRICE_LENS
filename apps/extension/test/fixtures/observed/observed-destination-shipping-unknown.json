@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "observed-destination-shipping-unknown",
+  "description": "Observed anonymized eBay.de layout fixture.",
+  "source": {
+    "kind": "observed",
+    "marketplace": "ebay.de",
+    "capturedAt": "2026-10-04T22:11:18.565Z",
+    "sourceUrlSha256": "a1af2bf079d1fc32635f66462ce7ec0cf8c431aa42c28477e6fe7867e41f2df8",
+    "layoutClass": "destination-shipping-unknown"
+  },
+  "reviewed": true,
+  "reviewNote": "Independently verified against the live eBay.de page rendered in Chrome on 2026-10-05: primary listing price £625.00 with a separate approximate EUR 735.28 conversion, used condition, Brand Benotto, and destination-specific shipping unresolved for Germany (page says shipping may be unavailable and to contact the seller). Expected shipping therefore remains null and the primary price remains GBP so PriceLens can apply its own explicit FX provenance.",
+  "url": "https://www.ebay.de/itm/101307453684",
+  "html": "<!doctype html>\n<html><head><title>PriceLens fixture</title><script type=\"application/ld+json\">\n              \n                            \n              {\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"eBay\",\"item\":\"https://www.ebay.de\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Sport\",\"item\":\"https://www.ebay.de/b/Sportartikel/888/bn_1845308\"},{\"@type\":\"ListItem\",\"position\":3,\"name\":\"Radsport\",\"item\":\"https://www.ebay.de/b/Fahrradausrustung/7294/bn_1678221\"},{\"@type\":\"ListItem\",\"position\":4,\"name\":\"Fahrradrahmen\",\"item\":\"https://www.ebay.de/b/Fahrradrahmen/22679/bn_1678156\"}]}\n              \n                        \n            </script><script type=\"application/ld+json\">\n      \n            \n      {\"@type\":\"Product\",\"@context\":\"https://schema.org\",\"name\":\"Benotto Rennrad 56 cm. weiß umlackiert...neue Chromgabeln 70er Jahre ofmega itm\",\"image\":[\"https://i.ebayimg.com/images/g/mCEAAOSwNf9hFRrK/s-l1600.jpg\",\"https://i.ebayimg.com/images/g/4U0AAOSwdk1hFRrc/s-l1600.jpg\",\"https://i.ebayimg.com/images/g/TWwAAOSwqhZhFRrj/s-l1600.jpg\",\"https://i.ebayimg.com/images/g/IUkAAOSwKExhFRru/s-l1600.jpg\",\"https://i.ebayimg.com/images/g/HmAAAOSwoABhFRr7/s-l1600.jpg\"],\"offers\":{\"@type\":\"Offer\",\"url\":\"https://www.ebay.de/itm/101307453684\",\"itemCondition\":\"https://schema.org/UsedCondition\",\"availability\":\"https://schema.org/InStock\",\"priceCurrency\":\"EUR\",\"price\":\"735.28\"},\"brand\":{\"@type\":\"Brand\",\"name\":\"Benotto\"}}\n      \n        \n    </script><meta property=\"og:title\" content=\"Benotto road bike 56 cms. repainted white...new chrome forks 1970s ofmega itm  | eBay.de\"><meta property=\"og:image\" content=\"https://i.ebayimg.com/images/g/mCEAAOSwNf9hFRrK/s-l400.jpg\"></head><body><h1 id=\"item-title\" class=\"x-item-title__mainTitle\"><span class=\"ux-textspans ux-textspans--BOLD\">Benotto Rennrad 56 cm. weiß umlackiert...neue Chromgabeln 70er Jahre ofmega itm</span><span class=\"ux-textspans\">-</span></h1><div class=\"x-price-primary\" data-testid=\"x-price-primary\"><span data-testid=\"ux-textual-display\" class=\"x-price-primary__price\"><span class=\"ux-textspans\">£625,00</span></span><span data-testid=\"ux-textual-display\" class=\"x-price-primary__orBestOffer\"><span class=\"ux-textspans ux-textspans--SECONDARY\">oder Preisvorschlag</span></span></div><div class=\"x-item-condition-text\"><div class=\"ux-icon-text\" data-testid=\"ux-icon-text\"><span class=\"ux-icon-text__text\"><span data-testid=\"ux-textual-display\" aria-hidden=\"true\"><span class=\"ux-textspans\">Gebraucht</span></span><span class=\"clipped\">Gebraucht</span></span><button class=\"ux-action fake-link fake-link--action\" data-testid=\"ux-action\"><div class=\"ux-icon ux-icon-text__icon-wrapper\" data-testid=\"ux-icon-text__icon\"><svg class=\"icon--information-16 icon icon--16\" focusable=\"false\" aria-labelledby=\"s0-2-1-26-4-15-1-35[3]-4-3-6-0-8-5-0-text\" role=\"img\"><title id=\"s0-2-1-26-4-15-1-35[3]-4-3-6-0-8-5-0-text\">Weitere Informationen zu diesem Artikelzustand</title><use></use></svg></div></button></div></div><div data-testid=\"ux-labels-values\" class=\"ux-labels-values col-12 ux-labels-values--shipping\"><div class=\"ux-labels-values__labels col-3\"><div class=\"ux-labels-values__labels-content\"><div><span class=\"ux-textspans\">Versand:</span></div></div></div><div class=\"ux-labels-values__values col-9\"><div class=\"ux-labels-values__values-content\"><div><span class=\"ux-textspans\">Ggf. kein Versand nach Deutschland. Lesen Sie die Artikelbeschreibung oder </span><a target=\"_blank\" class=\"ux-action\" data-testid=\"ux-action\"><span class=\"ux-textspans\">kontaktieren Sie den Verkäufer</span></a><span class=\"ux-textspans\">, um Informationen zu Versandoptionen zu erhalten. </span><button class=\"ux-action fake-link fake-link--action\" data-testid=\"ux-action\"><span class=\"ux-textspans\">Weitere Details<span class=\"clipped\">für Versand</span></span></button></div><div><span class=\"ux-textspans ux-textspans--SECONDARY\">Standort: Nottingham, Vereinigtes Königreich</span></div></div></div></div><dl class=\"ux-labels-values\"><dt class=\"ux-labels-values__labels\"><div class=\"ux-labels-values__labels-content\"><div><span class=\"ux-textspans\">Brand</span></div></div></dt><dd class=\"ux-labels-values__values\"><div class=\"ux-labels-values__values-content\"><div><span class=\"ux-textspans\">Benotto</span></div></div></dd></dl></body></html>",
+  "expected": {
+    "supported": true,
+    "itemId": "101307453684",
+    "title": "Benotto Rennrad 56 cm. weiß umlackiert...neue Chromgabeln 70er Jahre ofmega itm",
+    "price.amount": 625,
+    "price.currency": "GBP",
+    "shipping.amount": null,
+    "shipping.currency": null,
+    "condition": "used",
+    "identity.brand": "Benotto",
+    "identity.model": null,
+    "identity.mpn": null,
+    "identity.gtin": null,
+    "identity.ean": null,
+    "identity.upc": null,
+    "identity.variant.storageGb": null,
+    "identity.variant.ramGb": null,
+    "identity.variant.screenSizeInches": null,
+    "identity.variant.packCount": null
+  }
+}

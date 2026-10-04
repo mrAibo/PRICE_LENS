@@ -15,9 +15,14 @@ if (!args.html || !args.url || !args.id) {
   const htmlPath = path.resolve(args.html);
   const sourceHtml = await readFile(htmlPath, "utf8");
   const sourceDocument = new JSDOM(sourceHtml, {url: args.url}).window.document;
-  const sanitizedHtml = buildSanitizedFixtureHtml(sourceDocument);
-
   const syntheticItemId = args.itemId ?? syntheticItemIdFor(args.id);
+  const sourceItemId = ebayItemIdFromUrl(args.url);
+  const sanitizedHtml = buildSanitizedFixtureHtml(
+    sourceDocument,
+    sourceItemId,
+    syntheticItemId
+  );
+
   const fixtureUrl = `https://www.ebay.de/itm/${syntheticItemId}`;
   const extractor = await loadExtractor();
   const sanitizedDocument = new JSDOM(sanitizedHtml, {url: fixtureUrl}).window.document;
@@ -143,7 +148,7 @@ async function loadExtractor() {
   return import(dataUrl);
 }
 
-function buildSanitizedFixtureHtml(document) {
+function buildSanitizedFixtureHtml(document, sourceItemId, syntheticItemId) {
   const output = document.implementation.createHTMLDocument("PriceLens fixture");
 
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -243,7 +248,39 @@ function buildSanitizedFixtureHtml(document) {
     output.body.appendChild(skuSelections);
   }
 
-  return "<!doctype html>\n" + output.documentElement.outerHTML;
+  // Strip navigation/tracking attributes: the extractor only needs retained
+  // semantic text/markup, not live links or event metadata.
+  for (const element of output.querySelectorAll("*")) {
+    for (const attribute of [
+      "href",
+      "data-click",
+      "data-vi-tracking",
+      "data-clientpresentationmetadata",
+      "_sp"
+    ]) {
+      element.removeAttribute(attribute);
+    }
+  }
+
+  let serialized = "<!doctype html>\n" + output.documentElement.outerHTML;
+  if (
+    sourceItemId &&
+    syntheticItemId &&
+    sourceItemId !== syntheticItemId
+  ) {
+    serialized = serialized.split(sourceItemId).join(syntheticItemId);
+  }
+  return serialized;
+}
+
+function ebayItemIdFromUrl(value) {
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/\/itm\/(?:[^/]+\/)?(\d{9,15})(?:[/?#]|$)/i);
+    return match?.[1];
+  } catch {
+    return undefined;
+  }
 }
 
 function copyMatches(source, target, selectors) {

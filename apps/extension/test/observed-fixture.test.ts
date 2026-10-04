@@ -42,7 +42,19 @@ describe("observed eBay.de extraction fixtures", () => {
       expect(fixture.source.sourceUrlSha256).toMatch(/^[a-f0-9]{64}$/);
       expect(fixture.url).toMatch(/^https:\/\/www\.ebay\.de\/itm\/\d{9,15}$/);
       expect(fixture.url).not.toContain("?");
-      expect(fixture.html).not.toMatch(/seller|verk[aä]ufer|mitgliedsname|username/i);
+      // Generic eBay copy such as "contact the seller" is not identifying.
+      // Reject account-identifying fields/markup instead.
+      expect(fixture.html).not.toMatch(
+        /mitgliedsname|username|seller[-_ ]?(?:name|id|account|profile)|verk[aä]ufer(?:name|konto|profil)/i
+      );
+
+      const syntheticItemId = fixture.url.match(/\/itm\/(\d{9,15})$/)?.[1];
+      expect(syntheticItemId).toBeTruthy();
+      for (const match of fixture.html.matchAll(
+        /(?:\/itm\/|item_id=)(\d{9,15})/g
+      )) {
+        expect(match[1]).toBe(syntheticItemId);
+      }
     }
   });
 
