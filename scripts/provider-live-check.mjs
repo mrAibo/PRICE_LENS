@@ -369,7 +369,8 @@ export function evaluateRequirements(report, requirements) {
         report.comparison.fxNormalizedOfferCount;
       results[requirement] =
         report.configuration.fx &&
-        (crossCurrency === 0 || normalized >= crossCurrency)
+        crossCurrency > 0 &&
+        normalized >= crossCurrency
           ? "pass"
           : "fail";
     }
@@ -485,21 +486,34 @@ function parseArgs(argv) {
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
-  const report = await runProviderLiveCheck({
-    ...options,
-    sessionToken:
-      process.env.PRICE_LENS_LIVE_SESSION_TOKEN?.trim() || undefined
-  });
-  const serialized = `${JSON.stringify(report, null, 2)}\n`;
+  let report;
 
-  if (options.output) {
-    await writeFile(options.output, serialized, {
-      encoding: "utf8",
-      mode: 0o600
+  try {
+    report = await runProviderLiveCheck({
+      ...options,
+      sessionToken:
+        process.env.PRICE_LENS_LIVE_SESSION_TOKEN?.trim() || undefined
     });
+  } catch (error) {
+    if (error?.report && options.output) {
+      await writeRedactedReport(options.output, error.report);
+    }
+    throw error;
+  }
+
+  const serialized = `${JSON.stringify(report, null, 2)}\n`;
+  if (options.output) {
+    await writeRedactedReport(options.output, report);
   }
 
   process.stdout.write(serialized);
+}
+
+async function writeRedactedReport(path, report) {
+  await writeFile(path, `${JSON.stringify(report, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600
+  });
 }
 
 if (

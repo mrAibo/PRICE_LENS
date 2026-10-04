@@ -93,9 +93,38 @@ offer URLs, request IDs, credentials or session tokens.
 
 A required provider fails the command if it is unconfigured or returns an error.
 `ebay_enrichment` additionally requires actual `ebay-browse:` enrichment evidence
-with no enrichment-fallback warning. The harness is therefore suitable as durable
-evidence for the current live-validation gates without committing customer/product
-identifiers.
+with no enrichment-fallback warning. `fx` passes only when the checked report actually
+contains at least one complete foreign-currency offer and every such offer is
+FX-normalized; merely enabling ECB FX is not enough.
+
+The harness is therefore suitable as durable evidence for the current live-validation
+gates without committing customer/product identifiers.
+
+#### GitHub Actions live gate
+
+The repository also contains the manual **Provider live validation** workflow. It uses
+a protected GitHub Environment named `production-live-validation` and does not require
+provider credentials in GitHub.
+
+Configure that environment with:
+
+- Variable `PRICE_LENS_LIVE_API_ORIGIN`: deployed PriceLens HTTPS origin.
+- Variable `PRICE_LENS_LIVE_COUNTRY`: optional, defaults to `DE`.
+- Secret `PRICE_LENS_LIVE_EBAY_ITEM_ID`: representative real eBay.de item ID. It is
+  stored as a secret to prevent the validation source item from appearing in workflow
+  logs/metadata even though it is not a provider credential.
+- Secret `PRICE_LENS_LIVE_POSTAL_CODE`: optional delivery postcode.
+- Secret `PRICE_LENS_LIVE_SESSION_TOKEN`: optional short-lived PriceLens session;
+  update it immediately before a private-beta validation run because sessions expire.
+
+Then use **Actions -> Provider live validation -> Run workflow**. The workflow accepts
+only non-sensitive gate names and timeout as dispatch inputs, runs the same redacted
+harness, and uploads `provider-live-check.json` for 7 days. Provider secrets remain
+inside the deployed backend / Secret Manager.
+
+The evidence artifact is uploaded even when a provider requirement fails, as long as
+the comparison completed and a redacted report could be produced. Connection-level
+failures before any report exists naturally have no evidence file.
 
 ### Production
 

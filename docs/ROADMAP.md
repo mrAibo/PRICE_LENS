@@ -148,6 +148,7 @@ Delivered:
 Still required:
 
 - [x] redacted end-to-end live provider validation harness
+- [x] protected manual GitHub workflow that uploads redacted provider-validation evidence
 - [ ] live Sandbox/Production response validation
 - [ ] representative condition-id/category fixtures from live eBay.de data
 - [ ] approved shipping/delivery semantics for the intended buyer geography

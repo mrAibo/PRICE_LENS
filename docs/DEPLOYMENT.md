@@ -481,3 +481,30 @@ resources are claimed as provisioned.
 - confirm operational log retention/access ownership, attach approved Monitoring notification channels, then enable/tune alerts;
 - run the Chrome package workflow against the verified final HTTPS API origin;
 - perform final privacy/store review and provider-attribution/store-submission readiness checks.
+
+## Provider live-validation environment
+
+After Phase B is deployed and the API hostname is healthy, create a protected GitHub
+Environment named `production-live-validation`. This environment is intentionally
+separate from deployment credentials.
+
+Configure:
+
+```text
+Variable: PRICE_LENS_LIVE_API_ORIGIN=https://api.<owned-domain>
+Variable: PRICE_LENS_LIVE_COUNTRY=DE
+
+Secret: PRICE_LENS_LIVE_EBAY_ITEM_ID=<representative live ebay.de item id>
+Secret: PRICE_LENS_LIVE_POSTAL_CODE=<optional>
+Secret: PRICE_LENS_LIVE_SESSION_TOKEN=<optional, short-lived>
+```
+
+Do **not** copy eBay Client Secret, Amazon Creators credentials, Idealo credentials or
+Geizhals credentials into this environment. The validation workflow calls the deployed
+PriceLens API, whose service identity reads approved provider secrets from Secret
+Manager.
+
+Run **Provider live validation** manually after provider enablement, credential rotation
+or material provider/runtime changes. Keep the generated redacted artifact with the
+deployment evidence; the workflow itself retains it for seven days.
+
