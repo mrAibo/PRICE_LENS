@@ -223,6 +223,88 @@ describe("privacy-gated PriceLens bootstrap", () => {
     controller.stop();
   });
 
+  it("uses an explicit private-beta sign-in to force exactly one fresh comparison", async () => {
+    const dom = renderPage();
+    const consent = consentStore(true);
+    let authStatus = {enabled: true, signedIn: false} as const;
+    const getStatus = vi.fn(async () => authStatus);
+    const signIn = vi.fn(async () => {
+      authStatus = {
+        enabled: true,
+        signedIn: true,
+        tier: "pilot",
+        expiresAt: "2026-10-04T07:15:00Z"
+      } as const;
+      return authStatus;
+    });
+    const signOut = vi.fn(async () => {
+      authStatus = {enabled: true, signedIn: false} as const;
+      return authStatus;
+    });
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => ({
+        ok: true,
+        result: {
+          requestId: `pilot-${sendMessage.mock.calls.length}`,
+          listing: message.listing,
+          ebayLandedPrice: message.listing.price,
+          ebayLandedPriceComplete: true,
+          offers: [],
+          providerStatus:
+            signIn.mock.calls.length === 0
+              ? [
+                  {provider: "idealo", state: "restricted"},
+                  {provider: "geizhals", state: "restricted"}
+                ]
+              : [
+                  {provider: "idealo", state: "unconfigured"},
+                  {provider: "geizhals", state: "unconfigured"}
+                ],
+          warnings: [],
+          generatedAt: "2026-10-04T00:00:00Z"
+        }
+      })
+    );
+
+    const controller = await bootstrapPriceLens({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      consentStore: consent.store,
+      pilotAuthClient: {getStatus, signIn, signOut},
+      sendMessage
+    });
+
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-compare]")?.click();
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      expect(
+        dom.window.document
+          .getElementById("price-lens-root")
+          ?.shadowRoot?.textContent
+      ).toContain("Sign in with Google");
+    });
+
+    dom.window.document
+      .getElementById("price-lens-root")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>(
+        "[data-price-lens-pilot-signin]"
+      )
+      ?.click();
+
+    await vi.waitFor(() => {
+      expect(signIn).toHaveBeenCalledTimes(1);
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
+    ).toContain("Pilot sign-in active · pilot");
+
+    controller.stop();
+  });
+
   it("revokes consent and stops comparison when the user disables sharing", async () => {
     const dom = renderPage();
     const consent = consentStore(true);
@@ -231,10 +313,28 @@ describe("privacy-gated PriceLens bootstrap", () => {
         responseFor(message)
     );
 
+    const signOut = vi.fn(async () => ({
+      enabled: true,
+      signedIn: false
+    }));
     const controller = await bootstrapPriceLens({
       document: dom.window.document,
       window: dom.window as unknown as Window & typeof globalThis,
       consentStore: consent.store,
+      pilotAuthClient: {
+        async getStatus() {
+          return {
+            enabled: true,
+            signedIn: true,
+            tier: "pilot",
+            expiresAt: "2026-10-04T07:15:00Z"
+          };
+        },
+        async signIn() {
+          throw new Error("not used");
+        },
+        signOut
+      },
       sendMessage
     });
 
@@ -260,6 +360,7 @@ describe("privacy-gated PriceLens bootstrap", () => {
     disable?.click();
 
     await vi.waitFor(() => {
+      expect(signOut).toHaveBeenCalledTimes(1);
       expect(consent.granted()).toBe(false);
       expect(
         dom.window.document.getElementById("price-lens-root")?.shadowRoot?.textContent
