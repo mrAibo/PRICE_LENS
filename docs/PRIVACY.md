@@ -15,16 +15,17 @@ URL are filled in.
 
 PriceLens has one user-facing purpose:
 
-> Add trustworthy market-price context to the eBay.de item page the user is currently
-> viewing.
+> Add trustworthy market-price context to the eBay.de item or search result the user
+> explicitly chooses to compare.
 
 PriceLens does not use eBay page data for advertising, user profiling, unrelated
 analytics, resale, credit decisions, or behavioral targeting.
 
 ## Consent before comparison data leaves the page
 
-The production extension requires an explicit first-use choice before the PriceLens
-item-page lifecycle starts.
+The production extension requires an explicit first-use choice before PriceLens
+comparison features become active. Item pages can present that consent UI; eBay search
+pages remain inert unless consent was already stored.
 
 Before consent, PriceLens:
 
@@ -33,8 +34,10 @@ Before consent, PriceLens:
 - does not contact price providers.
 
 After consent, PriceLens may normalize the supported item locally in the browser and
-render an idle **Compare with PriceLens** control. Local recognition alone sends no
-comparison request.
+render an idle **Compare with PriceLens** control. On supported eBay search pages it may
+also identify eligible result cards locally and render a small PriceLens lens on each
+eligible card. Local recognition, scrolling and lens rendering alone send no comparison
+request.
 
 The normalized listing leaves the page only when the user explicitly presses the
 PriceLens report control. Provider lookups happen only as part of that requested
@@ -56,8 +59,10 @@ Selecting **Not now** sends no listing data and stores no consent.
 ## eBay item data processed for comparison
 
 When comparison is enabled and the user is on a supported
-`https://www.ebay.de/itm/*` page, PriceLens may process and send the current normalized
-listing to the PriceLens API.
+`https://www.ebay.de/itm/*` item page or `https://www.ebay.de/sch/*` search page,
+PriceLens may process the selected item locally. A normalized listing is sent to the
+PriceLens API only after the user explicitly presses the item-page report control or a
+specific search-card lens.
 
 The comparison request can contain an explicit buyer destination consisting of a
 two-letter country code and an optional postal code. This value is entered/selected by
@@ -95,12 +100,13 @@ The extension is not designed to collect or transmit:
 - contact lists;
 - form contents unrelated to product comparison;
 - unrelated page contents;
-- general browsing history outside the supported eBay.de item-page scope.
+- general browsing history outside the supported eBay.de item/search-page scope.
 
 The extension content script is scoped to:
 
 ```text
 https://www.ebay.de/itm/*
+https://www.ebay.de/sch/*
 ```
 
 It does not request `<all_urls>`.

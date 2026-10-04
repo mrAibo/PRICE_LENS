@@ -276,6 +276,100 @@ describe("privacy-gated PriceLens bootstrap", () => {
     controller.stop();
   });
 
+  it("keeps eBay search pages inert until item-page consent already exists", async () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><body>
+        <ul class="srp-results">
+          <li class="s-item">
+            <div class="s-item__info">
+              <a class="s-item__link" href="https://www.ebay.de/itm/523456789012">
+                <div class="s-item__title">Sony WH-1000XM6</div>
+              </a>
+              <span class="s-item__price">EUR 349,00</span>
+              <span class="s-item__shipping">Kostenloser Versand</span>
+            </div>
+          </li>
+        </ul>
+      </body></html>
+    `, {url: "https://www.ebay.de/sch/i.html?_nkw=sony"});
+    const consent = consentStore(false);
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> =>
+        responseFor(message)
+    );
+
+    const controller = await bootstrapPriceLens({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      consentStore: consent.store,
+      sendMessage
+    });
+
+    expect(dom.window.document.getElementById("price-lens-root")).toBeNull();
+    expect(
+      dom.window.document.querySelectorAll("[data-price-lens-search-root]")
+    ).toHaveLength(0);
+    expect(sendMessage).not.toHaveBeenCalled();
+    controller.stop();
+  });
+
+  it("mounts search-card lenses after stored consent and sends only the clicked card", async () => {
+    const dom = new JSDOM(`
+      <!doctype html><html><body>
+        <ul class="srp-results">
+          <li class="s-item">
+            <div class="s-item__info">
+              <a class="s-item__link" href="https://www.ebay.de/itm/623456789012">
+                <div class="s-item__title">Sony WH-1000XM6</div>
+              </a>
+              <span class="s-item__price">EUR 349,00</span>
+              <span class="s-item__shipping">Kostenloser Versand</span>
+              <span class="SECONDARY_INFO">Neu</span>
+            </div>
+          </li>
+        </ul>
+      </body></html>
+    `, {url: "https://www.ebay.de/sch/i.html?_nkw=sony"});
+    const consent = consentStore(true);
+    const destination = destinationStore();
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> =>
+        responseFor(message)
+    );
+
+    const controller = await bootstrapPriceLens({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      consentStore: consent.store,
+      destinationStore: destination.store,
+      sendMessage
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        dom.window.document.querySelectorAll("[data-price-lens-search-root]")
+      ).toHaveLength(1);
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    dom.window.document
+      .querySelector<HTMLElement>("[data-price-lens-search-root]")
+      ?.shadowRoot?.querySelector<HTMLButtonElement>(
+        "[data-price-lens-card-compare]"
+      )
+      ?.click();
+
+    await vi.waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(sendMessage.mock.calls[0]?.[0]).toMatchObject({
+      listing: {itemId: "623456789012"},
+      destination: {country: "DE", postalCode: "30159"}
+    });
+
+    controller.stop();
+  });
+
   it("lets the user decline without persisting or sending data", async () => {
     const dom = renderPage();
     const consent = consentStore(false);

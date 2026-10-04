@@ -14,8 +14,13 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.ebay.de/itm/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://www.ebay.de/itm/*",
+        "https://www.ebay.de/sch/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]
