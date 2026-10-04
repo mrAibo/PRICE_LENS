@@ -268,7 +268,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [x] exact ePID discovery/matching path and opt-in Catalog Brand+MPN -> unique ePID fallback
 - [x] feature-gated Brand+Model Catalog query fallback with bounded exact `getProduct` verification and fail-closed uniqueness
 - [x] Brand+Model fallback verifies storage/RAM/screen/pack Catalog aspects; missing/conflicting aspects reject the ePID
-- [ ] edition/model-qualifier/bundle remain excluded from Brand+Model fallback pending conservative Catalog normalization
+- [x] edition/modelQualifier use exact allowlisted Catalog aspect verification; missing/conflicting values reject the ePID
+- [ ] bundleIncluded remains excluded because seller bundle state is not safely inferable from product Catalog data
 - [ ] live Catalog/Browse ePID + Brand+Model validation with approved eBay credentials
 - [ ] live same-product search validation across representative conditions/categories
 - [ ] Production Buy API / Growth Check approval as required by eBay

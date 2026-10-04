@@ -42,9 +42,11 @@ Search behavior:
 - optional Brand+Model fallback can query Catalog only when stronger identifiers are
   absent, then requires exact Brand + explicit Model detail verification through
   `getProduct` and a unique verified ePID;
-- supported structured variants (storage/RAM/screen/pack) must also match explicit
-  Catalog detail aspects; unsupported edition/model-qualifier/bundle dimensions keep
-  the fallback disabled;
+- structured variants must also match explicit Catalog detail aspects: numeric
+  storage/RAM/screen/pack values plus exact edition/model-number values where a
+  recognized aspect is present;
+- seller bundle state remains excluded from Brand+Model Catalog fallback because it is
+  not safely derivable from the underlying product catalog;
 - requests up to 25 results;
 - requests `buyingOptions:{FIXED_PRICE}`;
 - locally rejects non-fixed-price results if eBay returns them anyway;

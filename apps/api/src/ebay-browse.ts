@@ -2055,11 +2055,7 @@ function hasUnsupportedCatalogVariant(
   const variant = identity.variant;
   if (!variant) return false;
 
-  return (
-    variant.edition !== undefined ||
-    variant.modelQualifier !== undefined ||
-    variant.bundleIncluded !== undefined
-  );
+  return variant.bundleIncluded !== undefined;
 }
 
 function catalogProductMatchesSupportedVariant(
@@ -2129,7 +2125,48 @@ function catalogProductMatchesSupportedVariant(
     return false;
   }
 
+  if (
+    variant.edition !== undefined &&
+    !catalogTextAspectMatches(
+      product.aspects,
+      variant.edition,
+      "Edition",
+      "Ausgabe",
+      "Product Edition",
+      "Produktedition"
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    variant.modelQualifier !== undefined &&
+    !catalogTextAspectMatches(
+      product.aspects,
+      variant.modelQualifier,
+      "Model Number",
+      "Modellnummer",
+      "Model Identifier",
+      "Modellkennung"
+    )
+  ) {
+    return false;
+  }
+
   return true;
+}
+
+function catalogTextAspectMatches(
+  aspects: unknown,
+  expected: string,
+  ...names: string[]
+): boolean {
+  const normalizedExpected = normalizeToken(expected);
+  if (!normalizedExpected) return false;
+
+  return readCatalogAspectValues(aspects, ...names).some(
+    (value) => normalizeToken(value) === normalizedExpected
+  );
 }
 
 function catalogNumericAspectMatches(
