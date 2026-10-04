@@ -369,7 +369,8 @@ export function evaluateRequirements(report, requirements) {
         report.comparison.fxNormalizedOfferCount;
       results[requirement] =
         report.configuration.fx &&
-        (crossCurrency === 0 || normalized >= crossCurrency)
+        crossCurrency > 0 &&
+        normalized >= crossCurrency
           ? "pass"
           : "fail";
     }
