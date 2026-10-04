@@ -1,6 +1,6 @@
 # Provider Access Control
 
-Status: **public/private-beta entitlement foundation implemented; authenticated identity not yet connected**
+Status: **server-side Google identity exchange + short-lived session foundation implemented; extension login UI pending**
 
 Updated: **2026-10-04**
 
@@ -84,38 +84,71 @@ Idealo · Geizhals — not available in the public plan yet.
 
 No provider request is made merely to render this placeholder.
 
-## Authentication that is intentionally not implemented yet
+## Authenticated pilot session foundation
 
-This slice does **not** introduce a password, embedded pilot token, IP allowlist or
-client-controlled plan flag.
-
-The preferred future flow remains:
+The backend now supports an opt-in Google-to-PriceLens session exchange:
 
 ```text
-user login
+explicit user sign-in
    ↓
-identity service
+short-lived Google OAuth access token
    ↓
-short-lived authenticated session/token
+POST /v1/session/google
    ↓
-PriceLens backend verifies identity
+Google userinfo verification
    ↓
-server-side entitlement resolver
+Google stable subject ("sub")
    ↓
-ProviderAccessContext
+server-side subject → tier map
+   ↓
+15-minute PriceLens HMAC session
+   ↓
+Authorization: Bearer <PriceLens session>
+   ↓
+tier re-resolved on every comparison
 ```
+
+Important invariants:
+
+- Google access tokens are used only for the sign-in exchange and are never provider credentials;
+- entitlement keys use Google's stable `sub`, not email addresses;
+- unknown valid Google subjects receive the normal `free` tier;
+- the PriceLens session does **not** carry trusted provider entitlements;
+- the backend re-resolves the session subject against trusted account data on every comparison;
+- removing a subject from the pilot map therefore revokes restricted-provider access immediately,
+  even if that user's PriceLens session has not expired yet;
+- session lifetime defaults to 900 seconds and is bounded to 60–3600 seconds;
+- malformed, tampered, expired or missing sessions fail closed to public restrictions;
+- the session exchange response is `Cache-Control: no-store`;
+- Google verification has a bounded timeout;
+- the Cloud Armor session-exchange rate limit is enforced rather than preview-only.
+
+The trusted pilot map is stored server-side as:
+
+```json
+{
+  "google-subject-1": "pilot",
+  "google-subject-2": "pilot"
+}
+```
+
+Allowed privileged values are `pilot`, `pro`, and `admin`. The JSON mapping and
+the HMAC signing secret are separate pinned Secret Manager versions. Neither belongs in
+Terraform variables, GitHub, extension storage, source code or logs.
 
 The browser extension must never contain:
 
 - Idealo credentials;
 - Geizhals credentials;
+- the PriceLens session-signing secret;
+- the Google-subject entitlement map;
 - a shared long-lived pilot bearer token;
 - a hard-coded "admin" secret;
 - provider API secrets.
 
-When authentication is added, the resolver should verify the short-lived credential
-and derive the tier/capabilities from trusted server-side state. Client claims alone
-must not grant provider access.
+The Chrome interactive sign-in client remains the next slice. Until that client is
+configured with a real OAuth client ID, public extension builds continue to operate as
+anonymous/free and the existing Private beta placeholder remains visible.
 
 ## Provider licensing remains separate
 
@@ -137,4 +170,10 @@ The automated suite verifies:
 - a client-supplied fake pilot tier does not change access;
 - resolver failures fail closed;
 - a server-resolved pilot policy can enable a configured provider;
+- Google userinfo exchange issues only short-lived server-signed PriceLens sessions;
+- unknown Google subjects remain free/restricted;
+- session signature tampering and expiration fail closed;
+- pilot entitlement removal takes effect immediately because tier is re-resolved;
+- Terraform requires pinned signing-secret and entitlement-map versions before auth enablement;
+- Cloud Armor enforces a dedicated session-exchange request budget;
 - the UI exposes a Private beta placeholder without describing it as an outage.
