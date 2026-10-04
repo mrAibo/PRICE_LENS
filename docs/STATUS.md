@@ -50,13 +50,16 @@ Current implementation checkpoint: `f5c8540fbadcb87a1ef48cef458e48a4a3632a07` (P
 - [x] observed real-layout capture/anonymization tool
 - [x] independent `reviewed:true` evidence gate for observed fixtures
 - [x] separate synthetic vs observed per-field extraction metrics
-- [x] independently reviewed real eBay.de item-page corpus: 5 fixtures / 90 labelled fields
+- [x] independently reviewed real eBay.de item-page corpus: 6 fixtures / 108 labelled fields
 - [x] real-layout `schema.org/UsedCondition` normalization defect fixed from observed evidence
 - [x] live JSON-LD title character-reference decoding fixed from observed evidence
 - [x] selected eBay SKU storage values override ambiguous generic item-specific values
 - [x] observed capture pipeline preserves newer direct `dt/dd` Brand/Model item-specifics while excluding unrelated seller data
 - [x] local-pickup-only listings keep shipping unknown/unavailable instead of treating pickup as EUR 0 shipping
 - [x] observed weak-identity media listing proves Brand/Model/MPN/GTIN/EAN/UPC are not invented from title text
+- [x] destination-specific unknown shipping stays incomplete instead of becoming zero
+- [x] international listing keeps visible primary GBP price when eBay JSON-LD exposes only an approximate EUR conversion
+- [x] observed fixture anonymizer rewrites embedded source item IDs to synthetic IDs and strips live navigation/tracking attributes
 - [x] structured variant fields participate in lifecycle fingerprinting
 - [x] build-time extension API origin with HTTPS-only production policy (PR #29)
 - [x] generated extension artifact verification for dev + production-origin builds
@@ -245,9 +248,9 @@ Still required:
 
 - [x] initial labelled synthetic eBay.de fixture corpus
 - [x] initial regression-evidence report (synthetic corpus)
-- [ ] representative anonymized real-layout fixture corpus (**5 reviewed real fixtures / 90 labelled fields collected so far**)
-- [ ] empirical field-level extraction accuracy report over representative layouts (**5-fixture observed report available; broader corpus still required**)
-- [ ] coverage for representative shipping layouts (**paid domestic + free + local-pickup/no-shipping covered; destination-dependent unknown still required**)
+- [ ] representative anonymized real-layout fixture corpus (**6 reviewed real fixtures / 108 labelled fields collected so far**)
+- [ ] empirical field-level extraction accuracy report over representative layouts (**6-fixture observed report available; incomplete/absent JSON-LD layout still required**)
+- [x] coverage for representative shipping layouts (**paid domestic + free + local-pickup/no-shipping + destination-dependent unknown covered**)
 - [x] initial coverage for variant/item-specific layouts
 - [ ] broaden variant/item-specific fixture coverage across categories (**selected multi-variant storage now covered on a live phone listing**)
 - [x] explicit unsupported-state behavior for pages that cannot be normalized safely
@@ -390,11 +393,12 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #82 — second real eBay fixture + JSON-LD title entity decoding — merged into `main`
 - PR #83 — selected eBay SKU extraction + third reviewed real fixture — merged into `main`
 - PR #84 — direct `dt/dd` item-specific capture + local-pickup/no-shipping observed fixture — merged into `main`
+- PR #85 — fifth reviewed weak-identity real eBay fixture — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Issue #10 — continue capturing and independently reviewing representative real eBay.de layouts. Five reviewed real fixtures / 90 labelled fields are now covered: used+paid shipping, refurbished+free shipping, selected multi-variant phone with 128 GB storage, local-pickup-only watch with direct `dt/dd` Brand/Model, and a weak-identity media listing that leaves strong identity fields empty. Remaining minimum classes are destination-dependent shipping-unknown, incomplete/absent JSON-LD safe DOM fallback, and additional category/layout coverage.
+1. Issue #10 — six reviewed real fixtures / 108 labelled fields now cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping and destination-dependent shipping unknown. The remaining minimum real-layout gate is incomplete/absent Product JSON-LD with safe DOM fallback.
 2. Issue #12 Sandbox credential/Browse-enrichment gate is complete. Continue Issue #52 with broader same-product/condition/shipping validation and eBay Production approval; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.

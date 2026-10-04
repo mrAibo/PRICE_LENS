@@ -39,10 +39,7 @@ export function extractEbayListing(
   if (!title) return null;
   if (product?.name) evidence.push("jsonld:Product.name");
 
-  const price =
-    extractJsonLdPrice(product, evidence) ??
-    extractContentPrice(document, evidence) ??
-    extractDomPrice(document, evidence);
+  const price = extractPrice(product, document, evidence);
 
   if (!price) return null;
 
@@ -117,6 +114,45 @@ function flattenJsonLd(value: unknown): JsonRecord[] {
 function hasType(record: JsonRecord, expected: string): boolean {
   const type = record["@type"];
   return type === expected || (Array.isArray(type) && type.includes(expected));
+}
+
+function extractPrice(
+  product: JsonRecord | undefined,
+  document: Document,
+  evidence: string[]
+): Money | undefined {
+  const structuredEvidence: string[] = [];
+  const structured = extractJsonLdPrice(product, structuredEvidence);
+  const domEvidence: string[] = [];
+  const dom = extractDomPrice(document, domEvidence);
+
+  // eBay.de can publish a localized approximate conversion in Product JSON-LD
+  // while the visible primary listing price remains in the seller's original
+  // currency (for example GBP primary + approximate EUR). Preserve the actual
+  // primary currency so PriceLens can apply its own explicit FX provenance.
+  if (structured && dom && structured.currency !== dom.currency) {
+    evidence.push(...domEvidence, "price:primary-currency-overrides-jsonld");
+    return dom;
+  }
+
+  if (structured) {
+    evidence.push(...structuredEvidence);
+    return structured;
+  }
+
+  const contentEvidence: string[] = [];
+  const content = extractContentPrice(document, contentEvidence);
+  if (content) {
+    evidence.push(...contentEvidence);
+    return content;
+  }
+
+  if (dom) {
+    evidence.push(...domEvidence);
+    return dom;
+  }
+
+  return undefined;
 }
 
 function extractJsonLdPrice(

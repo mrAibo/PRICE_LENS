@@ -18,8 +18,8 @@ Location:
 Current gate:
 
 - synthetic regression: **9 fixtures / 77 labelled scalar field checks**
-- observed reviewed: **5 real eBay.de fixtures / 90 labelled scalar field checks**
-- observed classes: used + paid domestic shipping; refurbished + free domestic shipping; selected multi-variant phone with explicit 128 GB storage; local-pickup-only watch listing with shipping unavailable and direct `dt/dd` Brand/Model specifics; weak-identity media listing with no trustworthy Brand/Model/MPN/GTIN/EAN/UPC
+- observed reviewed: **6 real eBay.de fixtures / 108 labelled scalar field checks**
+- observed classes: used + paid domestic shipping; refurbished + free domestic shipping; selected multi-variant phone with explicit 128 GB storage; local-pickup-only watch listing with shipping unavailable and direct `dt/dd` Brand/Model specifics; weak-identity media listing with no trustworthy Brand/Model/MPN/GTIN/EAN/UPC; international GBP listing with destination-specific shipping unknown for Germany
 - CI rejects any mismatch
 - CI also rejects accidental synthetic corpus shrinkage below 9 fixtures / 70 labelled fields
 
@@ -41,7 +41,7 @@ Current fixture classes:
 
 A green CI run means **100% of the labelled checks in the synthetic regression corpus passed**.
 
-The independently reviewed observed corpus currently reports **90/90 labelled fields passing across 5 real layouts**. These captures exposed and permanently fixed three extractor gaps — `https://schema.org/UsedCondition` normalization, HTML character references inside live JSON-LD titles, and selected SKU storage values — plus one evidence-pipeline gap where newer eBay direct `dt/dd` item-specifics were being dropped by the anonymizer.
+The independently reviewed observed corpus currently reports **108/108 labelled fields passing across 6 real layouts**. These captures exposed and permanently fixed extractor gaps in `https://schema.org/UsedCondition` normalization, HTML character references inside live JSON-LD titles, selected SKU storage values, and international primary-currency handling. They also exposed evidence-pipeline gaps where newer eBay direct `dt/dd` item-specifics were dropped and embedded source item IDs/tracking links survived anonymization; both are now regression-gated.
 
 That number is a regression metric only. It must **not** be described as 100% eBay extraction accuracy.
 
@@ -129,9 +129,10 @@ npm run capture:ebay -- \
 The generated JSON goes to `apps/extension/test/fixtures/observed/` by default.
 
 The capture deliberately does **not** persist the original URL. It stores a SHA-256
-digest for provenance/deduplication, uses a synthetic item id in the fixture, and
-keeps only extractor-relevant JSON-LD, price, condition and whitelisted item-specific
-markup. Seller/account areas are excluded by construction.
+digest for provenance/deduplication, uses a synthetic item id in the fixture, rewrites
+source item ids inside retained JSON-LD to that synthetic id, strips live navigation
+and tracking attributes, and keeps only extractor-relevant JSON-LD, price, condition
+and whitelisted item-specific markup. Seller/account areas are excluded by construction.
 
 Every captured fixture starts as `reviewed: false`. The generated `expected`
 object is only a draft produced by the current extractor. A person must independently
@@ -191,8 +192,11 @@ It prints two independent corpora:
 An unreviewed observed fixture is intentionally excluded from real-layout metrics.
 
 At this checkpoint the infrastructure for real-layout measurement is complete and
-five reviewed observed fixtures are committed. Their 90/90 result is evidence for
-those specific layouts only, not a general real-world accuracy claim. Local-pickup/no-shipping and weak-identity/no-invention behavior are now covered, but the stricter destination-dependent shipping-unknown case, incomplete/absent JSON-LD fallback and additional category layouts still need observed evidence before Issue #10 can close.
+six reviewed observed fixtures are committed. Their 108/108 result is evidence for
+those specific layouts only, not a general real-world accuracy claim. Paid shipping,
+free shipping, local-pickup/no-shipping, destination-dependent shipping unknown and
+weak-identity/no-invention behavior are now covered. The remaining minimum real-layout
+gap before Issue #10 can close is incomplete/absent Product JSON-LD with a safe DOM fallback.
 
 ## Search-result layout evidence
 
