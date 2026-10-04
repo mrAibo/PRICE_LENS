@@ -247,7 +247,7 @@ function extractCondition(
   if (/open\s*box|geoffnet|offene\s+verpackung/.test(value)) {
     return "open_box";
   }
-  if (/\bgebraucht\b|\bused\b/.test(value)) {
+  if (/usedcondition|\bgebraucht\b|\bused\b/.test(value)) {
     return "used";
   }
   if (/newcondition|\bneu\b|\bnew\b/.test(value)) {
