@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `931cc8348906cd2c730064d3d1f98fb128287d40` (PR #77). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `4e6e0f7e88e013adef8d17eab844b5362aa51b2b` (PR #78). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -375,11 +375,12 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #75 — protected GitHub provider live-validation workflow — merged into `main`
 - PR #76 — observed eBay search-layout capture/review/metrics pipeline — merged into `main`
 - PR #77 — end-to-end search capture anonymization test — merged into `main`
+- PR #78 — external provider onboarding clarification + minimum observed item-layout evidence corpus — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
-1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The capture/review pipeline is ready, but raw saved live-page HTML is still required; do not substitute search snippets or synthetic fixtures.
+1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The minimum first observed batch is now explicitly defined. The capture/review pipeline is ready, but raw saved live-page HTML is still required; the authorized Desktop Commander device was offline on 2026-10-04, so do not substitute search snippets or synthetic fixtures.
 2. Issue #12 — insert eBay Sandbox credentials and validate Browse enrichment; Issue #52 — live-validate same-product marketplace search/conditions/shipping, then Production approval.
 3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
