@@ -426,7 +426,7 @@ describe("landed-cost safety", () => {
     ).toBe("import_costs_unknown");
   });
 
-  it("marks unknown origin incomplete when a destination is known", () => {
+  it("classifies unknown origin separately when a destination is known", () => {
     expect(
       assessLandedCostStatus(
         true,
@@ -540,6 +540,36 @@ describe("provider orchestration", () => {
     });
     expect(result.bestOffer?.providerProductId).toBe("pl-safe");
     expect(result.marketMinimum).toEqual({amount: 305, currency: "EUR"});
+  });
+
+  it("keeps unknown-origin offers visible but out of comparable-price ranking", async () => {
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({
+            providerProductId: "origin-unknown",
+            itemLocationCountry: undefined,
+            itemPrice: {amount: 250, currency: "EUR"},
+            shipping: {amount: 0, currency: "EUR"}
+          })
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider], {
+      destination: {country: "DE"}
+    });
+
+    expect(result.offers).toHaveLength(1);
+    expect(result.offers[0]).toMatchObject({
+      providerProductId: "origin-unknown",
+      landedPrice: {amount: 250, currency: "EUR"},
+      landedPriceComplete: true,
+      landedCostStatus: "origin_unknown"
+    });
+    expect(result.bestOffer).toBeUndefined();
+    expect(result.marketMinimum).toBeUndefined();
   });
 
   it("exposes bounded review-candidate diagnostics", async () => {
