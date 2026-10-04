@@ -12,8 +12,7 @@ import {selectCompactOffers} from "./ui/render.js";
 
 const SEARCH_CARD_SELECTORS = [
   "li.s-item",
-  ".srp-results .s-item",
-  "[data-view*='mi:1686']"
+  ".srp-results .s-item"
 ];
 
 export interface SearchResultsLifecycleOptions {
