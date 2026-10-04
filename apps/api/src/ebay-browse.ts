@@ -5,6 +5,7 @@ import type {
   ListingCondition,
   Money,
   ProductIdentity,
+  ProductVariant,
   ReturnPolicySummary,
   SellerAccountType
 } from "@price-lens/contracts";
@@ -233,7 +234,7 @@ export class EbayBrowseEnricher {
       identity.brand &&
       identity.model &&
       !isMeaningfulIdentifier(identity.mpn) &&
-      !hasStructuredVariant(identity)
+      !hasUnsupportedCatalogVariant(identity)
     ) {
       try {
         const epid = await this.resolveCatalogBrandModelEpid(identity);
@@ -709,7 +710,9 @@ export class EbayBrowseEnricher {
   ): Promise<string | undefined> {
     const brand = identity.brand?.trim();
     const model = identity.model?.trim();
-    if (!brand || !model || hasStructuredVariant(identity)) return undefined;
+    if (!brand || !model || hasUnsupportedCatalogVariant(identity)) {
+      return undefined;
+    }
 
     const key = [
       "brand-model",
@@ -720,7 +723,11 @@ export class EbayBrowseEnricher {
     const active = this.catalogEpidInFlight.get(key);
     if (active) return active;
 
-    const pending = this.fetchCatalogBrandModelEpid(brand, model).finally(() => {
+    const pending = this.fetchCatalogBrandModelEpid(
+      brand,
+      model,
+      identity.variant
+    ).finally(() => {
       if (this.catalogEpidInFlight.get(key) === pending) {
         this.catalogEpidInFlight.delete(key);
       }
@@ -731,7 +738,8 @@ export class EbayBrowseEnricher {
 
   private async fetchCatalogBrandModelEpid(
     brand: string,
-    model: string
+    model: string,
+    variant: ProductVariant | undefined
   ): Promise<string | undefined> {
     const query = `${brand} ${model}`;
     let response = await this.fetchCatalogQuerySearch(query, false);
@@ -801,7 +809,13 @@ export class EbayBrowseEnricher {
       const {epid, product} = result.value;
       if (
         product &&
-        catalogProductMatchesBrandModel(product, epid, brand, model)
+        catalogProductMatchesBrandModel(
+          product,
+          epid,
+          brand,
+          model,
+          variant
+        )
       ) {
         verified.add(epid);
       }
@@ -1977,7 +1991,8 @@ function catalogProductMatchesBrandModel(
   product: JsonRecord,
   expectedEpid: string,
   brand: string,
-  model: string
+  model: string,
+  variant: ProductVariant | undefined
 ): boolean {
   const epid = cleanEpid(readString(product.epid));
   const productBrand = readString(product.brand);
@@ -1997,9 +2012,15 @@ function catalogProductMatchesBrandModel(
     "Modellnummer"
   );
   const expectedModel = normalizeToken(model);
-  return modelValues.some(
-    (candidate) => normalizeToken(candidate) === expectedModel
-  );
+  if (
+    !modelValues.some(
+      (candidate) => normalizeToken(candidate) === expectedModel
+    )
+  ) {
+    return false;
+  }
+
+  return catalogProductMatchesSupportedVariant(product, variant);
 }
 
 function readCatalogAspectValues(
@@ -2028,10 +2049,142 @@ function readCatalogAspectValues(
   return values;
 }
 
-function hasStructuredVariant(identity: ProductIdentity): boolean {
+function hasUnsupportedCatalogVariant(
+  identity: ProductIdentity
+): boolean {
   const variant = identity.variant;
   if (!variant) return false;
-  return Object.values(variant).some((value) => value !== undefined);
+
+  return (
+    variant.edition !== undefined ||
+    variant.modelQualifier !== undefined ||
+    variant.bundleIncluded !== undefined
+  );
+}
+
+function catalogProductMatchesSupportedVariant(
+  product: JsonRecord,
+  variant: ProductVariant | undefined
+): boolean {
+  if (!variant) return true;
+
+  if (
+    variant.storageGb !== undefined &&
+    !catalogNumericAspectMatches(
+      product.aspects,
+      variant.storageGb,
+      parseCapacityGb,
+      "Storage Capacity",
+      "Speicherkapazität",
+      "Speichergröße",
+      "Storage"
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    variant.ramGb !== undefined &&
+    !catalogNumericAspectMatches(
+      product.aspects,
+      variant.ramGb,
+      parseCapacityGb,
+      "RAM Size",
+      "RAM",
+      "Arbeitsspeicher",
+      "Arbeitsspeichergröße",
+      "Installed RAM"
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    variant.screenSizeInches !== undefined &&
+    !catalogNumericAspectMatches(
+      product.aspects,
+      variant.screenSizeInches,
+      parseScreenSizeInches,
+      "Screen Size",
+      "Bildschirmgröße",
+      "Display Size",
+      "Displaygröße"
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    variant.packCount !== undefined &&
+    !catalogNumericAspectMatches(
+      product.aspects,
+      variant.packCount,
+      parsePackCount,
+      "Number in Pack",
+      "Pack Quantity",
+      "Anzahl pro Packung",
+      "Packungsgröße"
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function catalogNumericAspectMatches(
+  aspects: unknown,
+  expected: number,
+  parser: (value: string) => number | undefined,
+  ...names: string[]
+): boolean {
+  const parsed = readCatalogAspectValues(aspects, ...names)
+    .map(parser)
+    .filter((value): value is number => value !== undefined);
+
+  return parsed.some((value) => numbersClose(value, expected));
+}
+
+function parseCapacityGb(value: string): number | undefined {
+  const normalized = normalizeWords(value).replace(",", ".");
+  const match = /(?:^|\s)(\d+(?:\.\d+)?)\s*(tb|gb|gbyte|gigabyte|tbyte|terabyte)(?:\s|$)/i.exec(
+    normalized
+  );
+  if (!match?.[1] || !match[2]) return undefined;
+
+  const numeric = Number.parseFloat(match[1]);
+  if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
+  return /^t/i.test(match[2]) ? numeric * 1024 : numeric;
+}
+
+function parseScreenSizeInches(value: string): number | undefined {
+  const normalized = value.trim().replace(",", ".");
+  const match = /(\d+(?:\.\d+)?)\s*(?:"|in(?:ch(?:es)?)?|zoll)\b/i.exec(
+    normalized
+  );
+  if (!match?.[1]) return undefined;
+
+  const numeric = Number.parseFloat(match[1]);
+  return Number.isFinite(numeric) && numeric > 0
+    ? numeric
+    : undefined;
+}
+
+function parsePackCount(value: string): number | undefined {
+  const normalized = normalizeWords(value);
+  const match = /^(\d{1,3})(?:\s*(?:pack|pcs|pieces|stuck|stücke))?$/.exec(
+    normalized
+  );
+  if (!match?.[1]) return undefined;
+
+  const count = Number.parseInt(match[1], 10);
+  return Number.isSafeInteger(count) && count > 0
+    ? count
+    : undefined;
+}
+
+function numbersClose(left: number, right: number): boolean {
+  return Math.abs(left - right) < 0.01;
 }
 
 function canonicalTradeItemIdentifiers(identity: ProductIdentity): Set<string> {
