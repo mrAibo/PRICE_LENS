@@ -1,13 +1,19 @@
 import {readFile, stat} from "node:fs/promises";
 import {
   hostPermissionForOrigin,
-  normalizeApiOrigin
+  normalizeApiOrigin,
+  normalizeGoogleOauthClientId
 } from "./build-config.mjs";
 
 const firefox = process.argv.includes("--firefox");
 const browser = firefox ? "firefox" : "chrome";
 const expectedOrigin = normalizeApiOrigin(process.env.PRICE_LENS_API_ORIGIN);
 const expectedHostPermission = hostPermissionForOrigin(expectedOrigin);
+const expectedGoogleOauthClientId = firefox
+  ? undefined
+  : normalizeGoogleOauthClientId(
+      process.env.PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID
+    );
 const distDir = new URL(firefox ? "./dist-firefox/" : "./dist/", import.meta.url);
 
 const requiredFiles = ["manifest.json", "background.js", "content.js"];
@@ -59,12 +65,37 @@ if (firefox) {
 }
 
 const permissions = manifest.permissions;
-assert(
-  Array.isArray(permissions) &&
-    permissions.length === 1 &&
-    permissions[0] === "storage",
-  "Release manifest permissions must contain only storage for local consent state."
-);
+if (expectedGoogleOauthClientId) {
+  assert(
+    Array.isArray(permissions) &&
+      permissions.length === 2 &&
+      permissions.includes("storage") &&
+      permissions.includes("identity") &&
+      !permissions.includes("identity.email"),
+    "Pilot Chrome manifest permissions must contain only storage and identity."
+  );
+  assert(
+    manifest.oauth2?.client_id === expectedGoogleOauthClientId,
+    "Pilot Chrome manifest must contain the expected Google OAuth client ID."
+  );
+  assert(
+    Array.isArray(manifest.oauth2?.scopes) &&
+      manifest.oauth2.scopes.length === 1 &&
+      manifest.oauth2.scopes[0] === "openid",
+    "Pilot Chrome manifest must request only the openid OAuth scope."
+  );
+} else {
+  assert(
+    Array.isArray(permissions) &&
+      permissions.length === 1 &&
+      permissions[0] === "storage",
+    "Public release manifest permissions must contain only storage."
+  );
+  assert(
+    manifest.oauth2 === undefined,
+    "Public/Firefox release manifest must not contain Google OAuth configuration."
+  );
+}
 
 const hostPermissions = manifest.host_permissions;
 assert(
@@ -115,7 +146,9 @@ const extensionJs = [
 for (const forbidden of [
   "EBAY_CLIENT_SECRET",
   "AMAZON_CREATORS_CREDENTIAL_SECRET",
-  "AMAZON_CREATORS_CREDENTIAL_ID"
+  "AMAZON_CREATORS_CREDENTIAL_ID",
+  "PRICE_LENS_SESSION_SIGNING_SECRET",
+  "PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON"
 ]) {
   assert(
     !extensionJs.includes(forbidden),
