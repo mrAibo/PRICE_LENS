@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `3417ba0f13e0bab82c61650c96bb6b3b21202b8f` (PR #76). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `931cc8348906cd2c730064d3d1f98fb128287d40` (PR #77). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -374,6 +374,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #74 — redacted provider live-validation harness — merged into `main`
 - PR #75 — protected GitHub provider live-validation workflow — merged into `main`
 - PR #76 — observed eBay search-layout capture/review/metrics pipeline — merged into `main`
+- PR #77 — end-to-end search capture anonymization test — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
