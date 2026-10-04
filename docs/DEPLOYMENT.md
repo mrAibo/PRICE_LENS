@@ -218,6 +218,39 @@ until DNS/TLS is verified, and notification-channel contact data is deliberately
 managed by this repository.
 
 
+### Keyless GitHub image publishing
+
+Phase A can optionally create a GitHub Actions Workload Identity Federation pool,
+provider and dedicated image-publisher service account.
+
+The trust condition is restricted to the immutable PriceLens GitHub repository identity
+and `refs/heads/main`. The service account receives only
+`roles/artifactregistry.writer` on the PriceLens Artifact Registry repository.
+
+It receives no Secret Manager payload access, Cloud Run administration, Compute
+administration or project IAM administration.
+
+After the one-time operator Phase-A bootstrap, configure these GitHub repository
+variables from Terraform outputs:
+
+```text
+GCP_PROJECT_ID
+GCP_WIF_PROVIDER
+GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT
+```
+
+Then the manual **Publish API Image** workflow can authenticate with a GitHub OIDC token
+and push:
+
+```text
+europe-west3-docker.pkg.dev/<project>/price-lens/price-lens-api:<GITHUB_SHA>
+```
+
+No service-account JSON key is stored in GitHub.
+
+See [GitHub Actions → Google Cloud WIF](GITHUB_GCP_WIF.md) for the bootstrap and
+handoff procedure.
+
 ### Cloud Run service baseline
 
 Example variables:
@@ -422,7 +455,9 @@ Infrastructure definitions are now versioned and schema-validated, but no live c
 resources are claimed as provisioned.
 
 - select/create the production GCP project, billing and remote Terraform-state bucket;
-- apply Terraform Phase A to create Artifact Registry, service account and Secret Manager containers;
+- apply Terraform Phase A to create Artifact Registry, runtime service account and Secret Manager containers;
+- enable the opt-in GitHub WIF image publisher during Phase A and copy its outputs into GitHub repository variables;
+- run the keyless image-publish workflow and use its immutable SHA-tagged image in the Phase-B plan;
 - add approved provider secret **versions** out-of-band and record rotation ownership/cadence;
 - build/push an immutable PriceLens API image;
 - choose the final API hostname and apply Terraform Phase B;

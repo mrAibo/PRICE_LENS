@@ -263,7 +263,7 @@ Status: **public/private-beta foundation implemented; authenticated identity pen
 - [x] connect server-side Google identity verification/session exchange
 - [x] issue/verify short-lived server-signed user sessions
 - [x] persist pilot/pro/admin Google-subject entitlements in pinned trusted Secret Manager data
-- [ ] connect the Chrome extension interactive Google sign-in client
+- [x] connect the Chrome extension interactive Google sign-in client
 - [ ] enable Idealo/Geizhals only after both entitlement and provider-contract gates pass
 
 Exit gate: public users cannot invoke restricted provider adapters, while an authenticated
@@ -392,6 +392,9 @@ A Deal Score must remain explainable and must not hide match uncertainty.
 - [x] production API Docker image verified in CI
 - [x] GCP Terraform IaC validated in CI (provider 8.2.0)
 - [x] two-phase bootstrap/runtime infrastructure workflow documented
+- [x] keyless GitHub Actions WIF image-publisher IaC with immutable repository/main trust boundary
+- [x] manual GitHub workflow publishes Git-SHA API images to Artifact Registry without service-account keys
+- [ ] apply WIF bootstrap in the production GCP project and configure GitHub repository variables
 - [x] extension build-time API-origin configuration
 - [x] generated extension artifact verification in CI
 - [x] backend production runtime/environment contract

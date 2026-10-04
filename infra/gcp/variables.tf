@@ -25,6 +25,67 @@ variable "name_prefix" {
   }
 }
 
+variable "github_wif_image_publisher_enabled" {
+  description = "Create a GitHub Actions Workload Identity Federation identity that can push immutable API images to this deployment's Artifact Registry repository."
+  type        = bool
+  default     = false
+}
+
+variable "github_repository" {
+  description = "Exact GitHub repository allowed to federate for API image publishing."
+  type        = string
+  default     = "mrAibo/PRICE_LENS"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "github_repository must use owner/repository syntax."
+  }
+}
+
+variable "github_repository_id" {
+  description = "Immutable GitHub repository numeric ID used in the WIF provider condition."
+  type        = string
+  default     = "1401433983"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.github_repository_id))
+    error_message = "github_repository_id must be a positive numeric GitHub repository ID."
+  }
+}
+
+variable "github_repository_owner_id" {
+  description = "Immutable GitHub repository-owner numeric ID used in the WIF provider condition."
+  type        = string
+  default     = "93589172"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.github_repository_owner_id))
+    error_message = "github_repository_owner_id must be a positive numeric GitHub owner ID."
+  }
+}
+
+variable "github_wif_pool_id" {
+  description = "Workload Identity Pool ID for GitHub Actions image publishing."
+  type        = string
+  default     = "price-lens-github"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]{4,32}$", var.github_wif_pool_id))
+    error_message = "github_wif_pool_id must be 4-32 lowercase letters, digits or hyphens."
+  }
+}
+
+variable "github_wif_provider_id" {
+  description = "OIDC Workload Identity Provider ID for GitHub Actions."
+  type        = string
+  default     = "price-lens-repo"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]{4,32}$", var.github_wif_provider_id))
+    error_message = "github_wif_provider_id must be 4-32 lowercase letters, digits or hyphens."
+  }
+}
+
 variable "deploy_runtime" {
   description = "Create the Cloud Run service, Cloud Armor policy and HTTPS load balancer. Leave false for phase-A bootstrap."
   type        = bool

@@ -8,6 +8,13 @@ region     = "europe-west3"
 # Phase A: bootstrap shared infrastructure only.
 deploy_runtime = false
 
+# Optional one-time Phase-A bootstrap for keyless GitHub Actions image publishing.
+# This trusts only the immutable mrAibo/PRICE_LENS repository identity on main.
+# github_wif_image_publisher_enabled = true
+# github_repository                  = "mrAibo/PRICE_LENS"
+# github_repository_id               = "1401433983"
+# github_repository_owner_id         = "93589172"
+#
 # Phase B: enable only after a real image has been pushed and a production
 # API hostname has been selected.
 #

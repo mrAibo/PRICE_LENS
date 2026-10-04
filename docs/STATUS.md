@@ -57,7 +57,7 @@ Current implementation checkpoint: `7f84c6e848b401b47b488f5adc27a4a2feb85e7d` (P
 - [x] manual HTTPS production-origin Chrome package workflow
 - [x] explicit first-use privacy consent before eBay extraction/network traffic
 - [x] local consent revocation control
-- [x] release artifact enforces minimal `storage` permission only
+- [x] public release artifacts enforce minimal `storage` permission; opt-in Chrome pilot artifact adds only `identity` + `openid`
 - [x] behavior-derived privacy baseline and Chrome Web Store release checklist
 - [x] Firefox-specific MV3 build/verify/package baseline
 - [x] callback-compatible storage/runtime adapters for Chrome + Firefox
@@ -127,6 +127,10 @@ Current implementation checkpoint: `7f84c6e848b401b47b488f5adc27a4a2feb85e7d` (P
 - [x] native Terraform Cloud Run + serverless NEG + EXTERNAL_MANAGED HTTPS LB resources
 - [x] Cloud Armor 64 KiB declared-body guard + per-IP throttle in preview by default
 - [x] pinned Secret Manager version injection; no provider secret values accepted by Terraform
+- [x] opt-in GitHub Actions WIF image-publisher IaC bound to immutable PriceLens repo/owner IDs + main branch
+- [x] WIF image publisher has Artifact Registry Writer only; no Secret Manager/Cloud Run/project-admin role
+- [x] manual keyless GitHub workflow builds/pushes immutable GITHUB_SHA API images
+- [ ] live WIF Phase-A apply + GitHub repository-variable configuration remains pending
 
 ### Provider/access research
 

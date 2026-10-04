@@ -28,6 +28,7 @@ See:
 - [Roadmap](docs/ROADMAP.md)
 - [Current project status](docs/STATUS.md)
 - [Deployment](docs/DEPLOYMENT.md)
+- [GitHub Actions → Google Cloud WIF](docs/GITHUB_GCP_WIF.md)
 - [Privacy baseline](docs/PRIVACY.md)
 - [Chrome Web Store release checklist](docs/CHROME_WEB_STORE_RELEASE.md)
 - [eBay extraction evidence](docs/EXTRACTION_EVIDENCE.md)

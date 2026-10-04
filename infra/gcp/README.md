@@ -79,6 +79,30 @@ caches disabled, fixture/external providers opt-in, 30-day operational-log reten
 alerts disabled before DNS/TLS verification, and no committed notification recipient.
 
 
+## Optional GitHub Actions WIF image publisher
+
+Phase A can also bootstrap a narrowly scoped keyless GitHub identity:
+
+```hcl
+github_wif_image_publisher_enabled = true
+```
+
+This creates a Workload Identity Pool/provider bound to the immutable
+`mrAibo/PRICE_LENS` repository/owner IDs and `refs/heads/main`, plus a dedicated
+service account that has **Artifact Registry Writer only** on this repository.
+
+After the first operator-authenticated Phase-A apply:
+
+```bash
+terraform output -raw github_wif_provider
+terraform output -raw github_image_publisher_service_account_email
+```
+
+Copy those non-secret identifiers, plus the project ID, into GitHub repository variables
+described in [../../docs/GITHUB_GCP_WIF.md](../../docs/GITHUB_GCP_WIF.md).
+
+Do not create or upload a Google service-account JSON key.
+
 ## Add provider secret versions out-of-band
 
 After Phase A, add values directly to Secret Manager. Example pattern:

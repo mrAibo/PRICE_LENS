@@ -74,3 +74,14 @@ output "monitoring_alerts_enabled" {
   value       = local.operational_observability_enabled ? var.monitoring_alerts_enabled : false
 }
 
+
+
+output "github_wif_provider" {
+  description = "Full GitHub Actions Workload Identity Provider resource name for google-github-actions/auth."
+  value       = var.github_wif_image_publisher_enabled ? google_iam_workload_identity_pool_provider.github[0].name : null
+}
+
+output "github_image_publisher_service_account_email" {
+  description = "Keyless GitHub Actions service account that can push images to the PriceLens Artifact Registry repository."
+  value       = var.github_wif_image_publisher_enabled ? google_service_account.github_image_publisher[0].email : null
+}
