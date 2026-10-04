@@ -56,6 +56,8 @@ const fanoutObserver: ProviderFanoutObserver | undefined = diagnostics
       })
   : undefined;
 
+const sessionAuth = createSessionAuthFromEnv(process.env);
+
 const ebayEnricher = createEbayBrowseEnricherFromEnv(process.env, {
   cacheObserver,
   fanoutObserver
