@@ -82,11 +82,22 @@ remains. PriceLens does not turn Brand+MPN into an unverified broad Browse keywo
 match.
 
 A separate Brand+Model fallback is even more restrictive. It is eligible only when
-GTIN/ePID/MPN are absent and the listing has no structured variant dimensions. Catalog
-keyword search is used only for discovery; each bounded candidate is fetched with
-`getProduct`, Brand must match exactly, and Model must appear as an explicit Catalog
-Model aspect. Every candidate detail lookup needed to prove uniqueness must complete;
-otherwise the fallback fails closed.
+GTIN/ePID/MPN are absent. Catalog keyword search is used only for discovery; each
+bounded candidate is fetched with `getProduct`, Brand must match exactly, and Model
+must appear as an explicit Catalog Model aspect. Every candidate detail lookup needed
+to prove uniqueness must complete; otherwise the fallback fails closed.
+
+When the listing carries supported structured variants, the Catalog detail must also
+prove them explicitly before its ePID can qualify:
+
+- storage capacity, normalized to GB (including TB -> GB);
+- RAM capacity, normalized to GB;
+- screen size in inches, including comma-decimal/localized values;
+- pack count.
+
+A missing or conflicting required aspect rejects that Catalog product. Edition,
+model-qualifier and bundle flags remain ineligible for Brand+Model fallback because
+their Catalog representation is not yet normalized conservatively enough.
 
 Enrichment does not silently overwrite an existing page identity. Conflicts produce an
 extraction warning and the page value is retained.
