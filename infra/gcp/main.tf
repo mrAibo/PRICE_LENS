@@ -23,9 +23,9 @@ locals {
     PRICE_LENS_METRICS_EVERY              = tostring(var.metrics_every)
     PRICE_LENS_MAX_CONCURRENT_COMPARISONS = tostring(var.max_concurrent_comparisons)
     PRICE_LENS_PROVIDER_MAX_CONCURRENCY   = tostring(var.provider_max_concurrency)
-    PRICE_LENS_SESSION_AUTH_ENABLED        = var.session_auth_enabled ? "1" : "0"
-    PRICE_LENS_SESSION_TTL_SECONDS         = tostring(var.session_ttl_seconds)
-    PRICE_LENS_GOOGLE_VERIFY_TIMEOUT_MS    = tostring(var.google_identity_verify_timeout_ms)
+    PRICE_LENS_SESSION_AUTH_ENABLED       = var.session_auth_enabled ? "1" : "0"
+    PRICE_LENS_SESSION_TTL_SECONDS        = tostring(var.session_ttl_seconds)
+    PRICE_LENS_GOOGLE_VERIFY_TIMEOUT_MS   = tostring(var.google_identity_verify_timeout_ms)
 
     EBAY_BROWSE_ENABLED                 = var.ebay_browse_enabled ? "1" : "0"
     EBAY_MARKETPLACE_COMPARISON_ENABLED = var.ebay_marketplace_comparison_enabled ? "1" : "0"
