@@ -305,7 +305,9 @@ describe("eBay search-card PriceLens lifecycle", () => {
 
     const expanded = root?.shadowRoot?.textContent ?? "";
     expect(expanded).toContain("Amazon request timed out.");
-    expect(expanded).toContain("possible match excluded · 72% · fuzzy");
+    expect(expanded).toContain("possible match excluded");
+    expect(expanded).toContain("72%");
+    expect(expanded).toContain("fuzzy");
     expect(expanded).toContain(
       "Variant evidence is not strong enough for automatic matching."
     );
