@@ -181,7 +181,7 @@ Compact-first UX:
 - [x] cap the compact report to a small number of actionable offers
 - [x] add a `+` control to expand the complete returned offer list
 - [x] collapsing/reopening the already loaded report must not trigger a new provider request
-- [ ] add an explicit refresh action later when report caching is introduced
+- [x] add an explicit Refresh report action that always bypasses report reuse
 
 International foundation:
 
@@ -206,7 +206,8 @@ Traffic/scale rules:
 - [x] provider caches default off pending approved freshness terms
 - [ ] no eager per-card provider calls on eBay search-result pages
 - [ ] future search-result augmentation is user-triggered per card by default
-- [ ] add report/session reuse before enabling broad international fan-out at scale
+- [x] implement bounded in-memory tab-session report reuse keyed by listing + destination
+- [ ] enable a positive tab-session reuse TTL only after every active provider's cache/freshness rules permit it
 - [x] measure aggregate eBay/Amazon marketplace-call count, success/failure and fan-out latency for compact reports
 
 Exit gate: a user can explicitly request one PriceLens report, immediately see the few
