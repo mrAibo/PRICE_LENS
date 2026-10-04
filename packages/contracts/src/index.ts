@@ -68,6 +68,12 @@ export interface FxConversion {
   rate: number;
 }
 
+export type LandedCostStatus =
+  | "complete"
+  | "shipping_unknown"
+  | "origin_unknown"
+  | "import_costs_unknown";
+
 export interface MarketOffer {
   provider: PriceProviderId;
   providerProductId?: string;
@@ -83,6 +89,7 @@ export interface MarketOffer {
   shipping?: Money;
   landedPrice: Money;
   landedPriceComplete: boolean;
+  landedCostStatus?: LandedCostStatus;
   comparisonLandedPrice?: Money;
   fx?: FxConversion;
   confidence: number;
