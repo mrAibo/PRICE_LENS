@@ -5,6 +5,28 @@ Checked: **2026-10-04**
 This document records the user/account actions that PriceLens cannot perform from
 source code alone. Credentials must stay server-side and must never be committed.
 
+## Immediate account actions
+
+These are the external actions that currently unblock live provider validation:
+
+1. **eBay** — create/confirm the Developer Program account and Sandbox keyset first. For
+   production Buy/Browse access, also prepare the eBay Partner Network / Buy API
+   application and Application Growth Check; a Production keyset alone does not grant
+   restricted Buy API production access.
+2. **idealo** — apply as an iPN/premium publisher and explicitly request the publisher
+   API/data contract for a browser-extension comparison use case. Do not use merchant
+   PWS 2.0 for PriceLens unless idealo instructs us to.
+3. **Geizhals** — submit the Publisher Programme partnership request and ask Business
+   Development for machine-readable API/feed terms, lookup identifiers, shipping fields,
+   tracking/deeplink rules, cache/freshness rules and browser-extension permission.
+4. **Amazon DE** — join Amazon PartnerNet/Associates, obtain final program acceptance and
+   the qualifying sales required for Creators API signup, then create Creators API
+   credentials under **Tools -> Creators API**.
+
+When any credential becomes available, put it only in the backend/local secret
+environment or deployed Secret Manager. Do not paste secrets into chat, GitHub issues,
+PRs or the browser extension.
+
 ## eBay
 
 ### Developer account and Sandbox keys
