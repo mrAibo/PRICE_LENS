@@ -148,6 +148,7 @@ Current implementation checkpoint: `4e6e0f7e88e013adef8d17eab844b5362aa51b2b` (P
 - [x] Idealo iPN/publisher path identified
 - [x] Geizhals Publisher Programme identified as preferred access path
 - [x] Amazon Creators API chosen instead of new PA-API 5.0 work
+- [x] Amazon browser-extension use explicitly gated on prior written Amazon approval
 - [x] scraping explicitly limited to research/fallback evaluation
 
 ## In progress
@@ -198,7 +199,7 @@ Accepted product direction:
 - [x] user-controlled destination country/postal-code preference is stored locally and sent only with explicit report requests
 - [x] Amazon EU provider supports bounded DE/PL/FR/IT/ES/NL/BE fan-out with locale-specific Partner Tags
 - [x] Amazon mandatory shipping remains unknown, so Amazon cannot become delivered-price winner
-- [ ] Amazon EU live locale activation remains blocked on marketplace-specific Associates/Creators approval
+- [ ] Amazon EU live locale activation remains blocked on marketplace-specific Associates/Creators approval **and** explicit prior written approval for browser-extension use
 - [x] privacy-safe aggregate eBay/Amazon fan-out telemetry records calls/report, success/failure and latency without product/user/destination fields
 - [x] eBay item-origin country is retained when Browse provides it
 - [x] known EU-origin -> EU-destination offers remain comparable when shipping is complete
@@ -382,7 +383,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 1. Issue #10 — capture and independently review representative real eBay.de layouts; publish observed field metrics. The minimum first observed batch is now explicitly defined. The capture/review pipeline is ready, but raw saved live-page HTML is still required; the authorized Desktop Commander device was offline on 2026-10-04, so do not substitute search snippets or synthetic fixtures.
 2. Issue #12 — insert eBay Sandbox credentials and validate Browse enrichment; Issue #52 — live-validate same-product marketplace search/conditions/shipping, then Production approval.
-3. Issue #13 — submit idealo iPN, Geizhals Publisher and Amazon PartnerNet/Creators applications.
+3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
 6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
