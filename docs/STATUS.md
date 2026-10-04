@@ -50,10 +50,12 @@ Current implementation checkpoint: `f5c8540fbadcb87a1ef48cef458e48a4a3632a07` (P
 - [x] observed real-layout capture/anonymization tool
 - [x] independent `reviewed:true` evidence gate for observed fixtures
 - [x] separate synthetic vs observed per-field extraction metrics
-- [x] independently reviewed real eBay.de item-page corpus: 3 fixtures / 54 labelled fields
+- [x] independently reviewed real eBay.de item-page corpus: 4 fixtures / 72 labelled fields
 - [x] real-layout `schema.org/UsedCondition` normalization defect fixed from observed evidence
 - [x] live JSON-LD title character-reference decoding fixed from observed evidence
 - [x] selected eBay SKU storage values override ambiguous generic item-specific values
+- [x] observed capture pipeline preserves newer direct `dt/dd` Brand/Model item-specifics while excluding unrelated seller data
+- [x] local-pickup-only listings keep shipping unknown/unavailable instead of treating pickup as EUR 0 shipping
 - [x] structured variant fields participate in lifecycle fingerprinting
 - [x] build-time extension API origin with HTTPS-only production policy (PR #29)
 - [x] generated extension artifact verification for dev + production-origin builds
@@ -242,9 +244,9 @@ Still required:
 
 - [x] initial labelled synthetic eBay.de fixture corpus
 - [x] initial regression-evidence report (synthetic corpus)
-- [ ] representative anonymized real-layout fixture corpus (**3 reviewed real fixtures / 54 labelled fields collected so far**)
-- [ ] empirical field-level extraction accuracy report over representative layouts (**3-fixture observed report available; broader corpus still required**)
-- [ ] coverage for representative shipping layouts (**paid domestic + free shipping covered; unknown still required**)
+- [ ] representative anonymized real-layout fixture corpus (**4 reviewed real fixtures / 72 labelled fields collected so far**)
+- [ ] empirical field-level extraction accuracy report over representative layouts (**4-fixture observed report available; broader corpus still required**)
+- [ ] coverage for representative shipping layouts (**paid domestic + free + local-pickup/no-shipping covered; destination-dependent unknown still required**)
 - [x] initial coverage for variant/item-specific layouts
 - [ ] broaden variant/item-specific fixture coverage across categories (**selected multi-variant storage now covered on a live phone listing**)
 - [x] explicit unsupported-state behavior for pages that cannot be normalized safely
@@ -390,7 +392,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 
 ## Current engineering priorities
 
-1. Issue #10 — continue capturing and independently reviewing representative real eBay.de layouts. Three reviewed real fixtures / 54 labelled fields are now committed: used+paid shipping, refurbished+free shipping, and a selected multi-variant phone with 128 GB storage. Remaining minimum classes are shipping-unknown, incomplete/absent JSON-LD safe DOM fallback, weak identity, and broader category/layout coverage.
+1. Issue #10 — continue capturing and independently reviewing representative real eBay.de layouts. Four reviewed real fixtures / 72 labelled fields are now committed: used+paid shipping, refurbished+free shipping, selected multi-variant phone with 128 GB storage, and a local-pickup-only watch whose newer direct `dt/dd` Brand/Model layout is preserved by the anonymizer. Remaining minimum classes are destination-dependent shipping-unknown, incomplete/absent JSON-LD safe DOM fallback, weak identity, and additional category/layout coverage.
 2. Issue #12 Sandbox credential/Browse-enrichment gate is complete. Continue Issue #52 with broader same-product/condition/shipping validation and eBay Production approval; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.

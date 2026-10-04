@@ -171,13 +171,45 @@ function buildSanitizedFixtureHtml(document) {
     ".x-item-condition-text"
   ]);
 
+  const copiedSpecifics = new Set();
+
   for (const row of document.querySelectorAll(".ux-labels-values")) {
     const label = textOf(
       row.querySelector(".ux-labels-values__labels-content") ??
         row.querySelector(".ux-labels-values__labels")
     );
-    if (!label || !isAllowedSpecificLabel(label)) continue;
+    const value = textOf(
+      row.querySelector(".ux-labels-values__values-content") ??
+        row.querySelector(".ux-labels-values__values")
+    );
+    if (!label || !value || !isAllowedSpecificLabel(label)) continue;
+
+    const key = `${normalizeLabel(label)}\u0000${value.trim()}`;
+    if (copiedSpecifics.has(key)) continue;
+    copiedSpecifics.add(key);
     output.body.appendChild(row.cloneNode(true));
+  }
+
+  // Newer eBay item pages can render item-specifics as direct dt/dd siblings
+  // without the historical .ux-labels-values wrapper. Preserve only the same
+  // allowlisted labels, and reconstruct a minimal row so the fixture remains
+  // privacy-minimized and the extractor sees the real label/value semantics.
+  for (const term of document.querySelectorAll("dt")) {
+    const valueElement = term.nextElementSibling;
+    if (!valueElement || valueElement.tagName.toLowerCase() !== "dd") continue;
+
+    const label = textOf(term);
+    const value = textOf(valueElement);
+    if (!label || !value || !isAllowedSpecificLabel(label)) continue;
+
+    const key = `${normalizeLabel(label)}\u0000${value.trim()}`;
+    if (copiedSpecifics.has(key)) continue;
+    copiedSpecifics.add(key);
+
+    const row = output.createElement("dl");
+    row.className = "ux-labels-values";
+    row.append(term.cloneNode(true), valueElement.cloneNode(true));
+    output.body.appendChild(row);
   }
 
   const skuSelections = output.createElement("div");
