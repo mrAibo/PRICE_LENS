@@ -2,7 +2,8 @@ import {describe, expect, it} from "vitest";
 import {
   DEFAULT_PRICE_LENS_API_ORIGIN,
   hostPermissionForOrigin,
-  normalizeApiOrigin
+  normalizeApiOrigin,
+  normalizeGoogleOauthClientId
 } from "../build-config.mjs";
 
 describe("extension API origin build configuration", () => {
@@ -28,6 +29,23 @@ describe("extension API origin build configuration", () => {
     "https://api.pricelens.example#fragment"
   ])("rejects unsafe or non-origin value %s", (value) => {
     expect(() => normalizeApiOrigin(value)).toThrow();
+  });
+
+  it("accepts only explicit Google OAuth client IDs for pilot builds", () => {
+    expect(normalizeGoogleOauthClientId()).toBeUndefined();
+    expect(
+      normalizeGoogleOauthClientId(
+        "1234567890-price_lens.apps.googleusercontent.com"
+      )
+    ).toBe("1234567890-price_lens.apps.googleusercontent.com");
+    expect(() =>
+      normalizeGoogleOauthClientId("not-a-google-client.example")
+    ).toThrow("Google OAuth client ID");
+    expect(() =>
+      normalizeGoogleOauthClientId(
+        "client.apps.googleusercontent.com extra"
+      )
+    ).toThrow("Google OAuth client ID");
   });
 
   it.each([
