@@ -4,6 +4,7 @@ import type {ComparisonResult} from "@price-lens/contracts";
 import {bootstrapPriceLens} from "../src/bootstrap.js";
 import type {CompareMessage, CompareResponse} from "../src/messages.js";
 import type {ComparisonConsentStore} from "../src/privacy-consent.js";
+import type {PilotAuthStatus} from "../src/pilot-session.js";
 import type {BuyerDestinationStore} from "../src/buyer-destination.js";
 
 function renderPage(): JSDOM {
@@ -226,7 +227,7 @@ describe("privacy-gated PriceLens bootstrap", () => {
   it("uses an explicit private-beta sign-in to force exactly one fresh comparison", async () => {
     const dom = renderPage();
     const consent = consentStore(true);
-    let authStatus = {enabled: true, signedIn: false} as const;
+    let authStatus: PilotAuthStatus = {enabled: true, signedIn: false};
     const getStatus = vi.fn(async () => authStatus);
     const signIn = vi.fn(async () => {
       authStatus = {
@@ -234,11 +235,11 @@ describe("privacy-gated PriceLens bootstrap", () => {
         signedIn: true,
         tier: "pilot",
         expiresAt: "2026-10-04T07:15:00Z"
-      } as const;
+      };
       return authStatus;
     });
     const signOut = vi.fn(async () => {
-      authStatus = {enabled: true, signedIn: false} as const;
+      authStatus = {enabled: true, signedIn: false};
       return authStatus;
     });
     const sendMessage = vi.fn(
