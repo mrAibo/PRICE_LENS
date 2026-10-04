@@ -236,7 +236,7 @@ export function createComparisonResult(
       listing,
       ebayLandedPrice: ebay.value,
       ebayLandedPriceComplete: ebayLandedCost.complete,
-      ebayLandedCostStatus: ebayLandedCost.status,
+    ebayLandedCostStatus: ebayLandedCost.status,
       offers,
       providerStatus,
       warnings,
