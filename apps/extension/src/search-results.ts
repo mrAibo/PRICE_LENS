@@ -172,56 +172,59 @@ export function createSearchResultsLifecycle(
     const shadow = state.host.shadowRoot;
     if (!shadow) return;
 
-    shadow
-      .querySelector<HTMLButtonElement>("[data-price-lens-card-compare]")
-      ?.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+    shadow.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof options.window.Element)) return;
+      const button = target.closest("[data-price-lens-card-compare]");
+      if (!button) return;
 
-        if (state.result) {
-          state.expanded = !state.expanded;
-          renderSearchCardResult(shadow, state.result, state.expanded);
-          return;
-        }
-        if (state.inFlight) return;
+      event.preventDefault();
+      event.stopPropagation();
 
-        state.inFlight = true;
-        renderSearchCardLoading(shadow);
+      if (state.result) {
+        state.expanded = !state.expanded;
+        renderSearchCardResult(shadow, state.result, state.expanded);
+        return;
+      }
+      if (state.inFlight) return;
 
-        const destination = options.getDestination?.();
-        const message: CompareMessage = {
-          type: "PRICE_LENS_COMPARE",
-          listing,
-          ...(destination ? {destination} : {})
-        };
+      state.inFlight = true;
+      renderSearchCardLoading(shadow);
 
-        void options.sendMessage(message)
-          .then((response) => {
-            if (stopped || !state.host.isConnected) return;
-            if (!response) {
-              renderSearchCardError(
-                shadow,
-                "No comparison response was returned."
-              );
-              return;
-            }
-            if (!response.ok) {
-              renderSearchCardError(shadow, response.error);
-              return;
-            }
+      const destination = options.getDestination?.();
+      const message: CompareMessage = {
+        type: "PRICE_LENS_COMPARE",
+        listing,
+        ...(destination ? {destination} : {})
+      };
 
-            state.result = response.result;
-            state.expanded = false;
-            renderSearchCardResult(shadow, response.result, false);
-          })
-          .catch(() => {
-            if (stopped || !state.host.isConnected) return;
-            renderSearchCardError(shadow, "Comparison service is unavailable.");
-          })
-          .finally(() => {
-            state.inFlight = false;
-          });
-      });
+      void options.sendMessage(message)
+        .then((response) => {
+          if (stopped || !state.host.isConnected) return;
+          if (!response) {
+            renderSearchCardError(
+              shadow,
+              "No comparison response was returned."
+            );
+            return;
+          }
+          if (!response.ok) {
+            renderSearchCardError(shadow, response.error);
+            return;
+          }
+
+          state.result = response.result;
+          state.expanded = false;
+          renderSearchCardResult(shadow, response.result, false);
+        })
+        .catch(() => {
+          if (stopped || !state.host.isConnected) return;
+          renderSearchCardError(shadow, "Comparison service is unavailable.");
+        })
+        .finally(() => {
+          state.inFlight = false;
+        });
+    });
   }
 
   function scheduleScan(): void {
