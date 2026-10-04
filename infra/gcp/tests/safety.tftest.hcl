@@ -80,6 +80,16 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_CATALOG_EPID_FALLBACK_ENABLED == "0"
+    error_message = "eBay Catalog ePID fallback must remain opt-in until live Catalog validation."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_CATALOG_MARKETPLACE_ID == "EBAY_DE"
+    error_message = "eBay Catalog fallback must use the conservative supported EU marketplace default."
+  }
+
+  assert {
     condition     = local.literal_env.ECB_FX_ENABLED == "0"
     error_message = "ECB FX normalization must remain opt-in until live deployment validation."
   }
