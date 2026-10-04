@@ -387,6 +387,26 @@ variable "ebay_marketplace_search_concurrency" {
 }
 
 
+variable "ebay_catalog_epid_fallback_enabled" {
+  description = "Enable exact Brand+MPN -> unique ePID resolution through the eBay Catalog API before same-product Browse search."
+  type        = bool
+  default     = false
+}
+
+variable "ebay_catalog_marketplace_id" {
+  description = "eBay Catalog marketplace used for exact Brand+MPN ePID resolution. Must be a Catalog-supported EU marketplace."
+  type        = string
+  default     = "EBAY_DE"
+
+  validation {
+    condition = contains(
+      ["EBAY_DE", "EBAY_ES", "EBAY_FR", "EBAY_IT"],
+      var.ebay_catalog_marketplace_id
+    )
+    error_message = "ebay_catalog_marketplace_id must be one of EBAY_DE, EBAY_ES, EBAY_FR or EBAY_IT."
+  }
+}
+
 variable "ebay_browse_cache_ttl_ms" {
   description = "eBay product-data cache TTL. Keep 0 until approved freshness rules are known."
   type        = number
