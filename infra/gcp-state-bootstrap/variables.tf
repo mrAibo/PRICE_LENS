@@ -41,11 +41,12 @@ variable "backend_prefix" {
   validation {
     condition = (
       length(trimspace(var.backend_prefix)) > 0 &&
+      can(regex("^[A-Za-z0-9._/-]+$", trimspace(var.backend_prefix))) &&
       !startswith(trimspace(var.backend_prefix), "/") &&
       !endswith(trimspace(var.backend_prefix), "/") &&
       !strcontains(trimspace(var.backend_prefix), "..")
     )
-    error_message = "backend_prefix must be a non-empty relative object prefix without leading/trailing slash or '..'."
+    error_message = "backend_prefix must be a non-empty relative object prefix using letters, digits, dot, underscore, hyphen and slash, without leading/trailing slash or '..'."
   }
 }
 
