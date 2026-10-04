@@ -249,6 +249,68 @@ describe("PriceLens HTTP API", () => {
     }
   );
 
+  it("exchanges a Google assertion only when session auth is configured", async () => {
+    const disabledUrl = await startServer();
+    const disabled = await fetch(`${disabledUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+    expect(disabled.status).toBe(404);
+
+    const baseUrl = await startServer([], {
+      exchangeGoogleSession: async (accessToken) => {
+        expect(accessToken).toBe("google-access-token-123456");
+        return {
+          sessionToken: "header.payload.signature",
+          expiresAt: "2026-10-04T02:00:00.000Z",
+          tier: "pilot"
+        };
+      }
+    });
+    const response = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      sessionToken: "header.payload.signature",
+      expiresAt: "2026-10-04T02:00:00.000Z",
+      tier: "pilot"
+    });
+  });
+
+  it("rejects malformed or failed Google session exchanges without leaking upstream details", async () => {
+    const baseUrl = await startServer([], {
+      exchangeGoogleSession: async () => {
+        throw new Error("userinfo upstream included sensitive details");
+      }
+    });
+
+    const malformed = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "short"})
+    });
+    expect(malformed.status).toBe(400);
+
+    const failed = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({accessToken: "google-access-token-123456"})
+    });
+    expect(failed.status).toBe(401);
+    const payload = await failed.json();
+    expect(payload).toMatchObject({
+      error: "authentication_failed",
+      message: "Google authentication failed."
+    });
+    expect(JSON.stringify(payload)).not.toContain("sensitive");
+  });
+
   it("keeps Idealo and Geizhals restricted for anonymous public requests", async () => {
     let idealoCalls = 0;
     let geizhalsCalls = 0;
