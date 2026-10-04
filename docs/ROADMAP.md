@@ -314,20 +314,22 @@ Exit gate: partial outages and rate limits degrade gracefully and never produce 
 
 ## Phase 7 — eBay search-results augmentation
 
-Status: **deferred until single-item gates pass**
+Status: **initial user-triggered implementation in progress; live-layout validation pending**
 
 Default interaction: **user-triggered per result card; no eager provider lookup while scrolling.**
 
 Deliverables:
 
-- [ ] detect eBay result cards locally
-- [ ] render a small PriceLens lens/eye action per eligible card
-- [ ] send a comparison request only for a card the user explicitly opens
-- [ ] request deduplication
-- [ ] cache/session-aware reopening
-- [ ] no excessive provider traffic
-- [ ] compact cheaper-first result with optional full expansion
-- [ ] per-card uncertainty state
+- [x] detect eBay result cards locally
+- [x] render a small PriceLens lens/eye action per eligible card
+- [x] send a comparison request only for a card the user explicitly opens
+- [x] request deduplication
+- [x] cache/session-aware reopening
+- [x] no excessive provider traffic
+- [x] compact cheaper-first result with optional full expansion
+- [ ] per-card uncertainty/provider-degradation state
+- [ ] representative anonymized real eBay.de search-layout fixtures
+- [ ] live-layout validation for infinite scroll / sponsored-result variants
 
 ## Phase 8 — Deal intelligence
 
