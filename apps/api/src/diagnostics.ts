@@ -16,6 +16,9 @@ import type {
 export type ComparisonWarningCategory =
   | "extraction_warning"
   | "ebay_shipping_unknown"
+  | "ebay_origin_unknown"
+  | "ebay_import_costs_unknown"
+  | "offer_landed_cost_unknown"
   | "enrichment_fallback"
   | "fx_normalization";
 
