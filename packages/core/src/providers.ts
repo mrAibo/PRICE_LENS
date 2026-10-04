@@ -2,6 +2,7 @@ import type {
   BuyerDestination,
   ComparisonResult,
   EcommerceListing,
+  LandedCostStatus,
   ListingCondition,
   MarketOffer,
   Money,
@@ -20,6 +21,7 @@ export interface ProviderCandidate {
   merchant?: string;
   marketplace?: string;
   itemLocationCountry?: string;
+  importChargesIncluded?: boolean;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
   url: string;
@@ -215,6 +217,12 @@ async function runProvider(
       }
 
       const landed = calculateLandedPrice(candidate.itemPrice, candidate.shipping);
+      const landedCostStatus = assessLandedCostStatus(
+        landed.complete,
+        candidate.itemLocationCountry,
+        destination,
+        candidate.importChargesIncluded
+      );
       accepted.push({
         provider: provider.id,
         providerProductId: candidate.providerProductId,
@@ -229,7 +237,8 @@ async function runProvider(
         itemPrice: candidate.itemPrice,
         shipping: candidate.shipping,
         landedPrice: landed.value,
-        landedPriceComplete: landed.complete,
+        landedPriceComplete: landedCostStatus === "complete",
+        landedCostStatus,
         confidence: match.confidence,
         matchMethod: match.method,
         matchReason: match.reason,
@@ -278,6 +287,42 @@ async function runProvider(
   } finally {
     clearTimeout(timer);
   }
+}
+
+const EU_COUNTRY_CODES = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR",
+  "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO",
+  "SE", "SI", "SK"
+]);
+
+export function assessLandedCostStatus(
+  shippingComplete: boolean,
+  originCountry: string | undefined,
+  destination: BuyerDestination | undefined,
+  importChargesIncluded = false
+): LandedCostStatus {
+  if (!shippingComplete) return "shipping_unknown";
+  if (!destination) return "complete";
+
+  const destinationCountry = normalizeCountryCode(destination.country);
+  const origin = normalizeCountryCode(originCountry);
+  if (!origin) return "origin_unknown";
+
+  if (origin === destinationCountry) return "complete";
+
+  if (
+    EU_COUNTRY_CODES.has(origin) &&
+    EU_COUNTRY_CODES.has(destinationCountry)
+  ) {
+    return "complete";
+  }
+
+  return importChargesIncluded ? "complete" : "import_costs_unknown";
+}
+
+function normalizeCountryCode(value: string | undefined): string | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : undefined;
 }
 
 async function withTimeout<T>(
