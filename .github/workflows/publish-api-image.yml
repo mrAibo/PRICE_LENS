@@ -1,0 +1,123 @@
+name: Publish API Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-api-image-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT: ${{ vars.GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT }}
+      GCP_REGION: europe-west3
+      ARTIFACT_REPOSITORY: price-lens
+      IMAGE_NAME: price-lens-api
+
+    steps:
+      - name: Require main branch and WIF configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Publish API Image must be dispatched from main." >&2
+            exit 1
+          fi
+
+          for name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required GitHub repository variable: $name" >&2
+              exit 1
+            fi
+          done
+
+          if [[ ! "$GCP_WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+$ ]]; then
+            echo "GCP_WIF_PROVIDER is not a full Workload Identity Provider resource name." >&2
+            exit 1
+          fi
+
+          if [[ ! "$GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT" =~ ^[a-z0-9-]+@[a-z0-9.-]+\.iam\.gserviceaccount\.com$ ]]; then
+            echo "GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT is not a service-account email." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud with GitHub OIDC
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_IMAGE_PUBLISHER_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Artifact Registry authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build immutable API image
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          docker build --tag "$image" .
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Push immutable API image
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE"
+
+      - name: Verify published image
+        id: verify
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          digest="$(gcloud artifacts docker images describe "$IMAGE"             --project="$GCP_PROJECT_ID"             --format='value(image_summary.digest)')"
+
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Artifact Registry did not return a valid immutable digest." >&2
+            exit 1
+          fi
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Publish deployment handoff
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.verify.outputs.digest }}
+        run: |
+          {
+            echo "## PriceLens API image published"
+            echo
+            echo 'Use this exact immutable image in Terraform Phase B:'
+            echo
+            echo '\`\`\`hcl'
+            echo "api_image = \"$IMAGE\""
+            echo '\`\`\`'
+            echo
+            echo "Artifact Registry digest: \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"
