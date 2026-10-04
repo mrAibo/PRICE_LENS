@@ -180,6 +180,37 @@ function buildSanitizedFixtureHtml(document) {
     output.body.appendChild(row.cloneNode(true));
   }
 
+  const skuSelections = output.createElement("div");
+  skuSelections.setAttribute("data-testid", "x-msku-evo");
+  for (const control of document.querySelectorAll(
+    '[data-testid="x-msku-evo"] .listbox-button__control'
+  )) {
+    const label = textOf(control.querySelector(".btn__label"));
+    const value = textOf(control.querySelector(".btn__text"));
+    if (
+      !label ||
+      !value ||
+      !isAllowedSpecificLabel(label) ||
+      isSelectionPlaceholder(value)
+    ) {
+      continue;
+    }
+
+    const button = output.createElement("button");
+    button.className = "listbox-button__control";
+    const labelSpan = output.createElement("span");
+    labelSpan.className = "btn__label";
+    labelSpan.textContent = label;
+    const valueSpan = output.createElement("span");
+    valueSpan.className = "btn__text";
+    valueSpan.textContent = value;
+    button.append(labelSpan, valueSpan);
+    skuSelections.appendChild(button);
+  }
+  if (skuSelections.childElementCount > 0) {
+    output.body.appendChild(skuSelections);
+  }
+
   return "<!doctype html>\n" + output.documentElement.outerHTML;
 }
 
@@ -248,6 +279,12 @@ function normalizeLabel(value) {
     .replace(/:+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isSelectionPlaceholder(value) {
+  return /^(?:auswahlen|bitte auswahlen|select|choose|please select)$/.test(
+    normalizeLabel(value)
+  );
 }
 
 function textOf(element) {
