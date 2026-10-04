@@ -192,7 +192,7 @@ run "ebay_catalog_fallback_requires_browse_enablement" {
   command = plan
 
   variables {
-    project_id                          = "price-lens-test"
+    project_id                         = "price-lens-test"
     ebay_catalog_epid_fallback_enabled = true
   }
 
