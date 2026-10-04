@@ -18,16 +18,22 @@ export interface PriceLensView {
   renderError(message: string): void;
 }
 
+export interface PriceLensComparisonRequestOptions {
+  forceRefresh?: boolean;
+}
+
 export interface PriceLensReportActions {
   onRequestComparison: (
-    destination?: BuyerDestination
+    destination?: BuyerDestination,
+    options?: PriceLensComparisonRequestOptions
   ) => void | Promise<void>;
 }
 
 export interface PriceLensUiOptions {
   onDisableSharing?: () => void | Promise<void>;
   onRequestComparison?: (
-    destination?: BuyerDestination
+    destination?: BuyerDestination,
+    options?: PriceLensComparisonRequestOptions
   ) => void | Promise<void>;
   initialDestination?: BuyerDestination;
 }
@@ -198,12 +204,13 @@ function render(
       ${state === "idle" ? renderIdleAction(options) : ""}
       ${state === "loading" ? renderLoadingState() : ""}
       ${state === "error" ? renderErrorState(errorMessage, options) : ""}
-      ${state === "result" ? renderResult(result, statuses) : ""}
+      ${state === "result" ? renderResult(result, statuses, options) : ""}
       ${privacyControlMarkup(options)}
     </div>
   `;
 
   wireRequestComparison(root, options);
+  wireRefreshComparison(root, options);
   wireFullExpansion(root);
   wireDisableSharing(root, options);
 }
@@ -290,7 +297,8 @@ function renderErrorState(
 
 function renderResult(
   result: ComparisonResult | undefined,
-  statuses: ProviderStatus[]
+  statuses: ProviderStatus[],
+  options: PriceLensUiOptions
 ): string {
   if (!result) return "";
 
@@ -304,6 +312,7 @@ function renderResult(
 
   return `
     ${compact}
+    ${renderReportRefresh(result, options)}
     ${renderRestrictedSources(statuses)}
     ${expandable ? `
       <button type="button" class="expand-button" data-price-lens-expand>
@@ -823,6 +832,40 @@ function renderReviewCandidates(statuses: ProviderStatus[]): string {
   `;
 }
 
+function renderReportRefresh(
+  result: ComparisonResult,
+  options: PriceLensUiOptions
+): string {
+  if (!options.onRequestComparison) return "";
+
+  const generated = formatReportGeneratedAt(result.generatedAt);
+  return `
+    <div class="report-refresh">
+      <div class="muted">
+        ${generated ? `Report generated ${escapeHtml(generated)}.` : "Recent report."}
+        Reopening the same item can reuse the recent result in this tab.
+      </div>
+      <button type="button" class="secondary refresh-button" data-price-lens-refresh>
+        Refresh report
+      </button>
+    </div>
+  `;
+}
+
+function formatReportGeneratedAt(generatedAt: string): string | undefined {
+  const value = Date.parse(generatedAt);
+  if (!Number.isFinite(value)) return undefined;
+
+  try {
+    return new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value));
+  } catch {
+    return undefined;
+  }
+}
+
 function privacyControlMarkup(options: PriceLensUiOptions): string {
   if (!options.onDisableSharing) return "";
   return `
@@ -864,6 +907,29 @@ function wireRequestComparison(
     options.initialDestination = destination;
     button.disabled = true;
     Promise.resolve(options.onRequestComparison?.(destination)).catch(() => {
+      button.disabled = false;
+    });
+  });
+}
+
+function wireRefreshComparison(
+  root: ShadowRoot,
+  options: PriceLensUiOptions
+): void {
+  if (!options.onRequestComparison) return;
+
+  const button = root.querySelector<HTMLButtonElement>(
+    "[data-price-lens-refresh]"
+  );
+  button?.addEventListener("click", () => {
+    if (!button) return;
+    button.disabled = true;
+    Promise.resolve(
+      options.onRequestComparison?.(
+        normalizeBuyerDestination(options.initialDestination) ?? {country: "DE"},
+        {forceRefresh: true}
+      )
+    ).catch(() => {
       button.disabled = false;
     });
   });
@@ -961,6 +1027,16 @@ function baseStyles(): string {
       }
       .error { margin-top:10px; color:#a40000; }
       .report-action { margin-top:12px; }
+      .report-refresh {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        margin-top:10px;
+        padding-top:9px;
+        border-top:1px solid #eceef0;
+      }
+      .refresh-button { flex:0 0 auto; }
       .destination-box {
         margin-top:12px;
         padding:10px;
