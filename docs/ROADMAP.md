@@ -152,7 +152,8 @@ Still required:
 - [ ] approved shipping/delivery semantics for the intended buyer geography
 - [x] ePID fallback where a trustworthy product ID is available
 - [x] exact Brand + MPN fallback through unique eBay Catalog ePID resolution
-- [ ] controlled Brand + Model fallback with candidate detail verification
+- [x] controlled Brand + Model Catalog fallback with exact detail verification
+- [ ] live-validate Brand+Model Catalog search/detail behavior
 - [x] seller account type + estimated delivery window from eBay search metadata
 - [x] return-policy context via bounded accepted-candidate detail lookup
 - [ ] live-validate eBay item-detail return terms across representative EU listings
