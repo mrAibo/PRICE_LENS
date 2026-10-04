@@ -108,6 +108,10 @@ export class EbayBrowseEnricher {
   private tokenInFlight?: Promise<string>;
   private catalogTokenCache?: CachedToken;
   private catalogTokenInFlight?: Promise<string>;
+  private readonly catalogEpidInFlight = new Map<
+    string,
+    Promise<string | undefined>
+  >();
 
   constructor(options: EbayBrowseEnricherOptions) {
     this.clientId = requireNonEmpty(options.clientId, "eBay client id");
@@ -427,6 +431,23 @@ export class EbayBrowseEnricher {
     const mpn = identity.mpn?.trim();
     if (!brand || !isMeaningfulIdentifier(mpn)) return undefined;
 
+    const key = `${normalizeToken(brand)}:${normalizeToken(mpn)}:${this.catalogMarketplaceId}`;
+    const active = this.catalogEpidInFlight.get(key);
+    if (active) return active;
+
+    const pending = this.fetchCatalogEpid(brand, mpn).finally(() => {
+      if (this.catalogEpidInFlight.get(key) === pending) {
+        this.catalogEpidInFlight.delete(key);
+      }
+    });
+    this.catalogEpidInFlight.set(key, pending);
+    return pending;
+  }
+
+  private async fetchCatalogEpid(
+    brand: string,
+    mpn: string
+  ): Promise<string | undefined> {
     let response = await this.fetchCatalogProductSearch(mpn, false);
     if (response.status === 401) {
       this.catalogTokenCache = undefined;
