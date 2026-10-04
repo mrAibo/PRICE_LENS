@@ -160,6 +160,10 @@ EPN explicitly treats installed software, extensions and plug-ins as a special p
 
 An individual can join EPN; a selling business account is not required merely because the affiliate project is commercial. Keep all registration/contact information accurate.
 
+### Production approval packet
+
+A ready-to-adapt EPN Software/Downloadable Tools + Buy API Production/Growth Check packet is maintained in [EBAY_PRODUCTION_APPROVAL.md](EBAY_PRODUCTION_APPROVAL.md). It includes application text, data flow, Sandbox evidence, privacy/caching language, reviewer test instructions and conservative pilot API-volume estimates.
+
 ### Production
 
 eBay documents separate Sandbox and Production credentials. For Buy API production
