@@ -560,6 +560,12 @@ describe("PriceLens unsupported UI", () => {
             shippingServiceCode: "Standard",
             shippingCarrierCode: "DHL"
           },
+          returnPolicy: {
+            returnsAccepted: true,
+            returnPeriodValue: 30,
+            returnPeriodUnit: "CALENDAR_DAY",
+            returnShippingCostPayer: "BUYER"
+          },
           url: "https://www.ebay.de/itm/200000000001",
           condition: "new",
           itemPrice: {amount: 180, currency: "EUR"},
@@ -630,6 +636,12 @@ describe("PriceLens unsupported UI", () => {
           shippingServiceCode: "Standard",
           shippingCarrierCode: "DHL"
         },
+        returnPolicy: {
+          returnsAccepted: true,
+          returnPeriodValue: 30,
+          returnPeriodUnit: "CALENDAR_DAY",
+          returnShippingCostPayer: "BUYER"
+        },
         url: "https://www.ebay.de/itm/200000000001",
         condition: "new",
         itemPrice: {amount: 180, currency: "EUR"},
@@ -672,7 +684,51 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("Business seller");
     expect(text).toContain("Estimated delivery 07 Oct–09 Oct");
     expect(text).toContain("DHL · Standard");
+    expect(text).toContain("Seller return policy: accepted");
+    expect(text).toContain("30 days");
+    expect(text).toContain("buyer pays return shipping");
     expect(text).toContain("eBay alternatives");
+  });
+
+  it("labels seller-listed no-return terms without implying loss of eBay protections", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    view.renderComparison({
+      requestId: "no-voluntary-return",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "no-returns",
+          productTitle: "Example Product",
+          marketplace: "EBAY_DE",
+          url: "https://www.ebay.de/itm/211111111111",
+          condition: "new",
+          itemPrice: {amount: 180, currency: "EUR"},
+          shipping: {amount: 0, currency: "EUR"},
+          landedPrice: {amount: 180, currency: "EUR"},
+          landedPriceComplete: true,
+          returnPolicy: {returnsAccepted: false},
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        }
+      ],
+      providerStatus: [{provider: "ebay_market", state: "ok"}],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    });
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+    expect(text).toContain(
+      "Seller return policy: no voluntary returns listed."
+    );
+    expect(text).not.toContain("no buyer protection");
   });
 
   it("keeps the compact cheaper-first report collapsed until the user expands it", () => {
