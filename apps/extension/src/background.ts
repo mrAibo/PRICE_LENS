@@ -8,6 +8,7 @@ import {
   isPilotAuthStatusMessage,
   isPilotSignInMessage,
   isPilotSignOutMessage,
+  type CompareMessage,
   type CompareResponse,
   type PilotAuthResponse
 } from "./messages.js";
@@ -108,15 +109,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function handleComparison(
-  message: Extract<
-    Parameters<typeof chrome.runtime.onMessage.addListener>[0] extends (
-      message: infer Message,
-      ...args: never[]
-    ) => unknown
-      ? Message
-      : never,
-    unknown
-  > & {listing: Parameters<typeof requestComparison>[0]; destination?: Parameters<typeof requestComparison>[1]["destination"]}
+  message: CompareMessage
 ): Promise<CompareResponse> {
   const session = googleAuthEnabled
     ? await pilotSessionStore.getValidSession().catch(() => undefined)
