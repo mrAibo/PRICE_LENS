@@ -1,13 +1,19 @@
 import {readFile, stat} from "node:fs/promises";
 import {
   hostPermissionForOrigin,
-  normalizeApiOrigin
+  normalizeApiOrigin,
+  normalizeGoogleOAuthClientId
 } from "./build-config.mjs";
 
 const firefox = process.argv.includes("--firefox");
 const browser = firefox ? "firefox" : "chrome";
 const expectedOrigin = normalizeApiOrigin(process.env.PRICE_LENS_API_ORIGIN);
 const expectedHostPermission = hostPermissionForOrigin(expectedOrigin);
+const expectedGoogleOAuthClientId = firefox
+  ? undefined
+  : normalizeGoogleOAuthClientId(
+      process.env.PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID
+    );
 const distDir = new URL(firefox ? "./dist-firefox/" : "./dist/", import.meta.url);
 
 const requiredFiles = ["manifest.json", "background.js", "content.js"];
@@ -59,12 +65,33 @@ if (firefox) {
 }
 
 const permissions = manifest.permissions;
+const expectedPermissions = expectedGoogleOAuthClientId
+  ? ["storage", "identity"]
+  : ["storage"];
 assert(
   Array.isArray(permissions) &&
-    permissions.length === 1 &&
-    permissions[0] === "storage",
-  "Release manifest permissions must contain only storage for local consent state."
+    permissions.length === expectedPermissions.length &&
+    expectedPermissions.every((permission) => permissions.includes(permission)),
+  `Release manifest permissions must contain exactly ${expectedPermissions.join(", ")}.`
 );
+
+if (expectedGoogleOAuthClientId) {
+  assert(
+    manifest.oauth2?.client_id === expectedGoogleOAuthClientId,
+    "Chrome pilot-auth artifact must contain the configured Google OAuth client ID."
+  );
+  assert(
+    Array.isArray(manifest.oauth2?.scopes) &&
+      manifest.oauth2.scopes.length === 1 &&
+      manifest.oauth2.scopes[0] === "openid",
+    "Chrome pilot-auth artifact must request only the OpenID scope."
+  );
+} else {
+  assert(
+    manifest.oauth2 === undefined,
+    "Non-auth and Firefox artifacts must not contain an oauth2 manifest block."
+  );
+}
 
 const hostPermissions = manifest.host_permissions;
 assert(
@@ -115,7 +142,9 @@ const extensionJs = [
 for (const forbidden of [
   "EBAY_CLIENT_SECRET",
   "AMAZON_CREATORS_CREDENTIAL_SECRET",
-  "AMAZON_CREATORS_CREDENTIAL_ID"
+  "AMAZON_CREATORS_CREDENTIAL_ID",
+  "PRICE_LENS_SESSION_SIGNING_SECRET",
+  "PRICE_LENS_GOOGLE_SUBJECT_TIERS_JSON"
 ]) {
   assert(
     !extensionJs.includes(forbidden),
