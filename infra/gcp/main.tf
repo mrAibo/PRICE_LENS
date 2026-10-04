@@ -36,6 +36,9 @@ locals {
     EBAY_DELIVERY_COUNTRY                      = var.ebay_delivery_country
     EBAY_MARKETPLACE_SEARCH_CONCURRENCY        = tostring(var.ebay_marketplace_search_concurrency)
     EBAY_CATALOG_EPID_FALLBACK_ENABLED         = var.ebay_catalog_epid_fallback_enabled ? "1" : "0"
+    EBAY_CATALOG_BRAND_MODEL_FALLBACK_ENABLED  = var.ebay_catalog_brand_model_fallback_enabled ? "1" : "0"
+    EBAY_CATALOG_BRAND_MODEL_CANDIDATE_LIMIT   = tostring(var.ebay_catalog_brand_model_candidate_limit)
+    EBAY_CATALOG_BRAND_MODEL_DETAIL_CONCURRENCY = tostring(var.ebay_catalog_brand_model_detail_concurrency)
     EBAY_CATALOG_MARKETPLACE_ID                = var.ebay_catalog_marketplace_id
     EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED = var.ebay_marketplace_detail_enrichment_enabled ? "1" : "0"
     EBAY_MARKETPLACE_DETAIL_LIMIT              = tostring(var.ebay_marketplace_detail_limit)
@@ -131,6 +134,11 @@ check "provider_enablement" {
   assert {
     condition     = !var.ebay_catalog_epid_fallback_enabled || var.ebay_browse_enabled
     error_message = "eBay Catalog ePID fallback requires ebay_browse_enabled=true so the same approved eBay application credentials are used."
+  }
+
+  assert {
+    condition     = !var.ebay_catalog_brand_model_fallback_enabled || var.ebay_browse_enabled
+    error_message = "eBay Catalog Brand+Model fallback requires ebay_browse_enabled=true so the same approved eBay application credentials are used."
   }
 
   assert {
