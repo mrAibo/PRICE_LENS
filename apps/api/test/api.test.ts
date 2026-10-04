@@ -5,6 +5,7 @@ import type {EcommerceListing} from "@price-lens/contracts";
 import type {PriceProvider} from "@price-lens/core";
 import {createPriceLensServer} from "../src/app.js";
 import {createFixtureProvider} from "../src/fixture-provider.js";
+import {PriceLensSessionAuth} from "../src/session-auth.js";
 
 const servers: ReturnType<typeof createPriceLensServer>[] = [];
 
@@ -350,6 +351,60 @@ describe("PriceLens HTTP API", () => {
         expect.objectContaining({provider: "geizhals", state: "restricted"})
       ])
     );
+  });
+
+  it("lets a server-authenticated pilot invoke a restricted provider without trusting client tier claims", async () => {
+    let idealoCalls = 0;
+    const idealo: PriceProvider = {
+      id: "idealo",
+      async search() {
+        idealoCalls += 1;
+        return [];
+      }
+    };
+    const auth = new PriceLensSessionAuth({
+      signingSecret: "0123456789abcdef0123456789abcdef",
+      subjectTiers: new Map([["pilot-subject", "pilot"]]),
+      now: () => Date.parse("2026-10-04T01:30:00.000Z"),
+      fetchImpl: async () =>
+        new Response(JSON.stringify({sub: "pilot-subject"}), {status: 200})
+    });
+    const baseUrl = await startServer([idealo], {
+      resolveProviderAccess: (request) => auth.resolveProviderAccess(request),
+      exchangeGoogleSession: (accessToken) =>
+        auth.exchangeGoogleAccessToken(accessToken)
+    });
+
+    const exchange = await fetch(`${baseUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        accessToken: "google-access-token-pilot-123456"
+      })
+    });
+    const session = await exchange.json() as {sessionToken: string};
+    expect(exchange.status).toBe(200);
+
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${session.sessionToken}`
+      },
+      body: JSON.stringify({
+        listing,
+        accessTier: "anonymous",
+        restrictedProviders: ["idealo"]
+      })
+    });
+
+    expect(response.status).toBe(200);
+    expect(idealoCalls).toBe(1);
+    await expect(response.json()).resolves.toMatchObject({
+      providerStatus: expect.arrayContaining([
+        expect.objectContaining({provider: "idealo", state: "no_match"})
+      ])
+    });
   });
 
   it("fails closed to public restrictions if access resolution fails", async () => {
