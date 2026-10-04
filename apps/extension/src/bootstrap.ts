@@ -6,6 +6,11 @@ import {
   createPriceLensLifecycle,
   type PriceLensLifecycle
 } from "./lifecycle.js";
+import {
+  createSearchResultsLifecycle,
+  isEbaySearchResultsPage,
+  type SearchResultsLifecycle
+} from "./search-results.js";
 import type {CompareMessage, CompareResponse} from "./messages.js";
 import type {ComparisonConsentStore} from "./privacy-consent.js";
 import type {BuyerDestinationStore} from "./buyer-destination.js";
@@ -32,7 +37,7 @@ export interface PriceLensBootstrapController {
 export async function bootstrapPriceLens(
   options: PriceLensBootstrapOptions
 ): Promise<PriceLensBootstrapController> {
-  let lifecycle: PriceLensLifecycle | undefined;
+  let lifecycle: PriceLensLifecycle | SearchResultsLifecycle | undefined;
   let stopped = false;
   let buyerDestination: BuyerDestination = {country: "DE"};
 
@@ -63,6 +68,16 @@ export async function bootstrapPriceLens(
   function startLifecycle(): void {
     if (stopped) return;
     lifecycle?.stop();
+
+    if (isEbaySearchResultsPage(options.window.location.href)) {
+      lifecycle = createSearchResultsLifecycle({
+        document: options.document,
+        window: options.window,
+        sendMessage: options.sendMessage,
+        getDestination: () => buyerDestination
+      });
+      return;
+    }
 
     lifecycle = createPriceLensLifecycle({
       document: options.document,
@@ -118,7 +133,7 @@ export async function bootstrapPriceLens(
 
   if (hasConsent) {
     startLifecycle();
-  } else {
+  } else if (!isEbaySearchResultsPage(options.window.location.href)) {
     showConsent();
   }
 
