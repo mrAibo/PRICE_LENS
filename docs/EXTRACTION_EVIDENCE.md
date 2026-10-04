@@ -166,3 +166,39 @@ An unreviewed observed fixture is intentionally excluded from real-layout metric
 At this checkpoint the infrastructure for real-layout measurement is complete, but a
 real-world accuracy percentage must not be published until reviewed observed fixtures
 have been collected.
+
+## Search-result layout evidence
+
+Phase 7 search-card extraction has a separate observed-layout evidence path because
+search pages expose a different, smaller field set than item pages.
+
+Capture a saved real public eBay.de search page with:
+
+```bash
+npm run capture:ebay-search -- \
+  --html /path/to/saved-search-page.html \
+  --url "https://www.ebay.de/sch/i.html?_nkw=headphones" \
+  --id "observed-search-headphones" \
+  --layout-class "desktop-list"
+```
+
+The generated fixture is written under
+`apps/extension/test/fixtures/observed-search/` and starts with
+`reviewed:false`.
+
+The capture keeps only PriceLens-relevant card fields, replaces real item ids/URLs with
+deterministic synthetic ids, excludes seller/account/image/tracking markup, and retains
+only a SHA-256 digest of the original search URL.
+
+A fixture counts as evidence only after independent verification against the saved live
+page or screenshots and an explicit `reviewed:true`.
+
+Run the observed search-layout evidence report with:
+
+```bash
+npm run evidence:ebay-search
+```
+
+Metrics are reported separately for supportability, listing identity, price, shipping
+and condition. An empty reviewed corpus reports zero labelled fields and does not imply
+that the live-layout gate has passed.

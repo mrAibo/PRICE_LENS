@@ -337,6 +337,9 @@ Deliverables:
 - [x] no excessive provider traffic
 - [x] compact cheaper-first result with optional full expansion
 - [x] per-card uncertainty/provider-degradation state
+- [x] anonymized real-search capture tool with deterministic synthetic item IDs
+- [x] independent reviewed-fixture gate for observed search layouts
+- [x] observed search-card field metrics command
 - [ ] representative anonymized real eBay.de search-layout fixtures
 - [ ] live-layout validation for infinite scroll / sponsored-result variants
 

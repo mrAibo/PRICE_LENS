@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `06a6f9c12a719524168aacd6eeeeefe0e65f2f2d` (PR #74). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `f0b5d2df57c024dff95cde4463af7d6445ff5690` (PR #75). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -167,6 +167,9 @@ Initial implementation now exists behind the same stored comparison consent:
 - [x] incomplete current shipping suppresses delivered-price savings claims
 - [x] compact cheaper-first results are bounded; additional accepted offers stay locally expandable
 - [x] per-card partial/private-beta/review-only uncertainty is surfaced and expands locally
+- [x] observed search-layout capture/anonymization tool
+- [x] independent review gate before observed search fixtures count as evidence
+- [x] separate observed search-card field metrics
 - [ ] real eBay.de search-layout fixtures and live-layout validation remain pending
 
 Search-card extraction intentionally carries no invented GTIN/MPN. It relies on the
