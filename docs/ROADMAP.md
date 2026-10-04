@@ -195,7 +195,7 @@ International foundation:
 - [x] preserve original marketplace currency and block raw cross-currency ranking
 - [x] add explicit ECB reference FX normalization before cross-currency savings ranking
 - [ ] live-validate ECB refresh/freshness behavior in deployed runtime
-- [ ] distinguish EU from non-EU landed-cost semantics
+- [x] distinguish EU from non-EU landed-cost semantics; exclude unconfirmed import costs from ranking
 - [x] implement Amazon EU marketplace fan-out keyed by marketplace-specific Partner Tags
 - [ ] activate each Amazon EU marketplace only after its Partner Tag/access is approved
 - [x] keep Amazon offers out of delivered-price ranking while mandatory shipping is unknown
@@ -204,7 +204,7 @@ Traffic/scale rules:
 
 - [x] provider concurrency and API overload caps already exist
 - [x] provider caches default off pending approved freshness terms
-- [ ] no eager per-card provider calls on eBay search-result pages
+- [x] no eager per-card provider calls on eBay search-result pages
 - [ ] future search-result augmentation is user-triggered per card by default
 - [x] implement bounded in-memory tab-session report reuse keyed by listing + destination
 - [ ] enable a positive tab-session reuse TTL only after every active provider's cache/freshness rules permit it
