@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `fb70b80d7d29768e83042b50bf9ff3a5002b292e` (PR #88). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `a77e40058227d9be443d58fc0b3d58109cc0a0bb` (PR #90). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -399,16 +399,18 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #86 — destination-dependent shipping-unknown real eBay fixture + anonymizer hardening — merged into `main`
 - PR #87 — Phase 1 observed extraction evidence gate closed — merged into `main`
 - PR #88 — eBay Production approval packet (EPN software + Buy API/Growth Check) — merged into `main`
+- PR #89 — credential-backed eBay Sandbox corpus characterization for same-product search — merged into `main`
+- PR #90 — PriceLens companion site content (15 HTML pages) — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
 1. Phase 1 / Issue #10 — complete for the current observed gate. Six reviewed real fixtures / 108 labelled fields cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping, destination-dependent shipping unknown, and incomplete Product JSON-LD identity with safe DOM fallback.
 2. Issue #12 Sandbox credential/Browse-enrichment gate is complete and EPN account exists. Sandbox corpus characterization confirms only sparse test inventory, mostly new + fixed/free shipping, with no accepted exact-GTIN alternative pairs in the checked sample. Continue Issue #52 in Production after Software/Downloadable Tools approval, Buy API Production approval and Growth Check; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
-3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
-4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
-5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
-6. Internal Phase 1 behavior/failure-mode work is complete; collect and independently review real eBay.de layout fixtures for Issue #10.
+3. Issue #91 — PriceLens companion site content is merged and ready for publication. Before enabling GitHub Pages, add accurate operator/contact/legal details for the real public launch context; then use that genuine URL in provider/publisher applications.
+4. Issue #13 — submit idealo iPN and Geizhals Publisher applications using the real PriceLens site once published; for Amazon, request explicit written permission before enabling Amazon in the browser extension.
+5. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
+6. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
 7. Keep provider product-data cache TTL at zero until live freshness rules are approved; explicit TTL support is already implemented.
 8. Continue security hardening as new provider adapters are added.
 9. Issue #33 — release-preflight, immutable runtime-input guards, durable application metrics and alert IaC are implemented; remaining work is external deployment: Phase A apply, approved secret versions/image/domain, Phase B apply, DNS/TLS verification, Cloud Armor tuning, notification-channel approval and alert enablement before store packaging.
