@@ -13,6 +13,12 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = length(google_iam_workload_identity_pool.github) == 0 && length(google_service_account.github_image_publisher) == 0
+    error_message = "GitHub WIF publishing must remain opt-in by default."
+  }
+
+
+  assert {
     condition     = length(google_compute_security_policy.api) == 0
     error_message = "Phase A must not create the public edge policy."
   }
@@ -103,6 +109,41 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   assert {
     condition     = local.literal_env.EBAY_BROWSE_CACHE_TTL_MS == "0" && local.literal_env.AMAZON_CREATORS_CACHE_TTL_MS == "0"
     error_message = "Provider product-data caches must remain disabled by default."
+  }
+}
+
+run "github_wif_image_publisher_is_repo_and_main_bound" {
+  command = plan
+
+  variables {
+    project_id                         = "price-lens-test"
+    github_wif_image_publisher_enabled = true
+  }
+
+  assert {
+    condition     = length(google_iam_workload_identity_pool.github) == 1 && length(google_iam_workload_identity_pool_provider.github) == 1
+    error_message = "Explicit WIF enablement must create exactly one GitHub pool and provider."
+  }
+
+  assert {
+    condition = alltrue([
+      strcontains(google_iam_workload_identity_pool_provider.github[0].attribute_condition, "assertion.repository_id == '1401433983'"),
+      strcontains(google_iam_workload_identity_pool_provider.github[0].attribute_condition, "assertion.repository_owner_id == '93589172'"),
+      strcontains(google_iam_workload_identity_pool_provider.github[0].attribute_condition, "assertion.repository == 'mrAibo/PRICE_LENS'"),
+      strcontains(google_iam_workload_identity_pool_provider.github[0].attribute_condition, "assertion.ref == 'refs/heads/main'"),
+      strcontains(google_iam_workload_identity_pool_provider.github[0].attribute_condition, "assertion.ref_type == 'branch'")
+    ])
+    error_message = "GitHub WIF must be restricted to the immutable PriceLens repository identity and main branch."
+  }
+
+  assert {
+    condition     = google_artifact_registry_repository_iam_member.github_image_publisher[0].role == "roles/artifactregistry.writer"
+    error_message = "The GitHub image publisher must receive Artifact Registry Writer rather than broad project deployment roles."
+  }
+
+  assert {
+    condition     = google_service_account_iam_member.github_image_publisher_wif[0].role == "roles/iam.workloadIdentityUser"
+    error_message = "GitHub may impersonate the image-publisher service account only through Workload Identity Federation."
   }
 }
 
