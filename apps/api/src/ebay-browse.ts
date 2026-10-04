@@ -732,6 +732,10 @@ export function createEbayBrowseEnricherFromEnv(
       "EBAY_MARKETPLACE_SEARCH_CONCURRENCY",
       3
     ),
+    catalogEpidFallbackEnabled:
+      env.EBAY_CATALOG_EPID_FALLBACK_ENABLED === "1",
+    catalogMarketplaceId:
+      env.EBAY_CATALOG_MARKETPLACE_ID?.trim() || undefined,
     cacheTtlMs: parseCacheTtlEnv(
       env.EBAY_BROWSE_CACHE_TTL_MS,
       "EBAY_BROWSE_CACHE_TTL_MS"
@@ -971,6 +975,21 @@ function validateMarketplaceIds(
     unique.add(validateMarketplaceId(value));
   }
   return [...unique];
+}
+
+function validateCatalogMarketplaceId(
+  value: string
+): EbayCatalogMarketplaceId {
+  if (
+    !EBAY_CATALOG_MARKETPLACE_IDS.includes(
+      value as EbayCatalogMarketplaceId
+    )
+  ) {
+    throw new Error(
+      `Unsupported eBay Catalog marketplace ID: ${value}. Supported PriceLens EU Catalog markets: ${EBAY_CATALOG_MARKETPLACE_IDS.join(", ")}.`
+    );
+  }
+  return value as EbayCatalogMarketplaceId;
 }
 
 function validateMarketplaceId(value: string): EbayEuMarketplaceId {
