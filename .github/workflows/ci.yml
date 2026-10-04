@@ -41,12 +41,18 @@ jobs:
       - name: Build
         run: npm run build
       - name: Terraform format
-        run: terraform fmt -check -diff -recursive infra/gcp
-      - name: Terraform init
+        run: terraform fmt -check -diff -recursive infra
+      - name: Terraform state-bootstrap init
+        run: terraform -chdir=infra/gcp-state-bootstrap init -backend=false -input=false
+      - name: Terraform state-bootstrap validate
+        run: terraform -chdir=infra/gcp-state-bootstrap validate
+      - name: Terraform state-bootstrap safety tests
+        run: terraform -chdir=infra/gcp-state-bootstrap test
+      - name: Terraform production init
         run: terraform -chdir=infra/gcp init -backend=false -input=false
-      - name: Terraform validate
+      - name: Terraform production validate
         run: terraform -chdir=infra/gcp validate
-      - name: Terraform safety tests
+      - name: Terraform production safety tests
         run: terraform -chdir=infra/gcp test
       - name: Verify local extension artifact
         run: npm run verify-artifact -w @price-lens/extension
