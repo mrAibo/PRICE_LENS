@@ -92,6 +92,13 @@ export interface DeliveryWindow {
   shippingCarrierCode?: string;
 }
 
+export interface ReturnPolicySummary {
+  returnsAccepted: boolean;
+  returnPeriodValue?: number;
+  returnPeriodUnit?: string;
+  returnShippingCostPayer?: "BUYER" | "SELLER";
+}
+
 export interface MarketOffer {
   provider: PriceProviderId;
   providerProductId?: string;
@@ -103,6 +110,7 @@ export interface MarketOffer {
   sellerFeedbackScore?: number;
   sellerAccountType?: SellerAccountType;
   deliveryWindow?: DeliveryWindow;
+  returnPolicy?: ReturnPolicySummary;
   url: string;
   condition: ListingCondition;
   itemPrice: Money;
