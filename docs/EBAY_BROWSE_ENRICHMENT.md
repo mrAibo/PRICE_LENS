@@ -1,6 +1,6 @@
 # eBay Browse API Enrichment
 
-Status: **implemented, live credential validation pending**
+Status: **implemented; Sandbox Browse validation passed, Production approval pending**
 
 PriceLens uses the official eBay Browse API only as optional server-side identity
 enrichment. The browser extension never receives eBay developer credentials.
@@ -121,17 +121,36 @@ identity fields and must not override variant identity already obtained from the
 page. Future live Sandbox fixtures should verify how the selected eBay.de variations in
 our target categories map through `get_item_by_legacy_id`.
 
-## Live validation gate
+## Sandbox live validation
 
-Once Sandbox credentials exist:
+The first credential-backed Sandbox validation passed on 2026-10-04.
 
-1. set the five `EBAY_*` environment values;
-2. start the API;
-3. verify `GET /health` reports `enrichment.ebay = configured`;
-4. run comparisons against representative Sandbox items;
-5. add sanitized response contract fixtures for success, 404, 401, 429 and
-   variation/group behavior;
-6. only after Sandbox validation, proceed with eBay's Production approval process.
+Validated:
+
+1. OAuth client-credentials token request returned HTTP 200.
+2. Browse `item_summary/search` returned HTTP 200 with Sandbox data.
+3. `GET /health` reported eBay enrichment configured.
+4. A full PriceLens comparison using Sandbox legacy item `110590598827` added brand, model, GTIN and EAN to an otherwise empty identity.
+5. The redacted live-check harness reported `ebay_enrichment=pass` and `ebay_market=pass`.
+6. The same-product provider executed successfully and returned the non-error state `no_match` for that selected Sandbox item.
+
+See [eBay Sandbox Live Validation](EBAY_SANDBOX_VALIDATION.md) for the redacted evidence.
+
+### Catalog fallback limitation discovered live
+
+The current Sandbox keyset successfully mints the normal application token used by Browse, but a direct token request for `commerce.catalog.readonly` returns HTTP 400 `invalid_scope`.
+
+Therefore the optional Brand+MPN / Brand+Model Catalog fallbacks remain disabled. PriceLens must not depend on Catalog for normal comparison. The baseline remains exact Browse GTIN/EAN/UPC and direct ePID discovery. Catalog may be reconsidered only after eBay explicitly grants/clarifies the required authorization for the PriceLens use case.
+
+### Remaining live gate
+
+Before release:
+
+1. broaden same-product validation across representative categories/conditions/shipping cases;
+2. validate variation/group behavior where eBay Sandbox provides useful data;
+3. complete EPN software/browser-extension approval and the Buy API Production approval path;
+4. repeat the redacted validation in Production;
+5. keep persistent product caching at TTL 0 until the approved freshness/retention rules are confirmed.
 
 Official references:
 
