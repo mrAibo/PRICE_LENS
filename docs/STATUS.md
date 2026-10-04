@@ -1,6 +1,6 @@
 # PriceLens Project Status
 
-Updated: **2026-10-04**
+Updated: **2026-10-05**
 
 Overall status: **active implementation / early MVP**
 
@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `f5c8540fbadcb87a1ef48cef458e48a4a3632a07` (PR #83). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `288bfdd4a1bf14a6c98f8d328947c7f802f5417a` (PR #87). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -396,6 +396,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #83 — selected eBay SKU extraction + third reviewed real fixture — merged into `main`
 - PR #84 — direct `dt/dd` item-specific capture + local-pickup/no-shipping observed fixture — merged into `main`
 - PR #85 — fifth reviewed weak-identity real eBay fixture — merged into `main`
+- PR #86 — destination-dependent shipping-unknown real eBay fixture + anonymizer hardening — merged into `main`
+- PR #87 — Phase 1 observed extraction evidence gate closed — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
