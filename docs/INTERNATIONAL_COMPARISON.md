@@ -88,12 +88,34 @@ PriceLens asks eBay only for listings eligible for the requested delivery countr
 When the user provides a postal code, the request also uses eBay's delivery-postal-code
 filter and contextual location to improve calculated shipping accuracy.
 
-Shipping remains conservative:
+Shipping and customs handling remain conservative:
 
 - a returned shipping amount is included only when its currency matches the item price;
 - missing shipping remains unknown;
 - unknown shipping never becomes zero;
-- only complete landed prices may participate in savings ranking.
+- eBay Browse item-location country is retained when available for both the current
+  listing and marketplace alternatives;
+- known EU-origin -> EU-destination offers can be ranked when shipping is complete;
+- same-country offers can be ranked when shipping is complete;
+- known cross-customs-boundary offers are marked `import_costs_unknown` unless the
+  provider explicitly confirms that import charges are included;
+- unknown-origin offers remain visible but are excluded from best/cheaper ranking;
+- a known non-EU current listing makes the current landed-price benchmark incomplete
+  for an EU destination until import costs are confirmed;
+- FX conversion never turns an import-incomplete offer into a comparable landed price.
+
+The normalized offer exposes a `landedCostStatus`:
+
+```text
+complete
+shipping_unknown
+origin_unknown
+import_costs_unknown
+```
+
+The extension explains these states in the expanded report. For example, a US-origin
+offer delivered to Germany can show the known item+shipping amount, but PriceLens will
+label it as not ranked because import VAT, duties or handling fees are not confirmed.
 
 The delivery destination is a user-controlled report input. Changing the saved
 destination does not trigger a provider request by itself; it takes effect only on the
@@ -181,7 +203,7 @@ EBAY_FR -> ebay.fr
 EBAY_IT -> ebay.it
 EBAY_ES -> ebay.es
 EBAY_NL -> ebay.nl
-EBAY_BE -> ebay.com.be
+EBAY_BE -> ebay.be
 ```
 
 HTTPS is required and subdomains are allowed. A result returned under the wrong
@@ -194,7 +216,7 @@ marketplace hostname is discarded.
 - live validation of destination-aware shipping across representative countries/postcodes;
 - live validation of ECB reference-rate retrieval and refresh behavior;
 - EUR-normalized comparison while retaining original prices;
-- EU versus non-EU tax/import-cost model;
+- live validation of EU/non-EU item-location and import-charge semantics;
 - live activation/validation of Amazon EU locales with marketplace-specific approved Partner Tags;
 - provider quota/latency measurements under real traffic;
 - eBay Production/Growth Check confirmation for the final presentation.
