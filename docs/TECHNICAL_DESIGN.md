@@ -32,13 +32,14 @@ Early non-goals:
 ┌─────────────────────────────────────────────────────────────┐
 │ Browser                                                     │
 │                                                             │
-│  eBay.de item page                                          │
+│  eBay.de item page / search results                         │
 │      │                                                      │
 │      v                                                      │
 │  MV3 content script                                         │
-│  - page lifecycle                                           │
-│  - listing extraction                                       │
-│  - Shadow DOM widget                                        │
+│  - item-page lifecycle                                      │
+│  - local search-card lifecycle                              │
+│  - conservative listing/card extraction                     │
+│  - Shadow DOM item/card widgets                             │
 │      │ chrome.runtime message                               │
 │      v                                                      │
 │  MV3 service worker                                         │
@@ -75,8 +76,9 @@ apps/
       api/          extension -> PriceLens API client
       ebay/         eBay extraction only
       ui/           Shadow DOM rendering only
-      lifecycle.ts  navigation/DOM-change control
-      content.ts    composition root
+      lifecycle.ts       item-page navigation/DOM-change control
+      search-results.ts   search-card discovery + explicit per-card reports
+      content.ts          composition root
       background.ts MV3 service worker
 
   api/
