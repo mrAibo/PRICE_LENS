@@ -49,6 +49,59 @@ function candidate(overrides: Partial<ProviderCandidate> = {}): ProviderCandidat
 }
 
 describe("PriceLens matching guard", () => {
+  it("auto-matches an exact eBay catalog product ID after hard guards", () => {
+    const source: EcommerceListing = {
+      ...listing,
+      identity: {
+        brand: "Sony",
+        model: "WH-1000XM6",
+        epid: "123456789"
+      }
+    };
+
+    expect(
+      evaluateProviderCandidate(
+        source,
+        candidate({
+          identity: {
+            brand: "Sony",
+            model: "WH-1000XM6",
+            epid: "123456789"
+          }
+        })
+      )
+    ).toMatchObject({
+      decision: "auto_match",
+      confidence: 1,
+      method: "epid"
+    });
+  });
+
+  it("rejects conflicting ePIDs before fuzzy scoring", () => {
+    const source: EcommerceListing = {
+      ...listing,
+      identity: {
+        brand: "Sony",
+        model: "WH-1000XM6",
+        epid: "123456789"
+      }
+    };
+
+    const result = evaluateProviderCandidate(
+      source,
+      candidate({
+        identity: {
+          brand: "Sony",
+          model: "WH-1000XM6",
+          epid: "987654321"
+        }
+      })
+    );
+
+    expect(result.decision).toBe("reject");
+    expect(result.reason).toContain("Conflicting eBay catalog product IDs");
+  });
+
   it("auto-matches an exact GTIN/EAN identity", () => {
     expect(evaluateProviderCandidate(listing, candidate())).toMatchObject({
       decision: "auto_match",

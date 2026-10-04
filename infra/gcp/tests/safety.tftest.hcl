@@ -80,6 +80,16 @@ run "phase_a_bootstrap_has_no_public_runtime" {
   }
 
   assert {
+    condition     = local.literal_env.EBAY_CATALOG_EPID_FALLBACK_ENABLED == "0"
+    error_message = "eBay Catalog ePID fallback must remain opt-in until live Catalog validation."
+  }
+
+  assert {
+    condition     = local.literal_env.EBAY_CATALOG_MARKETPLACE_ID == "EBAY_DE"
+    error_message = "eBay Catalog fallback must use the conservative supported EU marketplace default."
+  }
+
+  assert {
     condition     = local.literal_env.ECB_FX_ENABLED == "0"
     error_message = "ECB FX normalization must remain opt-in until live deployment validation."
   }
@@ -176,6 +186,19 @@ run "session_auth_accepts_pinned_server_secrets" {
     condition     = local.literal_env.PRICE_LENS_SESSION_AUTH_ENABLED == "1"
     error_message = "Session auth should enable only after pinned backend secrets are supplied."
   }
+}
+
+run "ebay_catalog_fallback_requires_browse_enablement" {
+  command = plan
+
+  variables {
+    project_id                         = "price-lens-test"
+    ebay_catalog_epid_fallback_enabled = true
+  }
+
+  expect_failures = [
+    check.provider_enablement
+  ]
 }
 
 run "ebay_marketplace_comparison_requires_browse_enablement" {

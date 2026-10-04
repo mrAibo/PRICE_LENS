@@ -95,6 +95,241 @@ describe("eBay Browse enrichment", () => {
     expect(browseHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
   });
 
+  it("enriches a direct ePID returned with Browse product data", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "epid-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemId: "v1|123456789012|0",
+          product: {
+            brand: "Sony",
+            mpn: "WH1000XM6B",
+            epid: "123456789"
+          }
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity).toMatchObject({
+      brand: "Sony",
+      mpn: "WH1000XM6B",
+      epid: "123456789"
+    });
+    expect(result.extractionEvidence).toContain(
+      "ebay-browse:brand,mpn,epid"
+    );
+  });
+
+  it("resolves a unique exact Brand+MPN Catalog product to ePID when enabled", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemId: "v1|123456789012|0",
+          brand: "Sony",
+          mpn: "WH1000XM6B"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [
+            {
+              epid: "241976099",
+              brand: "Sony",
+              mpn: ["WH1000XM6B"],
+              title: "Sony WH-1000XM6"
+            },
+            {
+              epid: "999999999",
+              brand: "Other Brand",
+              mpn: ["WH1000XM6B"],
+              title: "Unrelated collision"
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogEpidFallbackEnabled: true,
+      catalogMarketplaceId: "EBAY_DE",
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity).toMatchObject({
+      brand: "Sony",
+      mpn: "WH1000XM6B",
+      epid: "241976099"
+    });
+    expect(result.extractionEvidence).toContain(
+      "ebay-browse:brand,mpn,epid"
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    const catalogTokenCall = fetchImpl.mock.calls[2]!;
+    expect(String(catalogTokenCall[0])).toContain("/identity/v1/oauth2/token");
+    expect(String(catalogTokenCall[1]?.body)).toContain(
+      "commerce.catalog.readonly"
+    );
+
+    const catalogSearchCall = fetchImpl.mock.calls[3]!;
+    const catalogUrl = new URL(String(catalogSearchCall[0]));
+    expect(catalogUrl.pathname).toBe(
+      "/commerce/catalog/v1_beta/product_summary/search"
+    );
+    expect(catalogUrl.searchParams.get("mpn")).toBe("WH1000XM6B");
+    expect(catalogUrl.searchParams.get("limit")).toBe("20");
+    expect(
+      new Headers(catalogSearchCall[1]?.headers).get(
+        "x-ebay-c-marketplace-id"
+      )
+    ).toBe("EBAY_DE");
+  });
+
+  it("coalesces concurrent identical Brand+MPN Catalog ePID lookups", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          mpn: "WH1000XM6B"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [
+            {
+              epid: "241976099",
+              brand: "Sony",
+              mpn: ["WH1000XM6B"]
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogEpidFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const [first, second] = await Promise.all([
+      enricher.enrich(baseListing),
+      enricher.enrich(baseListing)
+    ]);
+
+    expect(first.identity.epid).toBe("241976099");
+    expect(second.identity.epid).toBe("241976099");
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+
+    const catalogSearchCalls = fetchImpl.mock.calls.filter(([input]) =>
+      String(input).includes("/commerce/catalog/v1_beta/product_summary/search")
+    );
+    expect(catalogSearchCalls).toHaveLength(1);
+  });
+
+  it("does not choose an ePID when exact Brand+MPN Catalog results are ambiguous", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          mpn: "WH1000XM6B"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [
+            {epid: "111111111", brand: "Sony", mpn: ["WH1000XM6B"]},
+            {epid: "222222222", brand: "Sony", mpn: ["WH1000XM6B"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogEpidFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity).toMatchObject({
+      brand: "Sony",
+      mpn: "WH1000XM6B"
+    });
+    expect(result.identity.epid).toBeUndefined();
+  });
+
+  it("keeps Browse enrichment when optional Catalog ePID resolution fails", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          mpn: "WH1000XM6B"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse({errors: []}, 503));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogEpidFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity).toMatchObject({
+      brand: "Sony",
+      mpn: "WH1000XM6B"
+    });
+    expect(result.identity.epid).toBeUndefined();
+    expect(result.extractionWarnings).toContain(
+      "eBay Catalog ePID fallback is currently unavailable; Browse identity was kept."
+    );
+  });
+
   it("enriches the current listing origin country when Browse provides it", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -871,6 +1106,87 @@ describe("eBay same-product marketplace search", () => {
     expect(maxActiveSearches).toBe(2);
   });
 
+  it("uses ePID marketplace search when GTIN/EAN/UPC is unavailable", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "market-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|650000000001|0",
+              title: "Sony WH-1000XM6",
+              itemWebUrl: "https://www.ebay.de/itm/650000000001",
+              price: {value: "299.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000",
+              itemLocation: {country: "DE"},
+              shippingOptions: [
+                {shippingCost: {value: "0.00", currency: "EUR"}}
+              ]
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE"],
+      fetchImpl
+    });
+
+    const candidates = await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {
+        brand: "Sony",
+        mpn: "WH1000XM6B",
+        epid: "241976099"
+      }
+    });
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        providerProductId: "v1|650000000001|0",
+        identity: {epid: "241976099"}
+      })
+    ]);
+
+    const searchUrl = new URL(String(fetchImpl.mock.calls[1]![0]));
+    expect(searchUrl.searchParams.get("epid")).toBe("241976099");
+    expect(searchUrl.searchParams.has("gtin")).toBe(false);
+  });
+
+  it("prefers GTIN over ePID when both strong identifiers are available", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "market-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(jsonResponse({itemSummaries: []}));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE"],
+      fetchImpl
+    });
+
+    await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {
+        ean: "4548736162657",
+        epid: "241976099"
+      }
+    });
+
+    const searchUrl = new URL(String(fetchImpl.mock.calls[1]![0]));
+    expect(searchUrl.searchParams.get("gtin")).toBe("4548736162657");
+    expect(searchUrl.searchParams.has("epid")).toBe(false);
+  });
+
   it("does not issue a broad title search when no strong trade identifier exists", async () => {
     const fetchImpl = vi.fn<typeof fetch>();
     const enricher = new EbayBrowseEnricher({
@@ -962,6 +1278,18 @@ describe("eBay Browse environment configuration", () => {
         {country: "DE", postalCode: "30159,evil"}
       )
     ).rejects.toThrow("postal code");
+  });
+
+  it("rejects unsupported Catalog marketplace configuration", () => {
+    expect(() =>
+      createEbayBrowseEnricherFromEnv({
+        EBAY_BROWSE_ENABLED: "1",
+        EBAY_CLIENT_ID: "id",
+        EBAY_CLIENT_SECRET: "secret",
+        EBAY_CATALOG_EPID_FALLBACK_ENABLED: "1",
+        EBAY_CATALOG_MARKETPLACE_ID: "EBAY_PL"
+      })
+    ).toThrow("Unsupported eBay Catalog marketplace ID");
   });
 
   it("accepts an explicit production configuration", () => {

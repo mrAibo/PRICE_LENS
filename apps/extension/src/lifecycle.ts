@@ -266,6 +266,7 @@ export function listingFingerprint(listing: EcommerceListing): string {
       gtin: identity.gtin ?? null,
       ean: identity.ean ?? null,
       upc: identity.upc ?? null,
+      epid: identity.epid ?? null,
       variant: {
         storageGb: identity.variant?.storageGb ?? null,
         ramGb: identity.variant?.ramGb ?? null,

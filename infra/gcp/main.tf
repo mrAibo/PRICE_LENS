@@ -35,6 +35,8 @@ locals {
     EBAY_MARKETPLACE_SEARCH_IDS         = join(",", var.ebay_marketplace_search_ids)
     EBAY_DELIVERY_COUNTRY               = var.ebay_delivery_country
     EBAY_MARKETPLACE_SEARCH_CONCURRENCY = tostring(var.ebay_marketplace_search_concurrency)
+    EBAY_CATALOG_EPID_FALLBACK_ENABLED  = var.ebay_catalog_epid_fallback_enabled ? "1" : "0"
+    EBAY_CATALOG_MARKETPLACE_ID         = var.ebay_catalog_marketplace_id
     EBAY_BROWSE_CACHE_TTL_MS            = tostring(var.ebay_browse_cache_ttl_ms)
 
     ECB_FX_ENABLED           = var.ecb_fx_enabled ? "1" : "0"
@@ -121,6 +123,11 @@ check "provider_enablement" {
   assert {
     condition     = !var.ebay_marketplace_comparison_enabled || var.ebay_browse_enabled
     error_message = "eBay marketplace comparison requires ebay_browse_enabled=true so the same approved Browse credentials are used."
+  }
+
+  assert {
+    condition     = !var.ebay_catalog_epid_fallback_enabled || var.ebay_browse_enabled
+    error_message = "eBay Catalog ePID fallback requires ebay_browse_enabled=true so the same approved eBay application credentials are used."
   }
 
   assert {

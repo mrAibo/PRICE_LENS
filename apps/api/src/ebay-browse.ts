@@ -33,16 +33,30 @@ export const EBAY_EU_MARKETPLACE_IDS = [
 
 export type EbayEuMarketplaceId = typeof EBAY_EU_MARKETPLACE_IDS[number];
 
-const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, string> = {
-  EBAY_DE: "ebay.de",
-  EBAY_PL: "ebay.pl",
-  EBAY_AT: "ebay.at",
-  EBAY_FR: "ebay.fr",
-  EBAY_IT: "ebay.it",
-  EBAY_ES: "ebay.es",
-  EBAY_NL: "ebay.nl",
-  EBAY_BE: "ebay.be"
+const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, readonly string[]> = {
+  EBAY_DE: ["ebay.de"],
+  EBAY_PL: ["ebay.pl"],
+  EBAY_AT: ["ebay.at"],
+  EBAY_FR: ["ebay.fr"],
+  EBAY_IT: ["ebay.it"],
+  EBAY_ES: ["ebay.es"],
+  EBAY_NL: ["ebay.nl"],
+  EBAY_BE: ["ebay.be", "ebay.com.be"]
 };
+
+const EBAY_CATALOG_MARKETPLACE_IDS = [
+  "EBAY_DE",
+  "EBAY_ES",
+  "EBAY_FR",
+  "EBAY_IT"
+] as const;
+
+type EbayCatalogMarketplaceId =
+  typeof EBAY_CATALOG_MARKETPLACE_IDS[number];
+
+type EbayMarketplaceDiscovery =
+  | {kind: "gtin"; value: string}
+  | {kind: "epid"; value: string};
 
 export interface EbayBrowseEnricherOptions {
   clientId: string;
@@ -52,6 +66,8 @@ export interface EbayBrowseEnricherOptions {
   marketplaceSearchIds?: string[];
   deliveryCountry?: string;
   marketplaceSearchConcurrency?: number;
+  catalogEpidFallbackEnabled?: boolean;
+  catalogMarketplaceId?: string;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -78,6 +94,8 @@ export class EbayBrowseEnricher {
   private readonly marketplaceSearchIds: EbayEuMarketplaceId[];
   private readonly deliveryCountry: string;
   private readonly marketplaceSearchConcurrency: number;
+  private readonly catalogEpidFallbackEnabled: boolean;
+  private readonly catalogMarketplaceId: EbayCatalogMarketplaceId;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -88,6 +106,12 @@ export class EbayBrowseEnricher {
   private readonly itemInFlight = new Map<string, Promise<JsonRecord | null>>();
   private tokenCache?: CachedToken;
   private tokenInFlight?: Promise<string>;
+  private catalogTokenCache?: CachedToken;
+  private catalogTokenInFlight?: Promise<string>;
+  private readonly catalogEpidInFlight = new Map<
+    string,
+    Promise<string | undefined>
+  >();
 
   constructor(options: EbayBrowseEnricherOptions) {
     this.clientId = requireNonEmpty(options.clientId, "eBay client id");
@@ -105,6 +129,18 @@ export class EbayBrowseEnricher {
       options.marketplaceSearchConcurrency ?? 3,
       "eBay marketplace search concurrency"
     );
+    this.catalogEpidFallbackEnabled =
+      options.catalogEpidFallbackEnabled ?? false;
+    this.catalogMarketplaceId = validateCatalogMarketplaceId(
+      options.catalogMarketplaceId ??
+        (
+          EBAY_CATALOG_MARKETPLACE_IDS.includes(
+            this.marketplaceId as EbayCatalogMarketplaceId
+          )
+            ? this.marketplaceId
+            : "EBAY_DE"
+        )
+    );
     this.timeoutMs = options.timeoutMs ?? 4000;
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "eBay Browse");
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -118,10 +154,31 @@ export class EbayBrowseEnricher {
     if (!item) return listing;
 
     const browseIdentity = extractBrowseIdentity(item);
-    const {identity, addedFields, warnings} = mergeIdentity(
-      listing.identity,
-      browseIdentity
-    );
+    const merged = mergeIdentity(listing.identity, browseIdentity);
+    let identity = merged.identity;
+    const addedFields = [...merged.addedFields];
+    const warnings = [...merged.warnings];
+
+    if (
+      this.catalogEpidFallbackEnabled &&
+      !strongestTradeIdentifier(identity) &&
+      !cleanEpid(identity.epid) &&
+      identity.brand &&
+      identity.mpn
+    ) {
+      try {
+        const epid = await this.resolveCatalogEpid(identity);
+        if (epid) {
+          identity = {...identity, epid};
+          addedFields.push("epid");
+        }
+      } catch {
+        warnings.push(
+          "eBay Catalog ePID fallback is currently unavailable; Browse identity was kept."
+        );
+      }
+    }
+
     const browseItemLocationCountry = normalizeResponseCountryCode(
       readString(readRecord(item.itemLocation)?.country)
     );
@@ -162,8 +219,8 @@ export class EbayBrowseEnricher {
     destination?: BuyerDestination
   ): Promise<ProviderCandidate[]> {
     const startedAt = this.now();
-    const gtin = strongestTradeIdentifier(listing.identity);
-    if (!gtin) {
+    const discovery = strongestMarketplaceDiscovery(listing.identity);
+    if (!discovery) {
       safeObserveProviderFanout(this.fanoutObserver, {
         source: "ebay",
         attempted: 0,
@@ -186,7 +243,7 @@ export class EbayBrowseEnricher {
         this.searchSingleMarketplace(
           marketplaceId,
           listing,
-          gtin,
+          discovery,
           effectiveDestination,
           signal
         )
@@ -224,13 +281,13 @@ export class EbayBrowseEnricher {
   private async searchSingleMarketplace(
     marketplaceId: EbayEuMarketplaceId,
     listing: EcommerceListing,
-    gtin: string,
+    discovery: EbayMarketplaceDiscovery,
     destination: BuyerDestination,
     signal?: AbortSignal
   ): Promise<ProviderCandidate[]> {
     let response = await this.fetchMarketplaceSearch(
       marketplaceId,
-      gtin,
+      discovery,
       false,
       destination,
       signal
@@ -239,7 +296,7 @@ export class EbayBrowseEnricher {
       this.tokenCache = undefined;
       response = await this.fetchMarketplaceSearch(
         marketplaceId,
-        gtin,
+        discovery,
         true,
         destination,
         signal
@@ -265,7 +322,7 @@ export class EbayBrowseEnricher {
     return extractMarketplaceCandidates(
       payload,
       listing,
-      gtin,
+      discovery,
       this.now(),
       marketplaceId
     );
@@ -367,9 +424,105 @@ export class EbayBrowseEnricher {
     });
   }
 
+  private async resolveCatalogEpid(
+    identity: ProductIdentity
+  ): Promise<string | undefined> {
+    const brand = identity.brand?.trim();
+    const mpn = identity.mpn?.trim();
+    if (!brand || !isMeaningfulIdentifier(mpn)) return undefined;
+
+    const key = `${normalizeToken(brand)}:${normalizeToken(mpn)}:${this.catalogMarketplaceId}`;
+    const active = this.catalogEpidInFlight.get(key);
+    if (active) return active;
+
+    const pending = this.fetchCatalogEpid(brand, mpn).finally(() => {
+      if (this.catalogEpidInFlight.get(key) === pending) {
+        this.catalogEpidInFlight.delete(key);
+      }
+    });
+    this.catalogEpidInFlight.set(key, pending);
+    return pending;
+  }
+
+  private async fetchCatalogEpid(
+    brand: string,
+    mpn: string
+  ): Promise<string | undefined> {
+    let response = await this.fetchCatalogProductSearch(mpn, false);
+    if (response.status === 401) {
+      this.catalogTokenCache = undefined;
+      response = await this.fetchCatalogProductSearch(mpn, true);
+    }
+
+    if (response.status === 429) {
+      throw new Error("eBay Catalog API rate limit reached.");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `eBay Catalog product search failed with HTTP ${response.status}.`
+      );
+    }
+
+    const payload = await readJsonRecord(response, "eBay Catalog product search");
+    const summaries = Array.isArray(payload.productSummaries)
+      ? payload.productSummaries
+      : [];
+    const exactEpids = new Set<string>();
+    const expectedBrand = normalizeToken(brand);
+    const expectedMpn = normalizeToken(mpn);
+
+    for (const value of summaries) {
+      const product = readRecord(value);
+      if (!product) continue;
+
+      const productBrand = readString(product.brand);
+      const productMpns = readStringArray(product.mpn);
+      const epid = cleanEpid(readString(product.epid));
+      if (
+        !productBrand ||
+        !epid ||
+        normalizeToken(productBrand) !== expectedBrand ||
+        !productMpns.some((candidateMpn) =>
+          normalizeToken(candidateMpn) === expectedMpn
+        )
+      ) {
+        continue;
+      }
+
+      exactEpids.add(epid);
+    }
+
+    return exactEpids.size === 1
+      ? [...exactEpids][0]
+      : undefined;
+  }
+
+  private async fetchCatalogProductSearch(
+    mpn: string,
+    forceTokenRefresh: boolean
+  ): Promise<Response> {
+    const token = await this.getCatalogToken(forceTokenRefresh);
+    const endpoint = new URL(
+      "/commerce/catalog/v1_beta/product_summary/search",
+      this.apiBaseUrl()
+    );
+    endpoint.searchParams.set("mpn", mpn);
+    endpoint.searchParams.set("limit", "20");
+
+    return this.fetchWithTimeout(endpoint, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-ebay-c-marketplace-id": this.catalogMarketplaceId,
+        accept: "application/json"
+      }
+    });
+  }
+
   private async fetchMarketplaceSearch(
     marketplaceId: EbayEuMarketplaceId,
-    gtin: string,
+    discovery: EbayMarketplaceDiscovery,
     forceTokenRefresh: boolean,
     destination: BuyerDestination,
     signal?: AbortSignal
@@ -379,7 +532,7 @@ export class EbayBrowseEnricher {
       "/buy/browse/v1/item_summary/search",
       this.apiBaseUrl()
     );
-    endpoint.searchParams.set("gtin", gtin);
+    endpoint.searchParams.set(discovery.kind, discovery.value);
     endpoint.searchParams.set("limit", "25");
     const filters = [
       "buyingOptions:{FIXED_PRICE}",
@@ -412,6 +565,32 @@ export class EbayBrowseEnricher {
     );
   }
 
+  private async getCatalogToken(forceRefresh: boolean): Promise<string> {
+    if (
+      !forceRefresh &&
+      this.catalogTokenCache &&
+      this.catalogTokenCache.expiresAt > this.now()
+    ) {
+      return this.catalogTokenCache.token;
+    }
+
+    if (this.catalogTokenInFlight) return this.catalogTokenInFlight;
+
+    const pending = this.mintApplicationToken(
+      "https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly"
+    ).then((cached) => {
+      this.catalogTokenCache = cached;
+      return cached.token;
+    }).finally(() => {
+      if (this.catalogTokenInFlight === pending) {
+        this.catalogTokenInFlight = undefined;
+      }
+    });
+
+    this.catalogTokenInFlight = pending;
+    return pending;
+  }
+
   private async getApplicationToken(forceRefresh: boolean): Promise<string> {
     if (
       !forceRefresh &&
@@ -423,7 +602,12 @@ export class EbayBrowseEnricher {
 
     if (this.tokenInFlight) return this.tokenInFlight;
 
-    const pending = this.mintApplicationToken().finally(() => {
+    const pending = this.mintApplicationToken(
+      "https://api.ebay.com/oauth/api_scope"
+    ).then((cached) => {
+      this.tokenCache = cached;
+      return cached.token;
+    }).finally(() => {
       if (this.tokenInFlight === pending) {
         this.tokenInFlight = undefined;
       }
@@ -432,14 +616,14 @@ export class EbayBrowseEnricher {
     return pending;
   }
 
-  private async mintApplicationToken(): Promise<string> {
+  private async mintApplicationToken(scope: string): Promise<CachedToken> {
     const credentials = Buffer.from(
       `${this.clientId}:${this.clientSecret}`,
       "utf8"
     ).toString("base64");
     const body = new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "https://api.ebay.com/oauth/api_scope"
+      scope
     });
 
     const response = await this.fetchWithTimeout(
@@ -468,11 +652,10 @@ export class EbayBrowseEnricher {
     }
 
     const safetyWindowMs = Math.min(60_000, Math.floor(expiresIn * 100));
-    this.tokenCache = {
+    return {
       token,
       expiresAt: this.now() + expiresIn * 1000 - safetyWindowMs
     };
-    return token;
   }
 
   private apiBaseUrl(): string {
@@ -570,6 +753,10 @@ export function createEbayBrowseEnricherFromEnv(
       "EBAY_MARKETPLACE_SEARCH_CONCURRENCY",
       3
     ),
+    catalogEpidFallbackEnabled:
+      env.EBAY_CATALOG_EPID_FALLBACK_ENABLED === "1",
+    catalogMarketplaceId:
+      env.EBAY_CATALOG_MARKETPLACE_ID?.trim() || undefined,
     cacheTtlMs: parseCacheTtlEnv(
       env.EBAY_BROWSE_CACHE_TTL_MS,
       "EBAY_BROWSE_CACHE_TTL_MS"
@@ -582,7 +769,7 @@ export function createEbayBrowseEnricherFromEnv(
 function extractMarketplaceCandidates(
   payload: JsonRecord,
   listing: EcommerceListing,
-  gtin: string,
+  discovery: EbayMarketplaceDiscovery,
   fetchedAtMs: number,
   marketplaceId: string
 ): ProviderCandidate[] {
@@ -633,7 +820,10 @@ function extractMarketplaceCandidates(
       sellerFeedbackScore: readFiniteNumber(seller?.feedbackScore),
       url,
       condition,
-      identity: {gtin},
+      identity:
+        discovery.kind === "gtin"
+          ? {gtin: discovery.value}
+          : {epid: discovery.value},
       itemPrice: price,
       shipping,
       fetchedAt: new Date(fetchedAtMs).toISOString()
@@ -641,6 +831,16 @@ function extractMarketplaceCandidates(
   }
 
   return candidates;
+}
+
+function strongestMarketplaceDiscovery(
+  identity: ProductIdentity
+): EbayMarketplaceDiscovery | undefined {
+  const gtin = strongestTradeIdentifier(identity);
+  if (gtin) return {kind: "gtin", value: gtin};
+
+  const epid = cleanEpid(identity.epid);
+  return epid ? {kind: "epid", value: epid} : undefined;
 }
 
 function strongestTradeIdentifier(identity: ProductIdentity): string | undefined {
@@ -661,14 +861,17 @@ function isAllowedEbayMarketplaceUrl(
   marketplaceId: string
 ): boolean {
   const validatedMarketplace = validateMarketplaceId(marketplaceId);
-  const expectedHost = EBAY_MARKETPLACE_HOSTS[validatedMarketplace];
+  const expectedHosts = EBAY_MARKETPLACE_HOSTS[validatedMarketplace];
 
   try {
     const url = new URL(raw);
     const host = url.hostname.toLowerCase();
     return (
       url.protocol === "https:" &&
-      (host === expectedHost || host.endsWith(`.${expectedHost}`))
+      expectedHosts.some(
+        (expectedHost) =>
+          host === expectedHost || host.endsWith(`.${expectedHost}`)
+      )
     );
   } catch {
     return false;
@@ -793,6 +996,21 @@ function validateMarketplaceIds(
     unique.add(validateMarketplaceId(value));
   }
   return [...unique];
+}
+
+function validateCatalogMarketplaceId(
+  value: string
+): EbayCatalogMarketplaceId {
+  if (
+    !EBAY_CATALOG_MARKETPLACE_IDS.includes(
+      value as EbayCatalogMarketplaceId
+    )
+  ) {
+    throw new Error(
+      `Unsupported eBay Catalog marketplace ID: ${value}. Supported PriceLens EU Catalog markets: ${EBAY_CATALOG_MARKETPLACE_IDS.join(", ")}.`
+    );
+  }
+  return value as EbayCatalogMarketplaceId;
 }
 
 function validateMarketplaceId(value: string): EbayEuMarketplaceId {
@@ -973,6 +1191,10 @@ function extractBrowseIdentity(item: JsonRecord): ProductIdentity {
     readString(item.upc) ??
     readString(product?.upc) ??
     readAspect("UPC");
+  const epid =
+    cleanEpid(readString(item.epid)) ??
+    cleanEpid(readString(product?.epid)) ??
+    cleanEpid(readAspect("eBay Product ID (ePID)", "ePID"));
 
   if (brand) identity.brand = brand;
   if (model) identity.model = model;
@@ -983,6 +1205,7 @@ function extractBrowseIdentity(item: JsonRecord): ProductIdentity {
   if (gtin) identity.gtin = gtin;
   if (ean) identity.ean = ean;
   if (upc) identity.upc = upc;
+  if (epid) identity.epid = epid;
 
   return identity;
 }
@@ -1005,6 +1228,19 @@ function mergeIdentity(
   mergeTextField("brand");
   mergeTextField("model");
   mergeTextField("mpn");
+
+  const existingEpid = cleanEpid(base.epid);
+  const enrichedEpid = cleanEpid(enrichment.epid);
+  if (enrichedEpid) {
+    if (existingEpid && existingEpid !== enrichedEpid) {
+      warnings.push(
+        "eBay Browse enrichment returned a conflicting ePID; page identity was kept."
+      );
+    } else if (!existingEpid) {
+      identity.epid = enrichedEpid;
+      addedFields.push("epid");
+    }
+  }
 
   const existingTradeIds = canonicalTradeItemIdentifiers(base);
   const enrichedTradeIds = canonicalTradeItemIdentifiers(enrichment);
@@ -1091,6 +1327,13 @@ function canonicalTradeItemIdentifiers(identity: ProductIdentity): Set<string> {
   return result;
 }
 
+function cleanEpid(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized && /^\d{1,32}$/.test(normalized)
+    ? normalized
+    : undefined;
+}
+
 function cleanTradeIdentifier(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const digits = value.replace(/\D/g, "");
@@ -1123,6 +1366,17 @@ function setsIntersect(left: Set<string>, right: Set<string>): boolean {
     if (right.has(value)) return true;
   }
   return false;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const single = readString(value);
+    return single ? [single] : [];
+  }
+
+  return value
+    .map((entry) => readString(entry))
+    .filter((entry): entry is string => entry !== undefined);
 }
 
 function readRecord(value: unknown): JsonRecord | undefined {

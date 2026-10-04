@@ -150,8 +150,8 @@ Still required:
 - [ ] live Sandbox/Production response validation
 - [ ] representative condition-id/category fixtures from live eBay.de data
 - [ ] approved shipping/delivery semantics for the intended buyer geography
-- [ ] EPID fallback where a trustworthy product ID is available
-- [ ] Brand + MPN fallback with candidate detail verification
+- [x] ePID fallback where a trustworthy product ID is available
+- [x] exact Brand + MPN fallback through unique eBay Catalog ePID resolution
 - [ ] controlled Brand + Model fallback with candidate detail verification
 - [ ] seller return/delivery context
 - [ ] production Buy API/Growth Check UX/compliance confirmation

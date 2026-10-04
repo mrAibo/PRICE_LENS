@@ -99,6 +99,7 @@ export function strongestIdentifier(listing: EcommerceListing): string | undefin
   if (identity.gtin) return `gtin:${identity.gtin}`;
   if (identity.ean) return `ean:${identity.ean}`;
   if (identity.upc) return `upc:${identity.upc}`;
+  if (identity.epid) return `epid:${identity.epid}`;
   if (identity.mpn && identity.brand) {
     return `mpn:${identity.brand.toLowerCase()}:${identity.mpn.toLowerCase()}`;
   }
