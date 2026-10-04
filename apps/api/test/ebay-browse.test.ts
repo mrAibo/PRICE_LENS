@@ -432,6 +432,121 @@ describe("eBay Browse enrichment", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("fails closed when uniqueness cannot be proven because one Brand+Model detail lookup fails", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          product: {model: "WH-1000XM6"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [
+            {epid: "111111111", brand: "Sony"},
+            {epid: "222222222", brand: "Sony"}
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "111111111",
+          brand: "Sony",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["WH-1000XM6"]}
+          ]
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({errors: []}, 503));
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      catalogBrandModelDetailConcurrency: 1,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity).toMatchObject({
+      brand: "Sony",
+      model: "WH-1000XM6"
+    });
+    expect(result.identity.epid).toBeUndefined();
+  });
+
+  it("bounds Brand+Model Catalog detail verification concurrency", async () => {
+    let activeDetails = 0;
+    let maxActiveDetails = 0;
+
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/identity/v1/oauth2/token") {
+        if (fetchImpl.mock.calls.length === 1) {
+          return jsonResponse({access_token: "browse-token", expires_in: 7200});
+        }
+        return jsonResponse({access_token: "catalog-token", expires_in: 7200});
+      }
+      if (url.pathname.endsWith("/buy/browse/v1/item/get_item_by_legacy_id")) {
+        return jsonResponse({
+          brand: "Sony",
+          product: {model: "WH-1000XM6"}
+        });
+      }
+      if (url.pathname.endsWith("/product_summary/search")) {
+        return jsonResponse({
+          productSummaries: [
+            {epid: "111111111", brand: "Sony"},
+            {epid: "222222222", brand: "Sony"},
+            {epid: "333333333", brand: "Sony"}
+          ]
+        });
+      }
+      if (url.pathname.includes("/commerce/catalog/v1_beta/product/")) {
+        activeDetails += 1;
+        maxActiveDetails = Math.max(maxActiveDetails, activeDetails);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeDetails -= 1;
+        const epid = url.pathname.split("/").pop()!;
+        return jsonResponse({
+          epid,
+          brand: "Sony",
+          aspects: [
+            {
+              localizedName: "Model",
+              localizedValues: [
+                epid === "111111111" ? "WH-1000XM6" : "Different"
+              ]
+            }
+          ]
+        });
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    });
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      catalogBrandModelCandidateLimit: 3,
+      catalogBrandModelDetailConcurrency: 2,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.identity.epid).toBe("111111111");
+    expect(maxActiveDetails).toBe(2);
+  });
+
   it("keeps Browse identity when Brand+Model Catalog detail verification fails", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
