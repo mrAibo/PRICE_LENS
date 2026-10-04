@@ -49,7 +49,7 @@ export function createPriceLensLifecycle(
   const mountUnsupported = options.mountUnsupported ?? mountUnsupportedPriceLens;
   const debounceMs = options.debounceMs ?? 250;
   const reportCacheTtlMs = validateNonNegativeInteger(
-    options.reportCacheTtlMs ?? 5 * 60_000,
+    options.reportCacheTtlMs ?? 0,
     "reportCacheTtlMs"
   );
   const reportCacheMaxEntries = validatePositiveInteger(
