@@ -74,6 +74,13 @@ export async function bootstrapPriceLens(
     lifecycle?.stop();
     lifecycle = undefined;
     await options.consentStore.revokeConsent();
+    if (options.pilotAuthClient) {
+      try {
+        pilotAuthStatus = await options.pilotAuthClient.signOut();
+      } catch {
+        pilotAuthStatus = {enabled: true, signedIn: false};
+      }
+    }
     if (options.destinationStore) {
       try {
         await options.destinationStore.clearDestination();
