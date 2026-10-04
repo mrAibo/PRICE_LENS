@@ -89,9 +89,10 @@ assert(
 const itemScript = contentScripts[0];
 assert(
   Array.isArray(itemScript.matches) &&
-    itemScript.matches.length === 1 &&
-    itemScript.matches[0] === "https://www.ebay.de/itm/*",
-  "Content script must remain scoped to eBay.de item pages."
+    itemScript.matches.length === 2 &&
+    itemScript.matches.includes("https://www.ebay.de/itm/*") &&
+    itemScript.matches.includes("https://www.ebay.de/sch/*"),
+  "Content script must remain scoped to eBay.de item and search pages."
 );
 assert(
   Array.isArray(itemScript.js) &&
