@@ -249,6 +249,72 @@ describe("eBay search-card PriceLens lifecycle", () => {
     lifecycle.stop();
   });
 
+  it("explains partial, private-beta and review-only provider states per card", async () => {
+    const dom = renderSearchPage();
+    const sendMessage = vi.fn(
+      async (message: CompareMessage): Promise<CompareResponse> => {
+        const result = resultFor(message.listing);
+        result.providerStatus = [
+          {
+            provider: "ebay_market",
+            state: "ok",
+            reviewCandidates: [
+              {
+                providerProductId: "review-1",
+                productTitle: "Sony WH-1000XM6 possible variant",
+                confidence: 0.72,
+                matchMethod: "fuzzy",
+                reason: "Variant evidence is not strong enough for automatic matching."
+              }
+            ]
+          },
+          {
+            provider: "amazon",
+            state: "unavailable",
+            message: "Amazon request timed out."
+          },
+          {provider: "idealo", state: "restricted"},
+          {provider: "geizhals", state: "restricted"}
+        ];
+        return {ok: true, result};
+      }
+    );
+    const lifecycle = createSearchResultsLifecycle({
+      document: dom.window.document,
+      window: dom.window as unknown as Window & typeof globalThis,
+      sendMessage
+    });
+
+    const root = dom.window.document.querySelector<HTMLElement>(
+      "[data-price-lens-search-root]"
+    );
+    root?.shadowRoot
+      ?.querySelector<HTMLButtonElement>("[data-price-lens-card-compare]")
+      ?.click();
+
+    await vi.waitFor(() => {
+      const text = root?.shadowRoot?.textContent ?? "";
+      expect(text).toContain("Partial results: Amazon unavailable");
+      expect(text).toContain("Private beta: Idealo, Geizhals");
+      expect(text).toContain("1 possible match excluded as uncertain");
+    });
+
+    root?.shadowRoot
+      ?.querySelector<HTMLButtonElement>("[data-price-lens-card-compare]")
+      ?.click();
+
+    const expanded = root?.shadowRoot?.textContent ?? "";
+    expect(expanded).toContain("Amazon request timed out.");
+    expect(expanded).toContain("possible match excluded");
+    expect(expanded).toContain("72%");
+    expect(expanded).toContain("fuzzy");
+    expect(expanded).toContain(
+      "Variant evidence is not strong enough for automatic matching."
+    );
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    lifecycle.stop();
+  });
+
   it("does not claim a delivered-price saving when current-card shipping is unknown", async () => {
     const dom = new JSDOM(`
       <!doctype html><html><body>

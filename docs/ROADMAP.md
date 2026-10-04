@@ -327,7 +327,7 @@ Deliverables:
 - [x] cache/session-aware reopening
 - [x] no excessive provider traffic
 - [x] compact cheaper-first result with optional full expansion
-- [ ] per-card uncertainty/provider-degradation state
+- [x] per-card uncertainty/provider-degradation state
 - [ ] representative anonymized real eBay.de search-layout fixtures
 - [ ] live-layout validation for infinite scroll / sponsored-result variants
 
