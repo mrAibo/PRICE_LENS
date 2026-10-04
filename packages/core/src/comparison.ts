@@ -40,8 +40,13 @@ export function assessLandedCost(
   }
 
   const destinationCountry = normalizeCountryCode(destination.country);
-  const origin = normalizeCountryCode(originCountry);
+  if (!destinationCountry) {
+    throw new Error(
+      "Buyer destination country must be a two-letter ISO country code."
+    );
+  }
 
+  const origin = normalizeCountryCode(originCountry);
   if (!origin) {
     return {complete: true, status: "origin_unknown"};
   }
