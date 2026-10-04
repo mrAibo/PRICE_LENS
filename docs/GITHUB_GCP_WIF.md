@@ -76,9 +76,13 @@ no Cloud Run/Compute/project IAM role.
 ## One-time bootstrap
 
 WIF cannot authenticate the workflow before the WIF resources themselves exist.
-Therefore the first Phase-A apply is an operator bootstrap using an already authorized
+Therefore the first cloud operations are operator bootstraps using an already authorized
 Google Cloud identity (for example Cloud Shell or a locally authenticated `gcloud`
-session).
+Application Default Credentials session).
+
+First create the protected remote-state bucket using
+[`infra/gcp-state-bootstrap/`](../infra/gcp-state-bootstrap/README.md), then initialize
+`infra/gcp` against that bucket.
 
 In `infra/gcp/terraform.tfvars`:
 
@@ -89,10 +93,9 @@ deploy_runtime = false
 github_wif_image_publisher_enabled = true
 ```
 
-Then:
+Then, after remote-backend initialization:
 
 ```bash
-terraform -chdir=infra/gcp init
 terraform -chdir=infra/gcp validate
 terraform -chdir=infra/gcp test
 terraform -chdir=infra/gcp plan
@@ -201,7 +204,7 @@ The next infrastructure gate is therefore:
 ## Live activation checklist
 
 - [ ] production GCP project exists and billing is linked;
-- [ ] remote Terraform state bucket exists;
+- [ ] protected versioned GCS Terraform state bucket has been applied and `infra/gcp` initialized against it;
 - [ ] Phase A is applied with `github_wif_image_publisher_enabled=true`;
 - [ ] WIF provider output copied to GitHub repository variables;
 - [ ] image-publisher service-account output copied to GitHub repository variables;
