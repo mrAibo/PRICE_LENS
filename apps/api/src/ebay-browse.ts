@@ -420,6 +420,85 @@ export class EbayBrowseEnricher {
     });
   }
 
+  private async resolveCatalogEpid(
+    identity: ProductIdentity
+  ): Promise<string | undefined> {
+    const brand = identity.brand?.trim();
+    const mpn = identity.mpn?.trim();
+    if (!brand || !isMeaningfulIdentifier(mpn)) return undefined;
+
+    let response = await this.fetchCatalogProductSearch(mpn, false);
+    if (response.status === 401) {
+      this.catalogTokenCache = undefined;
+      response = await this.fetchCatalogProductSearch(mpn, true);
+    }
+
+    if (response.status === 429) {
+      throw new Error("eBay Catalog API rate limit reached.");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `eBay Catalog product search failed with HTTP ${response.status}.`
+      );
+    }
+
+    const payload = await readJsonRecord(response, "eBay Catalog product search");
+    const summaries = Array.isArray(payload.productSummaries)
+      ? payload.productSummaries
+      : [];
+    const exactEpids = new Set<string>();
+    const expectedBrand = normalizeToken(brand);
+    const expectedMpn = normalizeToken(mpn);
+
+    for (const value of summaries) {
+      const product = readRecord(value);
+      if (!product) continue;
+
+      const productBrand = readString(product.brand);
+      const productMpns = readStringArray(product.mpn);
+      const epid = cleanEpid(readString(product.epid));
+      if (
+        !productBrand ||
+        !epid ||
+        normalizeToken(productBrand) !== expectedBrand ||
+        !productMpns.some((candidateMpn) =>
+          normalizeToken(candidateMpn) === expectedMpn
+        )
+      ) {
+        continue;
+      }
+
+      exactEpids.add(epid);
+    }
+
+    return exactEpids.size === 1
+      ? [...exactEpids][0]
+      : undefined;
+  }
+
+  private async fetchCatalogProductSearch(
+    mpn: string,
+    forceTokenRefresh: boolean
+  ): Promise<Response> {
+    const token = await this.getCatalogToken(forceTokenRefresh);
+    const endpoint = new URL(
+      "/commerce/catalog/v1_beta/product_summary/search",
+      this.apiBaseUrl()
+    );
+    endpoint.searchParams.set("mpn", mpn);
+    endpoint.searchParams.set("limit", "20");
+
+    return this.fetchWithTimeout(endpoint, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-ebay-c-marketplace-id": this.catalogMarketplaceId,
+        accept: "application/json"
+      }
+    });
+  }
+
   private async fetchMarketplaceSearch(
     marketplaceId: EbayEuMarketplaceId,
     discovery: EbayMarketplaceDiscovery,
@@ -465,6 +544,32 @@ export class EbayBrowseEnricher {
     );
   }
 
+  private async getCatalogToken(forceRefresh: boolean): Promise<string> {
+    if (
+      !forceRefresh &&
+      this.catalogTokenCache &&
+      this.catalogTokenCache.expiresAt > this.now()
+    ) {
+      return this.catalogTokenCache.token;
+    }
+
+    if (this.catalogTokenInFlight) return this.catalogTokenInFlight;
+
+    const pending = this.mintApplicationToken(
+      "https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly"
+    ).then((cached) => {
+      this.catalogTokenCache = cached;
+      return cached.token;
+    }).finally(() => {
+      if (this.catalogTokenInFlight === pending) {
+        this.catalogTokenInFlight = undefined;
+      }
+    });
+
+    this.catalogTokenInFlight = pending;
+    return pending;
+  }
+
   private async getApplicationToken(forceRefresh: boolean): Promise<string> {
     if (
       !forceRefresh &&
@@ -476,7 +581,12 @@ export class EbayBrowseEnricher {
 
     if (this.tokenInFlight) return this.tokenInFlight;
 
-    const pending = this.mintApplicationToken().finally(() => {
+    const pending = this.mintApplicationToken(
+      "https://api.ebay.com/oauth/api_scope"
+    ).then((cached) => {
+      this.tokenCache = cached;
+      return cached.token;
+    }).finally(() => {
       if (this.tokenInFlight === pending) {
         this.tokenInFlight = undefined;
       }
@@ -485,14 +595,14 @@ export class EbayBrowseEnricher {
     return pending;
   }
 
-  private async mintApplicationToken(): Promise<string> {
+  private async mintApplicationToken(scope: string): Promise<CachedToken> {
     const credentials = Buffer.from(
       `${this.clientId}:${this.clientSecret}`,
       "utf8"
     ).toString("base64");
     const body = new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "https://api.ebay.com/oauth/api_scope"
+      scope
     });
 
     const response = await this.fetchWithTimeout(
@@ -521,11 +631,10 @@ export class EbayBrowseEnricher {
     }
 
     const safetyWindowMs = Math.min(60_000, Math.floor(expiresIn * 100));
-    this.tokenCache = {
+    return {
       token,
       expiresAt: this.now() + expiresIn * 1000 - safetyWindowMs
     };
-    return token;
   }
 
   private apiBaseUrl(): string {
