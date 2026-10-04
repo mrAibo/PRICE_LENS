@@ -31,6 +31,18 @@ export function extractItemSpecifics(document: Document): Map<string, string> {
     }
   }
 
+  // A selected eBay variation is more specific than the generic item-specifics
+  // block. Read only the currently rendered SKU selector label/value pairs and
+  // let them override generic multi-value specifics such as "128 GB / 256 GB".
+  for (const control of document.querySelectorAll(
+    '[data-testid="x-msku-evo"] .listbox-button__control'
+  )) {
+    const label = textOf(control.querySelector(".btn__label"));
+    const value = textOf(control.querySelector(".btn__text"));
+    if (!label || !value || isSelectionPlaceholder(value)) continue;
+    result.set(normalizeLabel(label), value.trim());
+  }
+
   return result;
 }
 
@@ -271,6 +283,11 @@ function normalizeLabel(value: string): string {
     .replace(/:+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isSelectionPlaceholder(value: string): boolean {
+  const normalized = normalizeLabel(value);
+  return /^(?:auswahlen|bitte auswahlen|select|choose|please select)$/.test(normalized);
 }
 
 function textOf(element: Element | null): string | undefined {
