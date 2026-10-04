@@ -315,7 +315,26 @@ function buildWarningCategories(
   setPositiveCount(
     categories,
     "ebay_shipping_unknown",
-    result.ebayLandedPriceComplete ? 0 : 1
+    result.ebayLandedCostStatus === "shipping_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "ebay_origin_unknown",
+    result.ebayLandedCostStatus === "origin_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "ebay_import_costs_unknown",
+    result.ebayLandedCostStatus === "import_costs_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "offer_landed_cost_unknown",
+    result.offers.filter(
+      (offer) =>
+        offer.landedCostStatus === "origin_unknown" ||
+        offer.landedCostStatus === "import_costs_unknown"
+    ).length
   );
   setPositiveCount(
     categories,
