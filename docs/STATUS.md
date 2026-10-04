@@ -289,7 +289,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [x] edition/modelQualifier use exact allowlisted Catalog aspect verification; missing/conflicting values reject the ePID
 - [ ] bundleIncluded remains excluded because seller bundle state is not safely inferable from product Catalog data
 - [ ] Catalog fallback permission/authorization validation: current Sandbox keyset returns OAuth `invalid_scope` for `commerce.catalog.readonly`; keep Catalog fallbacks disabled
-- [ ] live same-product search validation across representative conditions/categories
+- [ ] live same-product search validation across representative conditions/categories (**Sandbox characterized: current DE test corpus is too small for accepted same-product pairs/precision-recall; Production evidence still required**)
 - [ ] Production Buy API / Growth Check approval as required by eBay
 
 ### Idealo
@@ -404,7 +404,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 ## Current engineering priorities
 
 1. Phase 1 / Issue #10 — complete for the current observed gate. Six reviewed real fixtures / 108 labelled fields cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping, destination-dependent shipping unknown, and incomplete Product JSON-LD identity with safe DOM fallback.
-2. Issue #12 Sandbox credential/Browse-enrichment gate is complete and EPN account exists. Continue Issue #52 with broader same-product/condition/shipping validation, Software/Downloadable Tools approval, Buy API Production approval and Growth Check; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
+2. Issue #12 Sandbox credential/Browse-enrichment gate is complete and EPN account exists. Sandbox corpus characterization confirms only sparse test inventory, mostly new + fixed/free shipping, with no accepted exact-GTIN alternative pairs in the checked sample. Continue Issue #52 in Production after Software/Downloadable Tools approval, Buy API Production approval and Growth Check; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
 3. Issue #13 — submit idealo iPN and Geizhals Publisher applications; for Amazon, build/declare only a real owned publisher property and request explicit written permission before enabling Amazon in the browser extension.
 4. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 5. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.

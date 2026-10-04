@@ -165,6 +165,39 @@ Current eBay documentation confirms that Browse search supports GTIN/product sea
 and fixed-price/condition filtering, but production access and UX obligations remain
 an approval gate.
 
+## Sandbox live-corpus characterization
+
+Credential-backed Sandbox enumeration on **2026-10-05** confirmed that the current
+`EBAY_DE` Sandbox catalog is too small to produce representative same-product
+precision/recall evidence.
+
+Observed examples included:
+
+- Apple iPhone 16 test listing, condition `1000` / new, fixed EUR 0 shipping;
+- an item with condition `1500` ("Neu: Sonstige ..."), fixed EUR 0 shipping;
+- several laptop-accessory and generic sandbox test listings, also fixed EUR 0 shipping;
+- one multi-SKU test item that was not retrievable by legacy item ID;
+- malformed/non-applicable GTIN text such as `Nicht zutreffend`, which PriceLens must
+  continue to reject as a trade identifier.
+
+Exact GTIN search was repeated for multiple retrievable Sandbox listings. Every checked
+GTIN returned zero alternative item summaries once the current listing was excluded.
+The PriceLens marketplace provider therefore correctly ends in `no_match` rather than
+fabricating a comparison.
+
+This establishes three distinct facts:
+
+1. OAuth/Browse access, enrichment and marketplace search execute end-to-end in Sandbox.
+2. The Sandbox sample validates basic new-condition and fixed/free-shipping response
+   semantics.
+3. Accepted same-product alternatives, cross-condition precision/recall and broader
+   shipping behavior cannot be measured honestly from the current Sandbox corpus and
+   remain a Production-access validation gate.
+
+The limitation is provider-test-data availability, not an application error. Do not
+weaken discovery from exact GTIN/ePID to broad title search merely to manufacture a
+Sandbox match.
+
 ## Planned extensions
 
 - live-validate direct ePID search and Catalog Brand+MPN -> unique ePID resolution;
