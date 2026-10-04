@@ -1,6 +1,6 @@
 # Provider Onboarding
 
-Checked: **2026-10-02**
+Checked: **2026-10-04**
 
 This document records the user/account actions that PriceLens cannot perform from
 source code alone. Credentials must stay server-side and must never be committed.
@@ -20,8 +20,12 @@ source code alone. Credentials must stay server-side and must never be committed
    - Cert ID -> `EBAY_CLIENT_SECRET`
 7. Keep `EBAY_ENVIRONMENT=sandbox` while validating the integration.
 
-PriceLens already implements OAuth application tokens and Browse
-`get_item_by_legacy_id`; no code change is required to insert the keyset.
+PriceLens already implements Browse OAuth and `get_item_by_legacy_id`. It also has
+an optional conservative Catalog path: when Browse has exact Brand+MPN but no GTIN/ePID,
+the backend can request the Catalog read-only scope, search by MPN, locally require an
+exact normalized Brand+MPN match, and accept the result only when one unique ePID
+remains. Keep `EBAY_CATALOG_EPID_FALLBACK_ENABLED=0` until Sandbox behavior and
+permissions are verified.
 
 Local backend configuration:
 
@@ -29,6 +33,8 @@ Local backend configuration:
 EBAY_BROWSE_ENABLED=1
 EBAY_ENVIRONMENT=sandbox
 EBAY_MARKETPLACE_ID=EBAY_DE
+EBAY_CATALOG_EPID_FALLBACK_ENABLED=0
+EBAY_CATALOG_MARKETPLACE_ID=EBAY_DE
 EBAY_CLIENT_ID=<Sandbox App ID>
 EBAY_CLIENT_SECRET=<Sandbox Cert ID>
 EBAY_BROWSE_CACHE_TTL_MS=0
