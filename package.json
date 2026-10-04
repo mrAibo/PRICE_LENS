@@ -10,12 +10,13 @@
   "scripts": {
     "build": "npm run build -w @price-lens/contracts && npm run build -w product-matcher && npm run build -w @price-lens/core && npm run build -w @price-lens/api && npm run build -w @price-lens/extension",
     "typecheck": "npm run build -w @price-lens/contracts && npm run typecheck -w @price-lens/contracts && npm run typecheck -w product-matcher && npm run build -w product-matcher && npm run build -w @price-lens/core && npm run typecheck -w @price-lens/core && npm run typecheck -w @price-lens/api && npm run typecheck -w @price-lens/extension",
-    "test": "node --test scripts/release-preflight.test.mjs && npm run build -w @price-lens/contracts && npm run build -w product-matcher && npm run build -w @price-lens/core && npm run test -w @price-lens/core && npm run test -w @price-lens/api && npm run test -w @price-lens/extension",
+    "test": "node --test scripts/release-preflight.test.mjs scripts/provider-live-check.test.mjs && npm run build -w @price-lens/contracts && npm run build -w product-matcher && npm run build -w @price-lens/core && npm run test -w @price-lens/core && npm run test -w @price-lens/api && npm run test -w @price-lens/extension",
     "capture:ebay": "node apps/extension/tools/capture-ebay-fixture.mjs",
     "evidence:ebay": "npm run test -w @price-lens/extension -- extraction-metrics.test.ts",
     "licenses:check": "node scripts/license-inventory.mjs --check",
     "licenses:write": "node scripts/license-inventory.mjs --write",
-    "release:preflight": "node scripts/release-preflight.mjs"
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "providers:live-check": "node scripts/provider-live-check.mjs"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
