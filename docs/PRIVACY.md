@@ -137,6 +137,13 @@ requests a report.
 Selecting **Disable PriceLens data sharing** revokes consent and clears the saved buyer
 destination preference.
 
+Comparison reports are not written to Chrome local storage. The content-script lifecycle
+contains a bounded in-memory tab-session reuse capability keyed by the normalized
+listing and explicit buyer destination. Its production/default TTL is **0 ms** until
+the enabled providers' cache/freshness rules permit non-zero reuse. If a positive TTL
+is explicitly enabled later, entries remain memory-only, are bounded in count, expire
+by TTL and are cleared when the PriceLens lifecycle stops.
+
 ## Backend application storage
 
 PriceLens currently has no user account database and no persistent product-history
@@ -205,6 +212,8 @@ Current controls:
   a report; simply opening the item page does not do so.
 - **+ Show full report** — expands results already returned to the extension and does
   not trigger another provider/API request.
+- **Refresh report** — explicitly requests a fresh comparison and bypasses any eligible
+  in-memory tab-session report reuse.
 - **Not now** — performs no comparison and stores no consent.
 - **Disable PriceLens data sharing** — revokes the local consent flag and stops the
   PriceLens lifecycle on the page.
