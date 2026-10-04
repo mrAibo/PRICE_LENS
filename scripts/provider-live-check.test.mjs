@@ -188,6 +188,24 @@ test("evaluates configured provider requirements without exposing source payload
   );
 });
 
+test("does not pass the FX requirement when no cross-currency offer exercised normalization", () => {
+  const report = {
+    configuration: {
+      fx: true,
+      providers: {}
+    },
+    comparison: {
+      foreignCurrencyCompleteOfferCount: 0,
+      fxNormalizedOfferCount: 0,
+      providerStates: {}
+    }
+  };
+
+  assert.deepEqual(evaluateRequirements(report, ["fx"]), {
+    fx: "fail"
+  });
+});
+
 test("runs the end-to-end live check and sends optional session auth without printing it", async () => {
   const calls = [];
   const sessionToken = "SESSION-TOKEN-DO-NOT-PRINT";
