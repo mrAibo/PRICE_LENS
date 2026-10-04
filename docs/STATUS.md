@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `f0b5d2df57c024dff95cde4463af7d6445ff5690` (PR #75). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `3417ba0f13e0bab82c61650c96bb6b3b21202b8f` (PR #76). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -314,7 +314,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [ ] live-apply durable GCP observability, approve notification channels and tune alert thresholds
 - [ ] first approved real provider adapter
 - [ ] multi-provider production comparison
-- [ ] eBay search-result card augmentation
+- [x] eBay search-result card augmentation — initial user-triggered implementation complete; real-layout validation pending
 - [ ] price history
 - [ ] watchlists/alerts
 - [ ] explainable Deal Score
@@ -372,6 +372,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #72 — eBay Catalog structured-variant verification for Brand+Model fallback — merged into `main`
 - PR #73 — exact Catalog edition/modelQualifier verification — merged into `main`
 - PR #74 — redacted provider live-validation harness — merged into `main`
+- PR #75 — protected GitHub provider live-validation workflow — merged into `main`
+- PR #76 — observed eBay search-layout capture/review/metrics pipeline — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
