@@ -147,7 +147,7 @@ describe("PriceLens unsupported UI", () => {
 
     const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
     expect(shadow?.textContent).toContain("Refresh report");
-    expect(shadow?.textContent).toContain("reuse the recent result in this tab");
+    expect(shadow?.textContent).toContain("query the enabled sources again");
     expect(requests).toHaveLength(0);
 
     shadow?.querySelector<HTMLButtonElement>("[data-price-lens-refresh]")?.click();
