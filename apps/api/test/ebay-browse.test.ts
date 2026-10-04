@@ -205,6 +205,55 @@ describe("eBay Browse enrichment", () => {
     ).toBe("EBAY_DE");
   });
 
+  it("coalesces concurrent identical Brand+MPN Catalog ePID lookups", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "Sony",
+          mpn: "WH1000XM6B"
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [
+            {
+              epid: "241976099",
+              brand: "Sony",
+              mpn: ["WH1000XM6B"]
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogEpidFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const [first, second] = await Promise.all([
+      enricher.enrich(baseListing),
+      enricher.enrich(baseListing)
+    ]);
+
+    expect(first.identity.epid).toBe("241976099");
+    expect(second.identity.epid).toBe("241976099");
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+
+    const catalogSearchCalls = fetchImpl.mock.calls.filter(([input]) =>
+      String(input).includes("/commerce/catalog/v1_beta/product_summary/search")
+    );
+    expect(catalogSearchCalls).toHaveLength(1);
+  });
+
   it("does not choose an ePID when exact Brand+MPN Catalog results are ambiguous", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
