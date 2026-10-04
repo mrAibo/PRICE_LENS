@@ -333,6 +333,89 @@ describe("PriceLens unsupported UI", () => {
     expect(text).not.toContain("Price providers are not configured yet");
   });
 
+  it("explains why a non-EU offer is not ranked when import costs are unknown", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, listing);
+
+    const result: ComparisonResult = {
+      requestId: "import-uncertain-offer",
+      listing,
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: true,
+      ebayLandedCostStatus: "complete",
+      offers: [
+        {
+          provider: "ebay_market",
+          providerProductId: "us-cheap",
+          productTitle: "Example Product",
+          marketplace: "EBAY_DE",
+          itemLocationCountry: "US",
+          url: "https://www.ebay.de/itm/500000000001",
+          condition: "new",
+          itemPrice: {amount: 120, currency: "EUR"},
+          shipping: {amount: 10, currency: "EUR"},
+          landedPrice: {amount: 130, currency: "EUR"},
+          landedPriceComplete: false,
+          landedCostStatus: "import_costs_unknown",
+          confidence: 1,
+          matchMethod: "gtin",
+          matchReason: "Exact EAN match.",
+          fetchedAt: "2026-10-04T00:00:00Z"
+        }
+      ],
+      providerStatus: [{provider: "ebay_market", state: "ok"}],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:10Z"
+    };
+
+    view.renderComparison(result);
+
+    const shadow = dom.window.document.getElementById("price-lens-root")?.shadowRoot;
+    const text = shadow?.textContent ?? "";
+
+    expect(text).toContain("No cheaper complete offer");
+    expect(text).toContain(
+      "cross-border offers are excluded from savings ranking because import costs cannot be verified"
+    );
+
+    shadow?.querySelector<HTMLButtonElement>("[data-price-lens-expand]")?.click();
+
+    const expanded = shadow?.textContent ?? "";
+    expect(expanded).toContain("before possible import charges");
+    expect(expanded).toContain("Not ranked");
+    expect(expanded).toContain("ships from US");
+    expect(expanded).toContain("import VAT, duties or handling fees are not confirmed");
+    expect(expanded).not.toContain("69,00 € cheaper");
+  });
+
+  it("explains when the current eBay listing itself has unknown import costs", () => {
+    const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
+    const view = mountPriceLens(dom.window.document, {
+      ...listing,
+      itemLocationCountry: "US"
+    });
+
+    view.renderComparison({
+      requestId: "current-import-uncertain",
+      listing: {
+        ...listing,
+        itemLocationCountry: "US"
+      },
+      ebayLandedPrice: {amount: 199, currency: "EUR"},
+      ebayLandedPriceComplete: false,
+      ebayLandedCostStatus: "import_costs_unknown",
+      offers: [],
+      providerStatus: [],
+      warnings: [],
+      generatedAt: "2026-10-04T00:00:00Z"
+    });
+
+    const text = dom.window.document.getElementById("price-lens-root")
+      ?.shadowRoot?.textContent ?? "";
+    expect(text).toContain("current listing crosses a customs boundary");
+    expect(text).toContain("import VAT, duties or handling fees are not confirmed");
+  });
+
   it("labels partial provider outages and the best price as available-only", () => {
     const dom = new JSDOM("<!doctype html><html><body><main></main></body></html>");
     const view = mountPriceLens(dom.window.document, listing);
