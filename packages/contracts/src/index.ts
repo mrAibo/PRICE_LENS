@@ -83,6 +83,15 @@ export type LandedCostStatus =
   | "origin_unknown"
   | "import_costs_unknown";
 
+export type SellerAccountType = "BUSINESS" | "INDIVIDUAL";
+
+export interface DeliveryWindow {
+  minEstimatedDeliveryDate?: string;
+  maxEstimatedDeliveryDate?: string;
+  shippingServiceCode?: string;
+  shippingCarrierCode?: string;
+}
+
 export interface MarketOffer {
   provider: PriceProviderId;
   providerProductId?: string;
@@ -92,6 +101,8 @@ export interface MarketOffer {
   itemLocationCountry?: string;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
+  sellerAccountType?: SellerAccountType;
+  deliveryWindow?: DeliveryWindow;
   url: string;
   condition: ListingCondition;
   itemPrice: Money;

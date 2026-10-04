@@ -91,6 +91,7 @@ Current implementation checkpoint: `7958bdda97a38b66bd62e02db692e38812639374` (P
 - [x] optional exact Brand+MPN -> unique ePID Catalog fallback, disabled by default
 - [x] Catalog ePID lookup uses separate readonly OAuth scope and concurrent single-flight without persistent product caching
 - [x] condition-separated eBay alternatives (new/open-box/refurbished/used) with current-listing exclusion
+- [x] eBay search-level seller account type + lowest-cost-shipping delivery window context
 - [x] eBay alternatives UI with accepted count, cheapest complete landed price, range/median and seller feedback context
 - [x] cross-condition eBay alternatives cannot replace same-condition global best price
 - [x] eBay token/item cache, timeout, 401 refresh and 404/429 handling

@@ -625,11 +625,23 @@ describe("eBay same-product marketplace search", () => {
               seller: {
                 username: "trusted-shop",
                 feedbackPercentage: "99.8",
-                feedbackScore: 18000
+                feedbackScore: 18000,
+                sellerAccountType: "BUSINESS"
               },
               shippingOptions: [
-                {shippingCost: {value: "4.99", currency: "EUR"}},
-                {shippingCost: {value: "0.00", currency: "EUR"}}
+                {
+                  shippingCost: {value: "4.99", currency: "EUR"},
+                  shippingServiceCode: "Expedited",
+                  minEstimatedDeliveryDate: "2026-10-05T10:00:00.000Z",
+                  maxEstimatedDeliveryDate: "2026-10-06T10:00:00.000Z"
+                },
+                {
+                  shippingCost: {value: "0.00", currency: "EUR"},
+                  shippingServiceCode: "Standard",
+                  shippingCarrierCode: "DHL",
+                  minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+                  maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z"
+                }
               ]
             },
             {
@@ -689,6 +701,13 @@ describe("eBay same-product marketplace search", () => {
       marketplace: "EBAY_DE",
       sellerFeedbackPercentage: 99.8,
       sellerFeedbackScore: 18000,
+      sellerAccountType: "BUSINESS",
+      deliveryWindow: {
+        minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+        maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z",
+        shippingServiceCode: "Standard",
+        shippingCarrierCode: "DHL"
+      },
       identity: {gtin: "4548736162657"},
       itemPrice: {amount: 309, currency: "EUR"},
       shipping: {amount: 0, currency: "EUR"},
@@ -706,6 +725,60 @@ describe("eBay same-product marketplace search", () => {
     const searchHeaders = new Headers(fetchImpl.mock.calls[1]![1]?.headers);
     expect(searchHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
     expect(searchHeaders.get("x-ebay-c-enduserctx")).toBeNull();
+  });
+
+  it("ignores unsupported seller account values and malformed delivery dates", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "metadata-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemSummaries: [
+            {
+              itemId: "v1|225000000001|0",
+              title: "Sony WH-1000XM6",
+              itemWebUrl: "https://www.ebay.de/itm/225000000001",
+              price: {value: "300.00", currency: "EUR"},
+              buyingOptions: ["FIXED_PRICE"],
+              conditionId: "1000",
+              seller: {
+                username: "seller",
+                sellerAccountType: "UNEXPECTED"
+              },
+              shippingOptions: [
+                {
+                  shippingCost: {value: "0.00", currency: "EUR"},
+                  shippingServiceCode: "Standard",
+                  minEstimatedDeliveryDate: "not-a-date"
+                }
+              ]
+            }
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      marketplaceSearchIds: ["EBAY_DE"],
+      fetchImpl
+    });
+
+    const candidates = await enricher.searchMarketplace({
+      ...baseListing,
+      identity: {ean: "4548736162657"}
+    });
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        sellerAccountType: undefined,
+        deliveryWindow: {
+          shippingServiceCode: "Standard"
+        }
+      })
+    ]);
   });
 
   it("fans exact-GTIN search across configured EU marketplaces and keeps market metadata", async () => {

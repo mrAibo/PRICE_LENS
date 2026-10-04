@@ -625,6 +625,37 @@ describe("provider orchestration", () => {
     expect(result.marketMinimum).toBeUndefined();
   });
 
+  it("preserves seller account type and delivery context on accepted offers", async () => {
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({
+            sellerAccountType: "BUSINESS",
+            deliveryWindow: {
+              minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+              maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z",
+              shippingServiceCode: "Standard",
+              shippingCarrierCode: "DHL"
+            }
+          })
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider]);
+
+    expect(result.offers[0]).toMatchObject({
+      sellerAccountType: "BUSINESS",
+      deliveryWindow: {
+        minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+        maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z",
+        shippingServiceCode: "Standard",
+        shippingCarrierCode: "DHL"
+      }
+    });
+  });
+
   it("exposes bounded review-candidate diagnostics", async () => {
     const source: EcommerceListing = {
       ...listing,

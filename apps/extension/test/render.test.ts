@@ -553,6 +553,13 @@ describe("PriceLens unsupported UI", () => {
           merchant: "top-shop",
           sellerFeedbackPercentage: 99.8,
           sellerFeedbackScore: 18000,
+          sellerAccountType: "BUSINESS",
+          deliveryWindow: {
+            minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+            maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z",
+            shippingServiceCode: "Standard",
+            shippingCarrierCode: "DHL"
+          },
           url: "https://www.ebay.de/itm/200000000001",
           condition: "new",
           itemPrice: {amount: 180, currency: "EUR"},
@@ -616,6 +623,13 @@ describe("PriceLens unsupported UI", () => {
         merchant: "top-shop",
         sellerFeedbackPercentage: 99.8,
         sellerFeedbackScore: 18000,
+        sellerAccountType: "BUSINESS",
+        deliveryWindow: {
+          minEstimatedDeliveryDate: "2026-10-07T10:00:00.000Z",
+          maxEstimatedDeliveryDate: "2026-10-09T10:00:00.000Z",
+          shippingServiceCode: "Standard",
+          shippingCarrierCode: "DHL"
+        },
         url: "https://www.ebay.de/itm/200000000001",
         condition: "new",
         itemPrice: {amount: 180, currency: "EUR"},
@@ -655,6 +669,9 @@ describe("PriceLens unsupported UI", () => {
     expect(text).toContain("top-shop");
     expect(text).toContain("99.8% positive");
     expect(text).toContain("18000 feedback");
+    expect(text).toContain("Business seller");
+    expect(text).toContain("Estimated delivery 07 Oct–09 Oct");
+    expect(text).toContain("DHL · Standard");
     expect(text).toContain("eBay alternatives");
   });
 

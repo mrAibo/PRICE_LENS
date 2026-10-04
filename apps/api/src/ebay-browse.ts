@@ -1,9 +1,11 @@
 import type {
   BuyerDestination,
+  DeliveryWindow,
   EcommerceListing,
   ListingCondition,
   Money,
-  ProductIdentity
+  ProductIdentity,
+  SellerAccountType
 } from "@price-lens/contracts";
 import type {PriceProvider, ProviderCandidate} from "@price-lens/core";
 import {
@@ -803,7 +805,10 @@ function extractMarketplaceCandidates(
     }
 
     const seller = readRecord(item.seller);
-    const shipping = lowestShippingCost(item.shippingOptions, price.currency);
+    const shippingContext = lowestShippingContext(
+      item.shippingOptions,
+      price.currency
+    );
     const condition = normalizeEbayCondition(
       readString(item.conditionId),
       readString(item.condition)
@@ -818,6 +823,10 @@ function extractMarketplaceCandidates(
       itemLocationCountry: readString(readRecord(item.itemLocation)?.country),
       sellerFeedbackPercentage: readFiniteNumber(seller?.feedbackPercentage),
       sellerFeedbackScore: readFiniteNumber(seller?.feedbackScore),
+      sellerAccountType: normalizeSellerAccountType(
+        readString(seller?.sellerAccountType)
+      ),
+      deliveryWindow: shippingContext.deliveryWindow,
       url,
       condition,
       identity:
@@ -825,7 +834,7 @@ function extractMarketplaceCandidates(
           ? {gtin: discovery.value}
           : {epid: discovery.value},
       itemPrice: price,
-      shipping,
+      shipping: shippingContext.shipping,
       fetchedAt: new Date(fetchedAtMs).toISOString()
     });
   }
@@ -1126,20 +1135,102 @@ function readMoney(value: unknown): Money | undefined {
   return {amount, currency: currency.toUpperCase()};
 }
 
-function lowestShippingCost(
+function lowestShippingContext(
   value: unknown,
   currency: string
-): Money | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const costs = value
-    .map((entry) => readMoney(readRecord(entry)?.shippingCost))
+): {
+  shipping?: Money;
+  deliveryWindow?: DeliveryWindow;
+} {
+  if (!Array.isArray(value)) return {};
+
+  const options = value
+    .map((entry) => {
+      const record = readRecord(entry);
+      const shipping = readMoney(record?.shippingCost);
+      if (
+        !record ||
+        !shipping ||
+        shipping.currency.toUpperCase() !== currency.toUpperCase()
+      ) {
+        return undefined;
+      }
+
+      return {
+        shipping,
+        deliveryWindow: readDeliveryWindow(record)
+      };
+    })
     .filter(
-      (cost): cost is Money =>
-        cost !== undefined &&
-        cost.currency.toUpperCase() === currency.toUpperCase()
+      (entry): entry is {
+        shipping: Money;
+        deliveryWindow: DeliveryWindow | undefined;
+      } => entry !== undefined
     )
-    .sort((left, right) => left.amount - right.amount);
-  return costs[0];
+    .sort((left, right) => left.shipping.amount - right.shipping.amount);
+
+  return options[0] ?? {};
+}
+
+function readDeliveryWindow(
+  shippingOption: JsonRecord
+): DeliveryWindow | undefined {
+  const minEstimatedDeliveryDate = readIsoDate(
+    shippingOption.minEstimatedDeliveryDate
+  );
+  const maxEstimatedDeliveryDate = readIsoDate(
+    shippingOption.maxEstimatedDeliveryDate
+  );
+  const shippingServiceCode = readBoundedString(
+    shippingOption.shippingServiceCode,
+    128
+  );
+  const shippingCarrierCode = readBoundedString(
+    shippingOption.shippingCarrierCode,
+    64
+  );
+
+  if (
+    !minEstimatedDeliveryDate &&
+    !maxEstimatedDeliveryDate &&
+    !shippingServiceCode &&
+    !shippingCarrierCode
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...(minEstimatedDeliveryDate ? {minEstimatedDeliveryDate} : {}),
+    ...(maxEstimatedDeliveryDate ? {maxEstimatedDeliveryDate} : {}),
+    ...(shippingServiceCode ? {shippingServiceCode} : {}),
+    ...(shippingCarrierCode ? {shippingCarrierCode} : {})
+  };
+}
+
+function normalizeSellerAccountType(
+  value: string | undefined
+): SellerAccountType | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized === "BUSINESS" || normalized === "INDIVIDUAL"
+    ? normalized
+    : undefined;
+}
+
+function readIsoDate(value: unknown): string | undefined {
+  const raw = readString(value);
+  if (!raw || raw.length > 64) return undefined;
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp)
+    ? new Date(timestamp).toISOString()
+    : undefined;
+}
+
+function readBoundedString(
+  value: unknown,
+  maxLength: number
+): string | undefined {
+  const raw = readString(value);
+  return raw && raw.length <= maxLength ? raw : undefined;
 }
 
 function readFiniteNumber(value: unknown): number | undefined {

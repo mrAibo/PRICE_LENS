@@ -487,6 +487,7 @@ function renderCompactOffer(
         · ${savingPercent.toFixed(1)}%
       </div>
       ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
+      ${renderDeliveryContext(offer)}
     </div>
   `;
 }
@@ -680,6 +681,7 @@ function renderAllOffers(result: ComparisonResult): string {
         ${renderFxOriginalPrice(offer)}
         ${renderLandedCostNote(offer)}
         ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
+        ${renderDeliveryContext(offer)}
       </div>
     `;
   }).join("");
@@ -895,7 +897,54 @@ function marketplaceSellerSummary(offer: MarketOffer): string {
   if (offer.sellerFeedbackScore !== undefined) {
     parts.push(`${Math.round(offer.sellerFeedbackScore)} feedback`);
   }
+  if (offer.sellerAccountType === "BUSINESS") {
+    parts.push("Business seller");
+  } else if (offer.sellerAccountType === "INDIVIDUAL") {
+    parts.push("Private seller");
+  }
   return parts.join(" · ");
+}
+
+function renderDeliveryContext(offer: MarketOffer): string {
+  const delivery = offer.deliveryWindow;
+  if (!delivery) return "";
+
+  const min = formatDeliveryDate(delivery.minEstimatedDeliveryDate);
+  const max = formatDeliveryDate(delivery.maxEstimatedDeliveryDate);
+  let window: string | undefined;
+  if (min && max) {
+    window = min === max ? min : `${min}–${max}`;
+  } else {
+    window = min ?? max;
+  }
+
+  const shippingMethod = [
+    delivery.shippingCarrierCode,
+    delivery.shippingServiceCode
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+
+  const parts = [
+    window ? `Estimated delivery ${window}` : undefined,
+    shippingMethod || undefined
+  ].filter((value): value is string => Boolean(value));
+
+  return parts.length > 0
+    ? `<div class="muted delivery-meta">${escapeHtml(parts.join(" · "))}</div>`
+    : "";
+}
+
+function formatDeliveryDate(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return undefined;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC"
+  }).format(new Date(timestamp));
 }
 
 function conditionLabel(condition: ListingCondition): string {
@@ -1291,7 +1340,7 @@ function baseStyles(): string {
       .compact-offer:first-child { border-top:0; padding-top:0; }
       .offer-price { display:inline-block; margin-top:2px; font-size:16px; }
       .saving { color:#176b35; font-weight:700; }
-      .fx-meta { margin-top:2px; font-size:12px; }
+      .fx-meta, .delivery-meta { margin-top:2px; font-size:12px; }
       .landed-cost-note { margin-top:3px; font-size:12px; }
       .expand-button {
         width:100%;
