@@ -2,7 +2,10 @@ import {
   exchangeGoogleSession,
   requestComparison
 } from "./api/client.js";
-import {createCallbackStorageAdapter} from "./browser-api.js";
+import {
+  createCallbackStorageAdapter,
+  type RuntimeErrorSource
+} from "./browser-api.js";
 import {acquireGooglePilotAccessToken} from "./google-pilot-auth.js";
 import {
   isCompareMessage,
@@ -24,8 +27,9 @@ const googleAuthEnabled =
   typeof __PRICE_LENS_GOOGLE_AUTH_ENABLED__ === "boolean" &&
   __PRICE_LENS_GOOGLE_AUTH_ENABLED__;
 
+const runtimeErrorSource = chrome.runtime as unknown as RuntimeErrorSource;
 const pilotSessionStore = createPilotSessionStore(
-  createCallbackStorageAdapter(chrome.storage.session, chrome.runtime)
+  createCallbackStorageAdapter(chrome.storage.session, runtimeErrorSource)
 );
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
