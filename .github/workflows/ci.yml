@@ -50,6 +50,13 @@ jobs:
         run: terraform -chdir=infra/gcp test
       - name: Verify local extension artifact
         run: npm run verify-artifact -w @price-lens/extension
+      - name: Verify Chrome pilot-auth artifact
+        env:
+          PRICE_LENS_API_ORIGIN: https://api.pricelens.invalid
+          PRICE_LENS_GOOGLE_OAUTH_CLIENT_ID: 1234567890-price-lens-ci.apps.googleusercontent.com
+        run: |
+          npm run build -w @price-lens/extension
+          npm run verify-artifact -w @price-lens/extension
       - name: Verify production extension artifact
         env:
           PRICE_LENS_API_ORIGIN: https://api.pricelens.invalid
