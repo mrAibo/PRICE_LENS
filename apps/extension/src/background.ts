@@ -3,6 +3,7 @@ import {
   requestComparison
 } from "./api/client.js";
 import {createCallbackStorageAdapter} from "./browser-api.js";
+import {acquireGooglePilotAccessToken} from "./google-pilot-auth.js";
 import {
   isCompareMessage,
   isPilotAuthStatusMessage,
@@ -141,15 +142,7 @@ async function signInPilot() {
     throw new Error("Chrome identity is unavailable in this browser.");
   }
 
-  const auth = await chrome.identity.getAuthToken({
-    interactive: true,
-    scopes: ["openid"]
-  });
-  const accessToken = auth.token?.trim();
-  if (!accessToken) {
-    throw new Error("Google sign-in did not return an access token.");
-  }
-
+  const accessToken = await acquireGooglePilotAccessToken(chrome.identity);
   const exchange = await exchangeGoogleSession(accessToken);
   await pilotSessionStore.setSession(exchange);
   return toPilotAuthStatus(true, exchange);
