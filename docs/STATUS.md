@@ -87,7 +87,9 @@ Current implementation checkpoint: `51a0c512f1a865afb77fd785878d6ad02553b5da` (P
 - [x] JSON-only comparison media-type boundary; no permissive browser CORS preflight
 - [x] opt-in local `fixture` provider for true end-to-end development without external traffic
 - [x] server-side eBay Browse OAuth/enrichment client with fail-open fallback
-- [x] feature-gated eBay same-product fixed-price marketplace provider using exact GTIN/EAN/UPC search
+- [x] feature-gated eBay same-product fixed-price marketplace provider using exact GTIN/EAN/UPC or trustworthy ePID search
+- [x] optional exact Brand+MPN -> unique ePID Catalog fallback, disabled by default
+- [x] Catalog ePID lookup uses separate readonly OAuth scope and concurrent single-flight without persistent product caching
 - [x] condition-separated eBay alternatives (new/open-box/refurbished/used) with current-listing exclusion
 - [x] eBay alternatives UI with accepted count, cheapest complete landed price, range/median and seller feedback context
 - [x] cross-condition eBay alternatives cannot replace same-condition global best price
@@ -260,6 +262,8 @@ Future categories must extend the calibration corpus before thresholds are chang
 - [x] timeout, cache, 401 refresh, 404 and rate-limit handling
 - [x] fail-open page-extraction fallback
 - [x] same-product marketplace search implementation behind `EBAY_MARKETPLACE_COMPARISON_ENABLED=0` default
+- [x] exact ePID discovery/matching path and opt-in Catalog Brand+MPN -> unique ePID fallback
+- [ ] live Catalog/Browse ePID validation with approved eBay credentials
 - [ ] live same-product search validation across representative conditions/categories
 - [ ] Production Buy API / Growth Check approval as required by eBay
 
