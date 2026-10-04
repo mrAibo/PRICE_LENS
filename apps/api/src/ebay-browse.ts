@@ -2146,7 +2146,7 @@ function catalogNumericAspectMatches(
 }
 
 function parseCapacityGb(value: string): number | undefined {
-  const normalized = normalizeWords(value).replace(",", ".");
+  const normalized = value.trim().toLowerCase().replace(",", ".");
   const match = /(?:^|\s)(\d+(?:\.\d+)?)\s*(tb|gb|gbyte|gigabyte|tbyte|terabyte)(?:\s|$)/i.exec(
     normalized
   );
@@ -2159,7 +2159,7 @@ function parseCapacityGb(value: string): number | undefined {
 
 function parseScreenSizeInches(value: string): number | undefined {
   const normalized = value.trim().replace(",", ".");
-  const match = /(\d+(?:\.\d+)?)\s*(?:"|in(?:ch(?:es)?)?|zoll)\b/i.exec(
+  const match = /(\d+(?:\.\d+)?)\s*(?:"|in(?:ch(?:es)?)?|zoll)(?:\s|$)/i.exec(
     normalized
   );
   if (!match?.[1]) return undefined;
@@ -2172,7 +2172,7 @@ function parseScreenSizeInches(value: string): number | undefined {
 
 function parsePackCount(value: string): number | undefined {
   const normalized = normalizeWords(value);
-  const match = /^(\d{1,3})(?:\s*(?:pack|pcs|pieces|stuck|stücke))?$/.exec(
+  const match = /^(\d{1,3})(?:\s*(?:pack|pcs|pieces|stuck|stucke))?$/.exec(
     normalized
   );
   if (!match?.[1]) return undefined;
