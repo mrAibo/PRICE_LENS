@@ -9,7 +9,7 @@ This roadmap is evidence-gated. Later phases do not require pretending an earlie
 | Phase | Status | Exit gate |
 | --- | --- | --- |
 | 0 — Bootstrap | **complete** | clean checkout typechecks, tests and builds in CI |
-| 1 — eBay extraction vertical slice | **in progress** | measured labelled-fixture accuracy + safe unsupported state |
+| 1 — eBay extraction vertical slice | **complete (current observed gate)** | measured labelled-fixture accuracy + safe unsupported state |
 | 2 — Matching/comparison engine | **complete (current labelled gate)** | zero known labelled hard-mismatch auto-matches |
 | 3 — eBay API enrichment | **implementation complete; live validation blocked** | enrichment improves coverage without becoming mandatory |
 | 3B — eBay same-product marketplace | **initial implementation complete; live validation blocked** | exact same-product alternatives remain condition-separated and trustworthy |
@@ -46,7 +46,7 @@ Evidence: CI has passed on the bootstrap implementation and feature checkpoints.
 
 ## Phase 1 — eBay extraction vertical slice
 
-Status: **in progress**
+Status: **complete for the current observed-layout gate**
 
 Delivered:
 
@@ -66,12 +66,13 @@ Delivered:
 - [x] independent review gate for real-layout fixtures
 - [x] separate synthetic and observed per-field metrics
 
-Still required:
+Delivered evidence gate:
 
-- [ ] expand fixture corpus across representative eBay.de layouts
+- [x] expand fixture corpus across representative eBay.de layouts
 - [x] label expected identity/price/shipping/condition fields in the initial corpus
 - [x] enforce exact per-field labels in CI for the synthetic corpus
-- [ ] add representative anonymized real-layout fixtures and measure empirical field accuracy
+- [x] add representative anonymized real-layout fixtures and measure empirical field accuracy (6 reviewed fixtures / 108 labelled fields)
+- [x] cover paid/free/unknown/unavailable shipping, selected variants, used/refurbished, weak identity and incomplete Product JSON-LD identity with safe DOM fallback
 - [x] add explicit unsupported-state result when safe normalization is impossible
 - [x] document and regression-test selector/structured-data failure modes
 
@@ -109,11 +110,11 @@ Exit gate: no known labelled hard-mismatch fixture is auto-matched.
 
 ## Phase 3 — eBay API enrichment
 
-Status: **implementation complete; live Sandbox/Production validation blocked**
+Status: **implementation + Sandbox validation complete; Production approval/live validation pending**
 
 Deliverables:
 
-- [ ] server-side eBay Sandbox credentials/live validation
+- [x] server-side eBay Sandbox credentials/live validation
 - [x] Browse API client/enrichment adapter
 - [x] brand/model/MPN/GTIN/EAN/UPC enrichment paths
 - [x] OAuth token lifecycle
