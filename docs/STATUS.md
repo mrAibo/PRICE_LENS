@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `24e628f9a06f06aec8e900dd63ed31c3d9c500af` (PR #72). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `0f185ab688cfee8f4799290df7a24037e56fb4bf` (PR #73). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -365,6 +365,7 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #65 — keyless GitHub WIF API image publisher — merged into `main`
 - PR #71 — verified eBay Catalog Brand+Model fallback — merged into `main`
 - PR #72 — eBay Catalog structured-variant verification for Brand+Model fallback — merged into `main`
+- PR #73 — exact Catalog edition/modelQualifier verification — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
