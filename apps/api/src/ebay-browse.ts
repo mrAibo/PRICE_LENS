@@ -744,7 +744,7 @@ export function createEbayBrowseEnricherFromEnv(
 function extractMarketplaceCandidates(
   payload: JsonRecord,
   listing: EcommerceListing,
-  gtin: string,
+  discovery: EbayMarketplaceDiscovery,
   fetchedAtMs: number,
   marketplaceId: string
 ): ProviderCandidate[] {
@@ -795,7 +795,10 @@ function extractMarketplaceCandidates(
       sellerFeedbackScore: readFiniteNumber(seller?.feedbackScore),
       url,
       condition,
-      identity: {gtin},
+      identity:
+        discovery.kind === "gtin"
+          ? {gtin: discovery.value}
+          : {epid: discovery.value},
       itemPrice: price,
       shipping,
       fetchedAt: new Date(fetchedAtMs).toISOString()
@@ -803,6 +806,16 @@ function extractMarketplaceCandidates(
   }
 
   return candidates;
+}
+
+function strongestMarketplaceDiscovery(
+  identity: ProductIdentity
+): EbayMarketplaceDiscovery | undefined {
+  const gtin = strongestTradeIdentifier(identity);
+  if (gtin) return {kind: "gtin", value: gtin};
+
+  const epid = cleanEpid(identity.epid);
+  return epid ? {kind: "epid", value: epid} : undefined;
 }
 
 function strongestTradeIdentifier(identity: ProductIdentity): string | undefined {
@@ -823,14 +836,17 @@ function isAllowedEbayMarketplaceUrl(
   marketplaceId: string
 ): boolean {
   const validatedMarketplace = validateMarketplaceId(marketplaceId);
-  const expectedHost = EBAY_MARKETPLACE_HOSTS[validatedMarketplace];
+  const expectedHosts = EBAY_MARKETPLACE_HOSTS[validatedMarketplace];
 
   try {
     const url = new URL(raw);
     const host = url.hostname.toLowerCase();
     return (
       url.protocol === "https:" &&
-      (host === expectedHost || host.endsWith(`.${expectedHost}`))
+      expectedHosts.some(
+        (expectedHost) =>
+          host === expectedHost || host.endsWith(`.${expectedHost}`)
+      )
     );
   } catch {
     return false;
@@ -1135,6 +1151,10 @@ function extractBrowseIdentity(item: JsonRecord): ProductIdentity {
     readString(item.upc) ??
     readString(product?.upc) ??
     readAspect("UPC");
+  const epid =
+    cleanEpid(readString(item.epid)) ??
+    cleanEpid(readString(product?.epid)) ??
+    cleanEpid(readAspect("eBay Product ID (ePID)", "ePID"));
 
   if (brand) identity.brand = brand;
   if (model) identity.model = model;
@@ -1145,6 +1165,7 @@ function extractBrowseIdentity(item: JsonRecord): ProductIdentity {
   if (gtin) identity.gtin = gtin;
   if (ean) identity.ean = ean;
   if (upc) identity.upc = upc;
+  if (epid) identity.epid = epid;
 
   return identity;
 }
@@ -1167,6 +1188,19 @@ function mergeIdentity(
   mergeTextField("brand");
   mergeTextField("model");
   mergeTextField("mpn");
+
+  const existingEpid = cleanEpid(base.epid);
+  const enrichedEpid = cleanEpid(enrichment.epid);
+  if (enrichedEpid) {
+    if (existingEpid && existingEpid !== enrichedEpid) {
+      warnings.push(
+        "eBay Browse enrichment returned a conflicting ePID; page identity was kept."
+      );
+    } else if (!existingEpid) {
+      identity.epid = enrichedEpid;
+      addedFields.push("epid");
+    }
+  }
 
   const existingTradeIds = canonicalTradeItemIdentifiers(base);
   const enrichedTradeIds = canonicalTradeItemIdentifiers(enrichment);
@@ -1253,6 +1287,13 @@ function canonicalTradeItemIdentifiers(identity: ProductIdentity): Set<string> {
   return result;
 }
 
+function cleanEpid(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized && /^\d{1,32}$/.test(normalized)
+    ? normalized
+    : undefined;
+}
+
 function cleanTradeIdentifier(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const digits = value.replace(/\D/g, "");
@@ -1285,6 +1326,17 @@ function setsIntersect(left: Set<string>, right: Set<string>): boolean {
     if (right.has(value)) return true;
   }
   return false;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    const single = readString(value);
+    return single ? [single] : [];
+  }
+
+  return value
+    .map((entry) => readString(entry))
+    .filter((entry): entry is string => entry !== undefined);
 }
 
 function readRecord(value: unknown): JsonRecord | undefined {
