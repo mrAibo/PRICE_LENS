@@ -398,7 +398,7 @@ describe("eBay Browse enrichment", () => {
     expect(result.identity.epid).toBeUndefined();
   });
 
-  it("does not attempt Brand+Model fallback when a structured variant is present", async () => {
+  it("verifies supported structured variants before accepting a Brand+Model ePID", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
@@ -408,6 +408,90 @@ describe("eBay Browse enrichment", () => {
         jsonResponse({
           brand: "ExamplePhone",
           product: {model: "Phone 15"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "555555555", brand: "ExamplePhone"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "555555555",
+          brand: "ExamplePhone",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Phone 15"]},
+            {localizedName: "Storage Capacity", localizedValues: ["256 GB"]},
+            {localizedName: "RAM Size", localizedValues: ["8 GB"]},
+            {localizedName: "Screen Size", localizedValues: ["6.1 in"]},
+            {localizedName: "Number in Pack", localizedValues: ["2"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {
+        variant: {
+          storageGb: 256,
+          ramGb: 8,
+          screenSizeInches: 6.1,
+          packCount: 2
+        }
+      }
+    });
+
+    expect(result.identity).toMatchObject({
+      brand: "ExamplePhone",
+      model: "Phone 15",
+      epid: "555555555",
+      variant: {
+        storageGb: 256,
+        ramGb: 8,
+        screenSizeInches: 6.1,
+        packCount: 2
+      }
+    });
+  });
+
+  it("rejects a Brand+Model ePID when a supported variant conflicts", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExamplePhone",
+          product: {model: "Phone 15"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "555555555", brand: "ExamplePhone"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "555555555",
+          brand: "ExamplePhone",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Phone 15"]},
+            {localizedName: "Storage Capacity", localizedValues: ["512 GB"]}
+          ]
         })
       );
 
@@ -423,10 +507,135 @@ describe("eBay Browse enrichment", () => {
       identity: {variant: {storageGb: 256}}
     });
 
+    expect(result.identity.epid).toBeUndefined();
+  });
+
+  it("rejects a Brand+Model ePID when a required supported variant aspect is missing", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExamplePhone",
+          product: {model: "Phone 15"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "555555555", brand: "ExamplePhone"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "555555555",
+          brand: "ExamplePhone",
+          aspects: [
+            {localizedName: "Model", localizedValues: ["Phone 15"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {ramGb: 8}}
+    });
+
+    expect(result.identity.epid).toBeUndefined();
+  });
+
+  it("normalizes TB storage and German decimal screen aspects during variant verification", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleLaptop",
+          product: {model: "Pro 16"}
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "catalog-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          productSummaries: [{epid: "666666666", brand: "ExampleLaptop"}]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          epid: "666666666",
+          brand: "ExampleLaptop",
+          aspects: [
+            {localizedName: "Modell", localizedValues: ["Pro 16"]},
+            {localizedName: "Speicherkapazität", localizedValues: ["1 TB"]},
+            {localizedName: "Bildschirmgröße", localizedValues: ["15,6 Zoll"]}
+          ]
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {
+        variant: {
+          storageGb: 1024,
+          screenSizeInches: 15.6
+        }
+      }
+    });
+
+    expect(result.identity.epid).toBe("666666666");
+  });
+
+  it("does not attempt Brand+Model fallback when an unsupported structured variant is present", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "browse-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          brand: "ExampleConsole",
+          product: {model: "Console X"}
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      catalogBrandModelFallbackEnabled: true,
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      identity: {variant: {edition: "Limited Edition"}}
+    });
+
     expect(result.identity).toMatchObject({
-      brand: "ExamplePhone",
-      model: "Phone 15",
-      variant: {storageGb: 256}
+      brand: "ExampleConsole",
+      model: "Console X",
+      variant: {edition: "Limited Edition"}
     });
     expect(result.identity.epid).toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
