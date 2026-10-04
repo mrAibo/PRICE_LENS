@@ -2,7 +2,6 @@ import type {
   BuyerDestination,
   ComparisonResult,
   EcommerceListing,
-  LandedCostStatus,
   ListingCondition,
   MarketOffer,
   Money,
@@ -11,7 +10,11 @@ import type {
   ProviderReviewCandidate,
   ProviderStatus
 } from "@price-lens/contracts";
-import {calculateLandedPrice, createComparisonResult} from "./comparison.js";
+import {
+  assessLandedCostStatus,
+  calculateLandedPrice,
+  createComparisonResult
+} from "./comparison.js";
 import {evaluateProviderCandidate} from "./matching.js";
 
 export interface ProviderCandidate {
@@ -162,7 +165,8 @@ export async function compareWithProviders(
     offers,
     statuses,
     options.requestId,
-    normalizationWarnings
+    normalizationWarnings,
+    options.destination
   );
 }
 
@@ -287,42 +291,6 @@ async function runProvider(
   } finally {
     clearTimeout(timer);
   }
-}
-
-const EU_COUNTRY_CODES = new Set([
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR",
-  "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO",
-  "SE", "SI", "SK"
-]);
-
-export function assessLandedCostStatus(
-  shippingComplete: boolean,
-  originCountry: string | undefined,
-  destination: BuyerDestination | undefined,
-  importChargesIncluded = false
-): LandedCostStatus {
-  if (!shippingComplete) return "shipping_unknown";
-  if (!destination) return "complete";
-
-  const destinationCountry = normalizeCountryCode(destination.country);
-  const origin = normalizeCountryCode(originCountry);
-  if (!origin) return "origin_unknown";
-
-  if (origin === destinationCountry) return "complete";
-
-  if (
-    EU_COUNTRY_CODES.has(origin) &&
-    EU_COUNTRY_CODES.has(destinationCountry)
-  ) {
-    return "complete";
-  }
-
-  return importChargesIncluded ? "complete" : "import_costs_unknown";
-}
-
-function normalizeCountryCode(value: string | undefined): string | undefined {
-  const normalized = value?.trim().toUpperCase();
-  return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : undefined;
 }
 
 async function withTimeout<T>(
