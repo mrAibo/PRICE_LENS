@@ -277,13 +277,13 @@ export class EbayBrowseEnricher {
   private async searchSingleMarketplace(
     marketplaceId: EbayEuMarketplaceId,
     listing: EcommerceListing,
-    gtin: string,
+    discovery: EbayMarketplaceDiscovery,
     destination: BuyerDestination,
     signal?: AbortSignal
   ): Promise<ProviderCandidate[]> {
     let response = await this.fetchMarketplaceSearch(
       marketplaceId,
-      gtin,
+      discovery,
       false,
       destination,
       signal
@@ -292,7 +292,7 @@ export class EbayBrowseEnricher {
       this.tokenCache = undefined;
       response = await this.fetchMarketplaceSearch(
         marketplaceId,
-        gtin,
+        discovery,
         true,
         destination,
         signal
@@ -318,7 +318,7 @@ export class EbayBrowseEnricher {
     return extractMarketplaceCandidates(
       payload,
       listing,
-      gtin,
+      discovery,
       this.now(),
       marketplaceId
     );
@@ -422,7 +422,7 @@ export class EbayBrowseEnricher {
 
   private async fetchMarketplaceSearch(
     marketplaceId: EbayEuMarketplaceId,
-    gtin: string,
+    discovery: EbayMarketplaceDiscovery,
     forceTokenRefresh: boolean,
     destination: BuyerDestination,
     signal?: AbortSignal
@@ -432,7 +432,7 @@ export class EbayBrowseEnricher {
       "/buy/browse/v1/item_summary/search",
       this.apiBaseUrl()
     );
-    endpoint.searchParams.set("gtin", gtin);
+    endpoint.searchParams.set(discovery.kind, discovery.value);
     endpoint.searchParams.set("limit", "25");
     const filters = [
       "buyingOptions:{FIXED_PRICE}",
