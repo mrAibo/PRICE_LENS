@@ -10,7 +10,11 @@ import type {
   ProviderReviewCandidate,
   ProviderStatus
 } from "@price-lens/contracts";
-import {calculateLandedPrice, createComparisonResult} from "./comparison.js";
+import {
+  assessLandedCost,
+  calculateLandedPrice,
+  createComparisonResult
+} from "./comparison.js";
 import {evaluateProviderCandidate} from "./matching.js";
 
 export interface ProviderCandidate {
@@ -20,6 +24,7 @@ export interface ProviderCandidate {
   merchant?: string;
   marketplace?: string;
   itemLocationCountry?: string;
+  importChargesIncluded?: boolean;
   sellerFeedbackPercentage?: number;
   sellerFeedbackScore?: number;
   url: string;
@@ -160,7 +165,8 @@ export async function compareWithProviders(
     offers,
     statuses,
     options.requestId,
-    normalizationWarnings
+    normalizationWarnings,
+    options.destination
   );
 }
 
@@ -215,6 +221,12 @@ async function runProvider(
       }
 
       const landed = calculateLandedPrice(candidate.itemPrice, candidate.shipping);
+      const landedCost = assessLandedCost(
+        landed.complete,
+        candidate.itemLocationCountry,
+        destination,
+        candidate.importChargesIncluded
+      );
       accepted.push({
         provider: provider.id,
         providerProductId: candidate.providerProductId,
@@ -229,7 +241,8 @@ async function runProvider(
         itemPrice: candidate.itemPrice,
         shipping: candidate.shipping,
         landedPrice: landed.value,
-        landedPriceComplete: landed.complete,
+        landedPriceComplete: landedCost.complete,
+        landedCostStatus: landedCost.status,
         confidence: match.confidence,
         matchMethod: match.method,
         matchReason: match.reason,

@@ -41,7 +41,7 @@ const EBAY_MARKETPLACE_HOSTS: Record<EbayEuMarketplaceId, string> = {
   EBAY_IT: "ebay.it",
   EBAY_ES: "ebay.es",
   EBAY_NL: "ebay.nl",
-  EBAY_BE: "ebay.com.be"
+  EBAY_BE: "ebay.be"
 };
 
 export interface EbayBrowseEnricherOptions {
@@ -122,17 +122,35 @@ export class EbayBrowseEnricher {
       listing.identity,
       browseIdentity
     );
+    const browseItemLocationCountry = normalizeResponseCountryCode(
+      readString(readRecord(item.itemLocation)?.country)
+    );
+    const itemLocationCountry =
+      listing.itemLocationCountry ?? browseItemLocationCountry;
+    const locationAdded =
+      listing.itemLocationCountry === undefined &&
+      itemLocationCountry !== undefined;
 
-    if (addedFields.length === 0 && warnings.length === 0) {
+    if (
+      addedFields.length === 0 &&
+      warnings.length === 0 &&
+      !locationAdded
+    ) {
       return listing;
     }
+
+    const evidenceFields = [
+      ...addedFields,
+      ...(locationAdded ? ["itemLocationCountry"] : [])
+    ];
 
     return {
       ...listing,
       identity,
+      ...(itemLocationCountry ? {itemLocationCountry} : {}),
       extractionEvidence:
-        addedFields.length > 0
-          ? [...listing.extractionEvidence, `ebay-browse:${addedFields.join(",")}`]
+        evidenceFields.length > 0
+          ? [...listing.extractionEvidence, `ebay-browse:${evidenceFields.join(",")}`]
           : listing.extractionEvidence,
       extractionWarnings: [...listing.extractionWarnings, ...warnings]
     };
@@ -823,6 +841,15 @@ function validatePostalCode(
     );
   }
   return normalized;
+}
+
+function normalizeResponseCountryCode(
+  value: string | undefined
+): string | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{2}$/.test(normalized)
+    ? normalized
+    : undefined;
 }
 
 function validateCountryCode(value: string, name: string): string {

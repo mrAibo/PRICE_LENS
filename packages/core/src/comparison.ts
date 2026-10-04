@@ -1,7 +1,9 @@
 import type {
+  BuyerDestination,
   ComparisonDelta,
   ComparisonResult,
   EcommerceListing,
+  LandedCostStatus,
   MarketOffer,
   Money,
   PriceProviderId,
@@ -12,6 +14,71 @@ export interface LandedPriceResult {
   value: Money;
   complete: boolean;
 }
+
+export interface LandedCostAssessment {
+  complete: boolean;
+  status: LandedCostStatus;
+}
+
+const EU_COUNTRY_CODES = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR",
+  "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO",
+  "SE", "SI", "SK"
+]);
+
+export function assessLandedCost(
+  shippingComplete: boolean,
+  originCountry: string | undefined,
+  destination: BuyerDestination | undefined,
+  importChargesIncluded = false
+): LandedCostAssessment {
+  if (!shippingComplete) {
+    return {complete: false, status: "shipping_unknown"};
+  }
+  if (!destination) {
+    return {complete: true, status: "complete"};
+  }
+
+  const destinationCountry = normalizeCountryCode(destination.country);
+  if (!destinationCountry) {
+    throw new Error(
+      "Buyer destination country must be a two-letter ISO country code."
+    );
+  }
+
+  const origin = normalizeCountryCode(originCountry);
+  if (!origin) {
+    return {complete: true, status: "origin_unknown"};
+  }
+  if (origin === destinationCountry) {
+    return {complete: true, status: "complete"};
+  }
+  if (
+    EU_COUNTRY_CODES.has(origin) &&
+    EU_COUNTRY_CODES.has(destinationCountry)
+  ) {
+    return {complete: true, status: "complete"};
+  }
+  if (importChargesIncluded) {
+    return {complete: true, status: "complete"};
+  }
+  return {complete: false, status: "import_costs_unknown"};
+}
+
+export function assessLandedCostStatus(
+  shippingComplete: boolean,
+  originCountry: string | undefined,
+  destination: BuyerDestination | undefined,
+  importChargesIncluded = false
+): LandedCostStatus {
+  return assessLandedCost(
+    shippingComplete,
+    originCountry,
+    destination,
+    importChargesIncluded
+  ).status;
+}
+
 
 export function normalizeCurrency(currency: string): string {
   return currency.trim().toUpperCase();
@@ -89,7 +156,13 @@ export function comparableLandedPrice(
   offer: MarketOffer,
   comparisonCurrency?: string
 ): Money | undefined {
-  if (!offer.landedPriceComplete) return undefined;
+  if (
+    !offer.landedPriceComplete ||
+    offer.landedCostStatus === "origin_unknown" ||
+    offer.landedCostStatus === "import_costs_unknown"
+  ) {
+    return undefined;
+  }
 
   if (!comparisonCurrency) return offer.landedPrice;
   const normalizedComparisonCurrency = normalizeCurrency(comparisonCurrency);
@@ -136,9 +209,15 @@ export function createComparisonResult(
   offers: MarketOffer[],
   providerStatus: ProviderStatus[],
   requestId = createRequestId(),
-  additionalWarnings: string[] = []
+  additionalWarnings: string[] = [],
+  destination?: BuyerDestination
 ): ComparisonResult {
   const ebay = calculateLandedPrice(listing.price, listing.shipping);
+  const ebayLandedCost = assessLandedCost(
+    ebay.complete,
+    listing.itemLocationCountry,
+    destination
+  );
   const bestOffer = selectBestOffer(
     offers.filter(
       (offer) =>
@@ -150,14 +229,25 @@ export function createComparisonResult(
   );
   const warnings = [...listing.extractionWarnings, ...additionalWarnings];
 
-  if (!ebay.complete) warnings.push("eBay shipping is unknown; landed price is incomplete.");
+  if (ebayLandedCost.status === "shipping_unknown") {
+    warnings.push("eBay shipping is unknown; landed price is incomplete.");
+  } else if (ebayLandedCost.status === "origin_unknown") {
+    warnings.push(
+      "eBay item origin is unknown; import costs cannot be verified for the selected destination."
+    );
+  } else if (ebayLandedCost.status === "import_costs_unknown") {
+    warnings.push(
+      "eBay item ships across a customs boundary; import VAT, duties or handling fees are not confirmed."
+    );
+  }
 
   if (!bestOffer) {
     return {
       requestId,
       listing,
       ebayLandedPrice: ebay.value,
-      ebayLandedPriceComplete: ebay.complete,
+      ebayLandedPriceComplete: ebayLandedCost.complete,
+    ebayLandedCostStatus: ebayLandedCost.status,
       offers,
       providerStatus,
       warnings,
@@ -170,7 +260,7 @@ export function createComparisonResult(
     ebay.value.currency
   );
   const delta =
-    ebay.complete && bestComparablePrice
+    ebayLandedCost.complete && bestComparablePrice
       ? calculateDelta(ebay.value, bestComparablePrice)
       : undefined;
 
@@ -178,7 +268,8 @@ export function createComparisonResult(
     requestId,
     listing,
     ebayLandedPrice: ebay.value,
-    ebayLandedPriceComplete: ebay.complete,
+    ebayLandedPriceComplete: ebayLandedCost.complete,
+      ebayLandedCostStatus: ebayLandedCost.status,
     offers,
     bestOffer,
     marketMinimum: bestComparablePrice,
@@ -200,6 +291,11 @@ export function createComparisonShell(
     message: "Provider adapter is not configured in the bootstrap build."
   }));
   return createComparisonResult(listing, [], statuses, requestId);
+}
+
+function normalizeCountryCode(value: string | undefined): string | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{2}$/.test(normalized) ? normalized : undefined;
 }
 
 function roundMoney(value: number): number {

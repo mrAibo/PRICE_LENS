@@ -315,7 +315,26 @@ function buildWarningCategories(
   setPositiveCount(
     categories,
     "ebay_shipping_unknown",
-    result.ebayLandedPriceComplete ? 0 : 1
+    result.ebayLandedCostStatus === "shipping_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "ebay_origin_unknown",
+    result.ebayLandedCostStatus === "origin_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "ebay_import_costs_unknown",
+    result.ebayLandedCostStatus === "import_costs_unknown" ? 1 : 0
+  );
+  setPositiveCount(
+    categories,
+    "offer_landed_cost_unknown",
+    result.offers.filter(
+      (offer) =>
+        offer.landedCostStatus === "origin_unknown" ||
+        offer.landedCostStatus === "import_costs_unknown"
+    ).length
   );
   setPositiveCount(
     categories,
@@ -497,6 +516,13 @@ function isEbayListing(value: unknown): value is EcommerceListing {
     (value.shipping === undefined || isMoney(value.shipping)) &&
     isListingCondition(value.condition) &&
     isProductIdentity(value.identity) &&
+    (
+      value.itemLocationCountry === undefined ||
+      (
+        typeof value.itemLocationCountry === "string" &&
+        /^[A-Z]{2}$/.test(value.itemLocationCountry)
+      )
+    ) &&
     (value.imageUrl === undefined || isSafeHttpsUrl(value.imageUrl, 4096)) &&
     isStringArray(value.extractionEvidence, 100, 1024) &&
     isStringArray(value.extractionWarnings, 100, 2048)

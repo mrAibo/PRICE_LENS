@@ -553,6 +553,26 @@ describe("PriceLens HTTP API", () => {
     });
   });
 
+  it("rejects an invalid optional listing-origin country code", async () => {
+    const baseUrl = await startServer();
+    const response = await fetch(`${baseUrl}/v1/compare`, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        listing: {
+          ...listing,
+          itemLocationCountry: "usa"
+        },
+        destination: {country: "DE"}
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_request"
+    });
+  });
+
   it("can run a complete local comparison with the explicit fixture provider", async () => {
     const baseUrl = await startServer([createFixtureProvider({discountRatio: 0.1})]);
 
@@ -689,6 +709,51 @@ describe("PriceLens HTTP API", () => {
       reviewMatchMethods: {},
       enrichmentFallback: true
     });
+  });
+
+  it("classifies current-listing import-cost uncertainty without logging origin/destination", async () => {
+    const diagnostics: unknown[] = [];
+    const server = createPriceLensServer({
+      enrichListing: async (value) => ({
+        ...value,
+        itemLocationCountry: "US"
+      }),
+      diagnostics: (event) => diagnostics.push(event),
+      requestIdFactory: () => "req-import-warning-001"
+    });
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const address = server.address() as AddressInfo;
+
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/v1/compare`,
+      {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          listing,
+          destination: {country: "DE", postalCode: "30159"}
+        })
+      }
+    );
+
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.ebayLandedPriceComplete).toBe(false);
+    expect(result.ebayLandedCostStatus).toBe("import_costs_unknown");
+
+    expect(diagnostics[0]).toMatchObject({
+      type: "compare_completed",
+      warningCategories: {
+        ebay_import_costs_unknown: 1
+      }
+    });
+
+    const serialized = JSON.stringify(diagnostics[0]);
+    expect(serialized).not.toContain("US");
+    expect(serialized).not.toContain("DE");
+    expect(serialized).not.toContain("30159");
   });
 
   it("diagnostic sink failures never break the request", async () => {

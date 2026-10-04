@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `a8806368a7b23ce8510baecd74592768eec2f77e` (PR #65). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `9c36db353e8a74629b9cc2652a253fda22aa2897` (PR #66). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -192,6 +192,12 @@ Accepted product direction:
 - [x] Amazon mandatory shipping remains unknown, so Amazon cannot become delivered-price winner
 - [ ] Amazon EU live locale activation remains blocked on marketplace-specific Associates/Creators approval
 - [x] privacy-safe aggregate eBay/Amazon fan-out telemetry records calls/report, success/failure and latency without product/user/destination fields
+- [x] eBay item-origin country is retained when Browse provides it
+- [x] known EU-origin -> EU-destination offers remain comparable when shipping is complete
+- [x] known non-EU cross-customs offers are excluded from ranking until import charges are confirmed
+- [x] unknown-origin offers remain visible but are excluded from best/cheaper ranking
+- [x] current listing customs risk can suppress misleading savings when a non-EU origin is known
+- [x] landed-cost uncertainty is surfaced in UI and aggregate diagnostics without logging origin/destination values
 
 This phase is now the active implementation priority before broad search-results augmentation.
 

@@ -46,6 +46,7 @@ export interface EcommerceListing {
   shipping?: Money;
   condition: ListingCondition;
   identity: ProductIdentity;
+  itemLocationCountry?: string;
   imageUrl?: string;
   extractionEvidence: string[];
   extractionWarnings: string[];
@@ -68,6 +69,12 @@ export interface FxConversion {
   rate: number;
 }
 
+export type LandedCostStatus =
+  | "complete"
+  | "shipping_unknown"
+  | "origin_unknown"
+  | "import_costs_unknown";
+
 export interface MarketOffer {
   provider: PriceProviderId;
   providerProductId?: string;
@@ -83,6 +90,7 @@ export interface MarketOffer {
   shipping?: Money;
   landedPrice: Money;
   landedPriceComplete: boolean;
+  landedCostStatus?: LandedCostStatus;
   comparisonLandedPrice?: Money;
   fx?: FxConversion;
   confidence: number;
@@ -125,6 +133,7 @@ export interface ComparisonResult {
   listing: EcommerceListing;
   ebayLandedPrice: Money;
   ebayLandedPriceComplete: boolean;
+  ebayLandedCostStatus?: LandedCostStatus;
   offers: MarketOffer[];
   bestOffer?: MarketOffer;
   marketMinimum?: Money;

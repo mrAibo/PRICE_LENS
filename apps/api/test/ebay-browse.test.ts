@@ -95,6 +95,63 @@ describe("eBay Browse enrichment", () => {
     expect(browseHeaders.get("x-ebay-c-marketplace-id")).toBe("EBAY_DE");
   });
 
+  it("enriches the current listing origin country when Browse provides it", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "location-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemId: "v1|123456789012|0",
+          itemLocation: {country: "US"}
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    const result = await enricher.enrich(baseListing);
+
+    expect(result.itemLocationCountry).toBe("US");
+    expect(result.extractionEvidence).toContain(
+      "ebay-browse:itemLocationCountry"
+    );
+  });
+
+  it("keeps an existing trusted listing origin instead of overwriting it", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({access_token: "location-token", expires_in: 7200})
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          itemId: "v1|123456789012|0",
+          itemLocation: {country: "US"}
+        })
+      );
+
+    const enricher = new EbayBrowseEnricher({
+      clientId: "id",
+      clientSecret: "secret",
+      fetchImpl
+    });
+
+    const result = await enricher.enrich({
+      ...baseListing,
+      itemLocationCountry: "DE"
+    });
+
+    expect(result.itemLocationCountry).toBe("DE");
+    expect(result.extractionEvidence).not.toContain(
+      "ebay-browse:itemLocationCountry"
+    );
+  });
+
   it("coalesces concurrent identical legacy-item lookups", async () => {
     const cacheObserver = vi.fn();
     const fetchImpl = vi
@@ -605,7 +662,7 @@ describe("eBay same-product marketplace search", () => {
             {
               itemId: "v1|640000000001|0",
               title: "Sony WH-1000XM6 Belgium",
-              itemWebUrl: "https://www.ebay.com.be/itm/640000000001",
+              itemWebUrl: "https://www.benl.ebay.be/itm/640000000001",
               price: {value: "299.00", currency: "EUR"},
               buyingOptions: ["FIXED_PRICE"],
               conditionId: "1000"
