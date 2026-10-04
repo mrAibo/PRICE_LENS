@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest";
 import type {EcommerceListing} from "@price-lens/contracts";
 import {
+  assessLandedCostStatus,
   compareWithProviders,
   evaluateProviderCandidate,
   limitProviderConcurrency,
@@ -404,6 +405,49 @@ describe("provider concurrency limits", () => {
   );
 });
 
+describe("landed-cost safety", () => {
+  it("treats known intra-EU shipping as complete", () => {
+    expect(
+      assessLandedCostStatus(
+        true,
+        "PL",
+        {country: "DE", postalCode: "30159"}
+      )
+    ).toBe("complete");
+  });
+
+  it("marks known non-EU origins incomplete when import costs are not confirmed", () => {
+    expect(
+      assessLandedCostStatus(
+        true,
+        "US",
+        {country: "DE", postalCode: "30159"}
+      )
+    ).toBe("import_costs_unknown");
+  });
+
+  it("marks unknown origin incomplete when a destination is known", () => {
+    expect(
+      assessLandedCostStatus(
+        true,
+        undefined,
+        {country: "DE"}
+      )
+    ).toBe("origin_unknown");
+  });
+
+  it("accepts a cross-border offer only when import charges are explicitly included", () => {
+    expect(
+      assessLandedCostStatus(
+        true,
+        "US",
+        {country: "DE"},
+        true
+      )
+    ).toBe("complete");
+  });
+});
+
 describe("provider orchestration", () => {
   it("does not call providers that are restricted by server-owned access policy", async () => {
     let idealoCalls = 0;
@@ -452,6 +496,50 @@ describe("provider orchestration", () => {
     expect(result.offers[0]?.landedPrice.amount).toBe(333.99);
     expect(result.bestOffer?.provider).toBe("idealo");
     expect(result.providerStatus[0]?.state).toBe("ok");
+  });
+
+  it("keeps a cheaper non-EU offer out of best-price ranking when import costs are unknown", async () => {
+    const provider: PriceProvider = {
+      id: "idealo",
+      async search() {
+        return [
+          candidate({
+            providerProductId: "us-cheap",
+            itemLocationCountry: "US",
+            itemPrice: {amount: 200, currency: "EUR"},
+            shipping: {amount: 10, currency: "EUR"}
+          }),
+          candidate({
+            providerProductId: "pl-safe",
+            itemLocationCountry: "PL",
+            itemPrice: {amount: 300, currency: "EUR"},
+            shipping: {amount: 5, currency: "EUR"}
+          })
+        ];
+      }
+    };
+
+    const result = await compareWithProviders(listing, [provider], {
+      destination: {country: "DE", postalCode: "30159"}
+    });
+
+    expect(result.offers).toHaveLength(2);
+    expect(
+      result.offers.find((offer) => offer.providerProductId === "us-cheap")
+    ).toMatchObject({
+      landedPrice: {amount: 210, currency: "EUR"},
+      landedPriceComplete: false,
+      landedCostStatus: "import_costs_unknown"
+    });
+    expect(
+      result.offers.find((offer) => offer.providerProductId === "pl-safe")
+    ).toMatchObject({
+      landedPrice: {amount: 305, currency: "EUR"},
+      landedPriceComplete: true,
+      landedCostStatus: "complete"
+    });
+    expect(result.bestOffer?.providerProductId).toBe("pl-safe");
+    expect(result.marketMinimum).toEqual({amount: 305, currency: "EUR"});
   });
 
   it("exposes bounded review-candidate diagnostics", async () => {
