@@ -46,6 +46,7 @@ export interface EcommerceListing {
   shipping?: Money;
   condition: ListingCondition;
   identity: ProductIdentity;
+  itemLocationCountry?: string;
   imageUrl?: string;
   extractionEvidence: string[];
   extractionWarnings: string[];
@@ -132,6 +133,7 @@ export interface ComparisonResult {
   listing: EcommerceListing;
   ebayLandedPrice: Money;
   ebayLandedPriceComplete: boolean;
+  ebayLandedCostStatus?: LandedCostStatus;
   offers: MarketOffer[];
   bestOffer?: MarketOffer;
   marketMinimum?: Money;
