@@ -662,7 +662,7 @@ describe("eBay same-product marketplace search", () => {
             {
               itemId: "v1|640000000001|0",
               title: "Sony WH-1000XM6 Belgium",
-              itemWebUrl: "https://www.ebay.com.be/itm/640000000001",
+              itemWebUrl: "https://www.benl.ebay.be/itm/640000000001",
               price: {value: "299.00", currency: "EUR"},
               buyingOptions: ["FIXED_PRICE"],
               conditionId: "1000"
