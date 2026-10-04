@@ -19,9 +19,7 @@ These are the external actions that currently unblock live provider validation:
 3. **Geizhals** — submit the Publisher Programme partnership request and ask Business
    Development for machine-readable API/feed terms, lookup identifiers, shipping fields,
    tracking/deeplink rules, cache/freshness rules and browser-extension permission.
-4. **Amazon DE** — join Amazon PartnerNet/Associates, obtain final program acceptance and
-   the qualifying sales required for Creators API signup, then create Creators API
-   credentials under **Tools -> Creators API**.
+4. **Amazon DE** — do not invent a website or company. Join Amazon PartnerNet/Associates only with a real public property you own (website/social/mobile app), obtain final acceptance and the qualifying sales required for Creators API signup, then create Creators API credentials under **Tools -> Creators API**. Because PriceLens is a browser extension, also request Amazon's express prior written approval before Amazon content/Partner Links are enabled in the extension.
 
 When any credential becomes available, put it only in the backend/local secret
 environment or deployed Secret Manager. Do not paste secrets into chat, GitHub issues,
@@ -148,6 +146,20 @@ The evidence artifact is uploaded even when a provider requirement fails, as lon
 the comparison completed and a redacted report could be produced. Connection-level
 failures before any report exists naturally have no evidence file.
 
+### EPN for the PriceLens browser extension
+
+Use **EPN**, not eBay Ambassador. Ambassador is the social-first creator program; PriceLens is a technical/downloadable-software integration.
+
+EPN explicitly treats installed software, extensions and plug-ins as a special promotional method that requires prior written approval. After the EPN account is accepted, submit the **Software: Applications and Downloadable Tools** approval form when PriceLens is fully integrated or can be made testable within about a week. Be ready to provide:
+
+- a description of PriceLens and how eBay is integrated/monetized;
+- the download/test distribution location;
+- test credentials if needed;
+- whether user data is collected;
+- affiliate-disclosure behavior.
+
+An individual can join EPN; a selling business account is not required merely because the affiliate project is commercial. Keep all registration/contact information accurate.
+
 ### Production
 
 eBay documents separate Sandbox and Production credentials. For Buy API production
@@ -264,6 +276,18 @@ France, Italy, Spain, the Netherlands or Belgium.
 
 The backend can use the common EU Creators credential flow, while PriceLens activates
 only marketplaces whose own Partner Tag and access have been approved.
+
+### Before Creators API: real publisher property and extension permission
+
+Do not enter placeholder/example URLs or invented company data. Amazon reviews the declared websites/apps/social properties after qualifying sales and expects public original content. A legitimate PriceLens companion website can satisfy the website side only if it is a real owned site with substantive original content; it is not a workaround for extension approval.
+
+For Germany, Amazon's current participation rules require express prior written approval before Partner Links or Amazon advertising content are used through client-side software such as browser plug-ins/extensions. Therefore:
+
+1. keep the Amazon provider disabled in PriceLens extension releases;
+2. if desired, build a genuine public PriceLens companion site and use it for Associates onboarding/content;
+3. obtain Associates acceptance and the required qualifying sales;
+4. request written approval describing PriceLens honestly as a browser extension;
+5. enable Amazon in the extension only after that approval and Creators API access are both documented.
 
 ### Creators API
 
