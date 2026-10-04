@@ -1,6 +1,4 @@
 terraform {
-  backend "gcs" {}
-
   required_version = ">= 1.9.0"
 
   required_providers {
@@ -13,5 +11,4 @@ terraform {
 
 provider "google" {
   project = var.project_id
-  region  = var.region
 }

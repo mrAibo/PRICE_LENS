@@ -130,6 +130,10 @@ Current implementation checkpoint: `a8806368a7b23ce8510baecd74592768eec2f77e` (P
 - [x] opt-in GitHub Actions WIF image-publisher IaC bound to immutable PriceLens repo/owner IDs + main branch
 - [x] WIF image publisher has Artifact Registry Writer only; no Secret Manager/Cloud Run/project-admin role
 - [x] manual keyless GitHub workflow builds/pushes immutable GITHUB_SHA API images
+- [x] separate GCS Terraform-state bootstrap enforces versioning, uniform bucket-level access, Public Access Prevention and non-destructive defaults
+- [x] production Terraform root uses a configurable GCS backend; CI validates it with backend disabled
+- [x] GitHub image publisher receives no Terraform-state bucket IAM grant
+- [ ] live state-bucket apply + production backend initialization/migration remains pending
 - [ ] live WIF Phase-A apply + GitHub repository-variable configuration remains pending
 
 ### Provider/access research

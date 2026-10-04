@@ -159,22 +159,35 @@ Node.js runtime.
 ## Terraform infrastructure baseline
 
 The production topology now has a validated Terraform definition in
-[`infra/gcp/`](../infra/gcp/README.md).
+[`infra/gcp/`](../infra/gcp/README.md). A separate
+[`infra/gcp-state-bootstrap/`](../infra/gcp-state-bootstrap/README.md) root creates the
+pre-existing protected GCS bucket required by the production backend.
 
-The IaC is deliberately split into two phases:
+The state bucket baseline enables Object Versioning, Uniform bucket-level access and
+Public Access Prevention, while disabling force-destroy and adding Terraform
+`prevent_destroy`. It grants no access to the GitHub image-publisher identity.
 
-1. **bootstrap** (`deploy_runtime=false`) enables required APIs and creates Artifact
-   Registry, the dedicated runtime service account, and empty Secret Manager containers;
-2. **runtime** (`deploy_runtime=true`) creates Cloud Run, the serverless NEG, Cloud
+The IaC is deliberately split into a one-time state bootstrap plus two production phases:
+
+1. **state bootstrap** creates the protected GCS backend bucket;
+2. **Phase A** (`deploy_runtime=false`) enables required APIs and creates Artifact
+   Registry, the dedicated runtime service account, empty Secret Manager containers and
+   optional narrowly scoped GitHub WIF image publishing;
+3. **Phase B** (`deploy_runtime=true`) creates Cloud Run, the serverless NEG, Cloud
    Armor, the global external managed HTTP(S) load balancer, managed TLS certificate
    and HTTP-to-HTTPS redirect after a real image and API hostname exist.
 
-CI pins Terraform 1.16.4 and Google provider 8.2.0 and runs:
+CI pins Terraform 1.16.4 and Google provider 8.2.0 and validates both Terraform roots
+without live credentials:
 
 ```bash
-terraform fmt -check -diff -recursive infra/gcp
+terraform fmt -check -diff -recursive infra
+terraform -chdir=infra/gcp-state-bootstrap init -backend=false -input=false
+terraform -chdir=infra/gcp-state-bootstrap validate
+terraform -chdir=infra/gcp-state-bootstrap test
 terraform -chdir=infra/gcp init -backend=false -input=false
 terraform -chdir=infra/gcp validate
+terraform -chdir=infra/gcp test
 ```
 
 The load balancer is expressed with native `google_compute_*` resources rather than
@@ -454,7 +467,9 @@ deployment gates are approved.
 Infrastructure definitions are now versioned and schema-validated, but no live cloud
 resources are claimed as provisioned.
 
-- select/create the production GCP project, billing and remote Terraform-state bucket;
+- select/create the production GCP project and link billing;
+- apply the one-time state-bootstrap root to create the protected versioned GCS backend bucket;
+- initialize/migrate `infra/gcp` to that GCS backend;
 - apply Terraform Phase A to create Artifact Registry, runtime service account and Secret Manager containers;
 - enable the opt-in GitHub WIF image publisher during Phase A and copy its outputs into GitHub repository variables;
 - run the keyless image-publish workflow and use its immutable SHA-tagged image in the Phase-B plan;
