@@ -1162,8 +1162,10 @@ function lowestShippingContext(
       };
     })
     .filter(
-      (entry): entry is {shipping: Money; deliveryWindow?: DeliveryWindow} =>
-        entry !== undefined
+      (entry): entry is {
+        shipping: Money;
+        deliveryWindow: DeliveryWindow | undefined;
+      } => entry !== undefined
     )
     .sort((left, right) => left.shipping.amount - right.shipping.amount);
 
