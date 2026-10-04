@@ -95,9 +95,14 @@ prove them explicitly before its ePID can qualify:
 - screen size in inches, including comma-decimal/localized values;
 - pack count.
 
-A missing or conflicting required aspect rejects that Catalog product. Edition,
-model-qualifier and bundle flags remain ineligible for Brand+Model fallback because
-their Catalog representation is not yet normalized conservatively enough.
+A missing or conflicting required aspect rejects that Catalog product. Edition and
+model-qualifier values may also qualify, but only through exact values in a small
+allowlist of explicit Catalog aspects (for example Edition/Ausgabe and Model
+Number/Modellnummer). Title text is not used as substitute evidence.
+
+`bundleIncluded` remains ineligible for Brand+Model fallback. A seller-created bundle
+is an instance/listing property and must not be inferred from an underlying catalog
+product.
 
 Enrichment does not silently overwrite an existing page identity. Conflicts produce an
 extraction warning and the page value is retained.
