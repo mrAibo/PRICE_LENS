@@ -5,6 +5,7 @@ import type {
   ListingCondition,
   Money,
   ProductIdentity,
+  ReturnPolicySummary,
   SellerAccountType
 } from "@price-lens/contracts";
 import type {PriceProvider, ProviderCandidate} from "@price-lens/core";
@@ -70,6 +71,9 @@ export interface EbayBrowseEnricherOptions {
   marketplaceSearchConcurrency?: number;
   catalogEpidFallbackEnabled?: boolean;
   catalogMarketplaceId?: string;
+  marketplaceDetailEnrichmentEnabled?: boolean;
+  marketplaceDetailLimit?: number;
+  marketplaceDetailConcurrency?: number;
   timeoutMs?: number;
   cacheTtlMs?: number;
   fetchImpl?: FetchLike;
@@ -98,6 +102,9 @@ export class EbayBrowseEnricher {
   private readonly marketplaceSearchConcurrency: number;
   private readonly catalogEpidFallbackEnabled: boolean;
   private readonly catalogMarketplaceId: EbayCatalogMarketplaceId;
+  private readonly marketplaceDetailEnrichmentEnabled: boolean;
+  private readonly marketplaceDetailLimit: number;
+  private readonly marketplaceDetailConcurrency: number;
   private readonly timeoutMs: number;
   private readonly cacheTtlMs: number;
   private readonly fetchImpl: FetchLike;
@@ -113,6 +120,10 @@ export class EbayBrowseEnricher {
   private readonly catalogEpidInFlight = new Map<
     string,
     Promise<string | undefined>
+  >();
+  private readonly marketplaceDetailInFlight = new Map<
+    string,
+    Promise<JsonRecord | undefined>
   >();
 
   constructor(options: EbayBrowseEnricherOptions) {
@@ -142,6 +153,16 @@ export class EbayBrowseEnricher {
             ? this.marketplaceId
             : "EBAY_DE"
         )
+    );
+    this.marketplaceDetailEnrichmentEnabled =
+      options.marketplaceDetailEnrichmentEnabled ?? false;
+    this.marketplaceDetailLimit = validateNonNegativeInteger(
+      options.marketplaceDetailLimit ?? 5,
+      "eBay marketplace detail limit"
+    );
+    this.marketplaceDetailConcurrency = validatePositiveInteger(
+      options.marketplaceDetailConcurrency ?? 2,
+      "eBay marketplace detail concurrency"
     );
     this.timeoutMs = options.timeoutMs ?? 4000;
     this.cacheTtlMs = validateCacheTtl(options.cacheTtlMs ?? 0, "eBay Browse");
@@ -328,6 +349,143 @@ export class EbayBrowseEnricher {
       this.now(),
       marketplaceId
     );
+  }
+
+  async enrichAcceptedMarketplaceCandidates(
+    candidates: ProviderCandidate[],
+    signal?: AbortSignal,
+    destination?: BuyerDestination
+  ): Promise<ProviderCandidate[]> {
+    if (
+      !this.marketplaceDetailEnrichmentEnabled ||
+      this.marketplaceDetailLimit === 0 ||
+      candidates.length === 0
+    ) {
+      return candidates;
+    }
+
+    const resolvedDestination = normalizeDestination(
+      destination,
+      this.deliveryCountry
+    );
+    const enriched = [...candidates];
+    const selected = candidates
+      .map((candidate, index) => ({candidate, index}))
+      .filter(
+        ({candidate}) =>
+          candidate.provider === "ebay_market" &&
+          candidate.providerProductId !== undefined &&
+          candidate.marketplace !== undefined
+      )
+      .slice(0, this.marketplaceDetailLimit);
+
+    await mapWithConcurrency(
+      selected,
+      this.marketplaceDetailConcurrency,
+      async ({candidate, index}) => {
+        try {
+          enriched[index] = await this.enrichMarketplaceCandidateDetail(
+            candidate,
+            resolvedDestination,
+            signal
+          );
+        } catch {
+          enriched[index] = candidate;
+        }
+      }
+    );
+
+    return enriched;
+  }
+
+  private async enrichMarketplaceCandidateDetail(
+    candidate: ProviderCandidate,
+    destination: BuyerDestination,
+    signal?: AbortSignal
+  ): Promise<ProviderCandidate> {
+    const itemId = candidate.providerProductId;
+    const marketplace = candidate.marketplace;
+    if (!itemId || !marketplace) return candidate;
+
+    let marketplaceId: EbayEuMarketplaceId;
+    try {
+      marketplaceId = validateMarketplaceId(marketplace);
+    } catch {
+      return candidate;
+    }
+
+    const detail = await this.getMarketplaceItemDetail(
+      marketplaceId,
+      itemId,
+      destination,
+      signal
+    );
+    if (!detail) return candidate;
+
+    const returnPolicy = extractReturnPolicy(detail.returnTerms);
+    return returnPolicy
+      ? {...candidate, returnPolicy}
+      : candidate;
+  }
+
+  private async getMarketplaceItemDetail(
+    marketplaceId: EbayEuMarketplaceId,
+    itemId: string,
+    destination: BuyerDestination,
+    signal?: AbortSignal
+  ): Promise<JsonRecord | undefined> {
+    const key = [
+      marketplaceId,
+      itemId,
+      destination.country,
+      destination.postalCode ?? ""
+    ].join(":");
+    const active = this.marketplaceDetailInFlight.get(key);
+    if (active) return active;
+
+    const pending = this.fetchMarketplaceItemDetailWithRefresh(
+      marketplaceId,
+      itemId,
+      destination,
+      signal
+    ).finally(() => {
+      if (this.marketplaceDetailInFlight.get(key) === pending) {
+        this.marketplaceDetailInFlight.delete(key);
+      }
+    });
+    this.marketplaceDetailInFlight.set(key, pending);
+    return pending;
+  }
+
+  private async fetchMarketplaceItemDetailWithRefresh(
+    marketplaceId: EbayEuMarketplaceId,
+    itemId: string,
+    destination: BuyerDestination,
+    signal?: AbortSignal
+  ): Promise<JsonRecord | undefined> {
+    let response = await this.fetchMarketplaceItemDetail(
+      marketplaceId,
+      itemId,
+      destination,
+      false,
+      signal
+    );
+    if (response.status === 401) {
+      this.tokenCache = undefined;
+      response = await this.fetchMarketplaceItemDetail(
+        marketplaceId,
+        itemId,
+        destination,
+        true,
+        signal
+      );
+    }
+
+    if (response.status === 404 || response.status === 429 || !response.ok) {
+      return undefined;
+    }
+
+    return readJsonRecord(response, "eBay Browse item detail");
   }
 
   private async getItemByLegacyId(
@@ -522,6 +680,38 @@ export class EbayBrowseEnricher {
     });
   }
 
+  private async fetchMarketplaceItemDetail(
+    marketplaceId: EbayEuMarketplaceId,
+    itemId: string,
+    destination: BuyerDestination,
+    forceTokenRefresh: boolean,
+    signal?: AbortSignal
+  ): Promise<Response> {
+    const token = await this.getApplicationToken(forceTokenRefresh);
+    const endpoint = new URL(
+      `/buy/browse/v1/item/${encodeURIComponent(itemId)}`,
+      this.apiBaseUrl()
+    );
+    const location = destination.postalCode
+      ? `country=${destination.country},zip=${destination.postalCode}`
+      : `country=${destination.country}`;
+
+    return this.fetchWithTimeout(
+      endpoint,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-ebay-c-marketplace-id": marketplaceId,
+          "x-ebay-c-enduserctx":
+            `contextualLocation=${encodeURIComponent(location)}`,
+          accept: "application/json"
+        }
+      },
+      signal
+    );
+  }
+
   private async fetchMarketplaceSearch(
     marketplaceId: EbayEuMarketplaceId,
     discovery: EbayMarketplaceDiscovery,
@@ -711,7 +901,13 @@ export function createEbayMarketplaceProvider(
     id: "ebay_market",
     matchAcrossConditions: true,
     search: ({listing, destination, signal}) =>
-      enricher.searchMarketplace(listing, signal, destination)
+      enricher.searchMarketplace(listing, signal, destination),
+    enrichAcceptedCandidates: ({candidates, destination, signal}) =>
+      enricher.enrichAcceptedMarketplaceCandidates(
+        candidates,
+        signal,
+        destination
+      )
   };
 }
 
@@ -759,6 +955,18 @@ export function createEbayBrowseEnricherFromEnv(
       env.EBAY_CATALOG_EPID_FALLBACK_ENABLED === "1",
     catalogMarketplaceId:
       env.EBAY_CATALOG_MARKETPLACE_ID?.trim() || undefined,
+    marketplaceDetailEnrichmentEnabled:
+      env.EBAY_MARKETPLACE_DETAIL_ENRICHMENT_ENABLED === "1",
+    marketplaceDetailLimit: parseNonNegativeIntegerEnv(
+      env.EBAY_MARKETPLACE_DETAIL_LIMIT,
+      "EBAY_MARKETPLACE_DETAIL_LIMIT",
+      5
+    ),
+    marketplaceDetailConcurrency: parsePositiveIntegerEnv(
+      env.EBAY_MARKETPLACE_DETAIL_CONCURRENCY,
+      "EBAY_MARKETPLACE_DETAIL_CONCURRENCY",
+      2
+    ),
     cacheTtlMs: parseCacheTtlEnv(
       env.EBAY_BROWSE_CACHE_TTL_MS,
       "EBAY_BROWSE_CACHE_TTL_MS"
@@ -1087,6 +1295,25 @@ function validateCountryCode(value: string, name: string): string {
   return normalized;
 }
 
+function parseNonNegativeIntegerEnv(
+  raw: string | undefined,
+  name: string,
+  fallback: number
+): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+  return validateNonNegativeInteger(Number(raw.trim()), name);
+}
+
+function validateNonNegativeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+  return value;
+}
+
 function parsePositiveIntegerEnv(
   raw: string | undefined,
   name: string,
@@ -1104,6 +1331,59 @@ function validatePositiveInteger(value: number, name: string): number {
     throw new Error(`${name} must be a positive safe integer.`);
   }
   return value;
+}
+
+function extractReturnPolicy(
+  value: unknown
+): ReturnPolicySummary | undefined {
+  const terms = readRecord(value);
+  if (!terms || typeof terms.returnsAccepted !== "boolean") {
+    return undefined;
+  }
+
+  const period = readRecord(terms.returnPeriod);
+  const periodValue = readPositiveInteger(period?.value);
+  const periodUnit = normalizeReturnPeriodUnit(readString(period?.unit));
+  const payer = normalizeReturnShippingCostPayer(
+    readString(terms.returnShippingCostPayer)
+  );
+
+  return {
+    returnsAccepted: terms.returnsAccepted,
+    ...(periodValue !== undefined ? {returnPeriodValue: periodValue} : {}),
+    ...(periodUnit ? {returnPeriodUnit: periodUnit} : {}),
+    ...(payer ? {returnShippingCostPayer: payer} : {})
+  };
+}
+
+function normalizeReturnPeriodUnit(
+  value: string | undefined
+): string | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z_]{1,32}$/.test(normalized)
+    ? normalized
+    : undefined;
+}
+
+function normalizeReturnShippingCostPayer(
+  value: string | undefined
+): "BUYER" | "SELLER" | undefined {
+  const normalized = value?.trim().toUpperCase();
+  return normalized === "BUYER" || normalized === "SELLER"
+    ? normalized
+    : undefined;
+}
+
+function readPositiveInteger(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  return Number.isSafeInteger(parsed) && parsed > 0
+    ? parsed
+    : undefined;
 }
 
 function normalizeEbayCondition(
