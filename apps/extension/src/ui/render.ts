@@ -426,12 +426,20 @@ function renderCompactReport(
           result.ebayLandedPrice.currency
         ) === undefined
     );
+    const importUncertain = result.offers.some(
+      (offer) =>
+        offer.landedCostStatus === "import_costs_unknown" ||
+        offer.landedCostStatus === "origin_unknown"
+    );
     return `
       <div class="compact-report">
         <div class="compact-title">PriceLens report</div>
         <div class="muted">No cheaper complete offer was found in this report.</div>
         ${otherCurrency
           ? '<div class="muted compact-note">Offers in other currencies are not ranked until explicit FX normalization is enabled.</div>'
+          : ""}
+        ${importUncertain
+          ? '<div class="muted compact-note">Some cross-border offers are excluded from savings ranking because import costs cannot be verified.</div>'
           : ""}
       </div>
     `;
@@ -659,14 +667,7 @@ function renderAllOffers(result: ComparisonResult): string {
       offer,
       result.ebayLandedPrice.currency
     );
-    const price = offer.landedPriceComplete
-      ? comparisonPrice
-        ? `${offer.fx ? "≈ " : ""}${formatMoney(
-            comparisonPrice.amount,
-            comparisonPrice.currency
-          )}`
-        : formatMoney(offer.landedPrice.amount, offer.landedPrice.currency)
-      : `${formatMoney(offer.itemPrice.amount, offer.itemPrice.currency)} + shipping unknown`;
+    const price = offerPriceText(offer, comparisonPrice);
     return `
       <div class="all-offer-row">
         <div class="offer-head">
@@ -677,6 +678,7 @@ function renderAllOffers(result: ComparisonResult): string {
           ${escapeHtml(price)}
         </a>
         ${renderFxOriginalPrice(offer)}
+        ${renderLandedCostNote(offer)}
         ${seller ? `<div class="muted">${escapeHtml(seller)}</div>` : ""}
       </div>
     `;
@@ -777,6 +779,66 @@ function marketplacePriceSummary(
   }
 
   return `${formatMoney(minimum, currency)}–${formatMoney(maximum, currency)} · median ${formatMoney(median, currency)}`;
+}
+
+function offerPriceText(
+  offer: MarketOffer,
+  comparisonPrice: {amount: number; currency: string} | undefined
+): string {
+  if (offer.landedPriceComplete) {
+    if (comparisonPrice) {
+      return `${offer.fx ? "≈ " : ""}${formatMoney(
+        comparisonPrice.amount,
+        comparisonPrice.currency
+      )}`;
+    }
+    return formatMoney(offer.landedPrice.amount, offer.landedPrice.currency);
+  }
+
+  switch (offer.landedCostStatus) {
+    case "import_costs_unknown":
+      return `${formatMoney(
+        offer.landedPrice.amount,
+        offer.landedPrice.currency
+      )} before possible import charges`;
+    case "origin_unknown":
+      return `${formatMoney(
+        offer.landedPrice.amount,
+        offer.landedPrice.currency
+      )} · final import cost unknown`;
+    case "shipping_unknown":
+    default:
+      return `${formatMoney(
+        offer.itemPrice.amount,
+        offer.itemPrice.currency
+      )} + shipping unknown`;
+  }
+}
+
+function renderLandedCostNote(offer: MarketOffer): string {
+  const origin = offer.itemLocationCountry?.trim().toUpperCase();
+
+  switch (offer.landedCostStatus) {
+    case "import_costs_unknown":
+      return `
+        <div class="warn landed-cost-note">
+          Not ranked: ${origin ? `ships from ${escapeHtml(origin)}; ` : ""}import VAT, duties or handling fees are not confirmed.
+        </div>
+      `;
+    case "origin_unknown":
+      return `
+        <div class="warn landed-cost-note">
+          Not ranked: seller/item origin is unknown, so import costs cannot be verified.
+        </div>
+      `;
+    case "shipping_unknown":
+      return '<div class="muted landed-cost-note">Not ranked: mandatory shipping is unknown.</div>';
+    case "complete":
+    default:
+      return origin
+        ? `<div class="muted landed-cost-note">Ships from ${escapeHtml(origin)}</div>`
+        : "";
+  }
 }
 
 function comparableOfferPrice(
@@ -1216,6 +1278,7 @@ function baseStyles(): string {
       .offer-price { display:inline-block; margin-top:2px; font-size:16px; }
       .saving { color:#176b35; font-weight:700; }
       .fx-meta { margin-top:2px; font-size:12px; }
+      .landed-cost-note { margin-top:3px; font-size:12px; }
       .expand-button {
         width:100%;
         margin-top:10px;
