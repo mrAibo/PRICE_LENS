@@ -411,7 +411,7 @@ function renderCompactReport(
       <div class="compact-report">
         <div class="compact-title">PriceLens report</div>
         <div class="warn">
-          The current delivered price is incomplete, so savings cannot be ranked safely yet.
+          ${escapeHtml(currentListingIncompleteReason(result))}
         </div>
       </div>
     `;
@@ -779,6 +779,20 @@ function marketplacePriceSummary(
   }
 
   return `${formatMoney(minimum, currency)}–${formatMoney(maximum, currency)} · median ${formatMoney(median, currency)}`;
+}
+
+function currentListingIncompleteReason(
+  result: ComparisonResult
+): string {
+  switch (result.ebayLandedCostStatus) {
+    case "origin_unknown":
+      return "The current listing origin is unknown, so import costs cannot be verified for your destination.";
+    case "import_costs_unknown":
+      return "The current listing crosses a customs boundary and import VAT, duties or handling fees are not confirmed.";
+    case "shipping_unknown":
+    default:
+      return "The current delivered price is incomplete because mandatory shipping is unknown.";
+  }
 }
 
 function offerPriceText(
