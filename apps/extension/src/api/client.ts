@@ -18,6 +18,13 @@ export interface ComparisonClientOptions {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
   destination?: BuyerDestination;
+  sessionToken?: string;
+}
+
+export interface SessionExchangeResult {
+  sessionToken: string;
+  expiresAt: string;
+  tier: "free" | "pilot" | "pro" | "admin";
 }
 
 export async function requestComparison(
@@ -36,11 +43,16 @@ export async function requestComparison(
   };
 
   try {
+    const headers: Record<string, string> = {
+      "content-type": "application/json"
+    };
+    if (options.sessionToken) {
+      headers.authorization = `Bearer ${options.sessionToken}`;
+    }
+
     const response = await fetchImpl(`${apiUrl}/v1/compare`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal
     });
@@ -82,5 +94,71 @@ function isComparisonResult(value: unknown): value is ComparisonResult {
     Array.isArray(result.providerStatus) &&
     Array.isArray(result.warnings) &&
     typeof result.generatedAt === "string"
+  );
+}
+
+
+export async function exchangeGoogleSession(
+  accessToken: string,
+  options: Omit<ComparisonClientOptions, "destination" | "sessionToken"> = {}
+): Promise<SessionExchangeResult> {
+  const token = accessToken.trim();
+  if (token.length < 16 || token.length > 8192 || /\s/.test(token)) {
+    throw new Error("Google authentication returned an invalid access token.");
+  }
+
+  const apiUrl = (options.apiUrl ?? DEFAULT_PRICE_LENS_API_URL).replace(/\/$/, "");
+  const timeoutMs = options.timeoutMs ?? DEFAULT_API_TIMEOUT_MS;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetchImpl(`${apiUrl}/v1/session/google`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({accessToken: token}),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `PriceLens sign-in returned HTTP ${response.status} ${response.statusText}`.trim()
+      );
+    }
+
+    const payload: unknown = await response.json();
+    if (!isSessionExchangeResult(payload)) {
+      throw new Error("PriceLens sign-in returned an invalid session payload.");
+    }
+    return payload;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`PriceLens sign-in timed out after ${timeoutMs} ms.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isSessionExchangeResult(value: unknown): value is SessionExchangeResult {
+  if (!value || typeof value !== "object") return false;
+  const result = value as Partial<SessionExchangeResult>;
+  return (
+    typeof result.sessionToken === "string" &&
+    result.sessionToken.length >= 32 &&
+    result.sessionToken.length <= 8192 &&
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(result.sessionToken) &&
+    typeof result.expiresAt === "string" &&
+    Number.isFinite(Date.parse(result.expiresAt)) &&
+    (
+      result.tier === "free" ||
+      result.tier === "pilot" ||
+      result.tier === "pro" ||
+      result.tier === "admin"
+    )
   );
 }
