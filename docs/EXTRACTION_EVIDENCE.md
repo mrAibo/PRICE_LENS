@@ -1,6 +1,6 @@
 # eBay Extraction Evidence
 
-Status: **synthetic regression corpus + first independently reviewed observed layout**
+Status: **synthetic regression corpus + growing independently reviewed observed-layout corpus**
 
 Updated: **2026-10-04**
 
@@ -18,8 +18,8 @@ Location:
 Current gate:
 
 - synthetic regression: **9 fixtures / 77 labelled scalar field checks**
-- observed reviewed: **1 real eBay.de fixture / 18 labelled scalar field checks**
-- current observed class: used Buy It Now with explicit paid domestic shipping
+- observed reviewed: **3 real eBay.de fixtures / 54 labelled scalar field checks**
+- observed classes: used + paid domestic shipping; refurbished + free domestic shipping; selected multi-variant phone with explicit 128 GB storage
 - CI rejects any mismatch
 - CI also rejects accidental synthetic corpus shrinkage below 9 fixtures / 70 labelled fields
 
@@ -41,7 +41,7 @@ Current fixture classes:
 
 A green CI run means **100% of the labelled checks in the synthetic regression corpus passed**.
 
-The first independently reviewed observed fixture currently reports **18/18 labelled fields passing**. It exposed and permanently fixed a real schema.org normalization defect: `https://schema.org/UsedCondition` had normalized to `usedcondition` but was previously not mapped to `used`.
+The independently reviewed observed corpus currently reports **54/54 labelled fields passing across 3 real layouts**. These captures exposed and permanently fixed three real gaps: `https://schema.org/UsedCondition` normalization, HTML character references inside live JSON-LD titles, and selected SKU storage values that were previously missed when only the generic item-specific/title state was available.
 
 That number is a regression metric only. It must **not** be described as 100% eBay extraction accuracy.
 
@@ -190,10 +190,11 @@ It prints two independent corpora:
 
 An unreviewed observed fixture is intentionally excluded from real-layout metrics.
 
-At this checkpoint the infrastructure for real-layout measurement is complete and the
-first reviewed observed fixture is committed. Its 18/18 result is evidence for that
-specific layout only, not a general real-world accuracy claim. The minimum observed
-batch above must still be completed before Issue #10 can close.
+At this checkpoint the infrastructure for real-layout measurement is complete and
+three reviewed observed fixtures are committed. Their 54/54 result is evidence for
+those specific layouts only, not a general real-world accuracy claim. Shipping-unknown,
+incomplete/absent JSON-LD fallback, weak-identity and broader category layouts still
+need observed evidence before Issue #10 can close.
 
 ## Search-result layout evidence
 
