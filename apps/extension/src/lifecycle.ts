@@ -1,5 +1,6 @@
 import type {
   BuyerDestination,
+  ComparisonResult,
   EcommerceListing
 } from "@price-lens/contracts";
 import {extractEbayItemId, extractEbayListing} from "./ebay/extract.js";
@@ -7,9 +8,15 @@ import type {CompareMessage, CompareResponse} from "./messages.js";
 import {
   mountPriceLens,
   mountUnsupportedPriceLens,
+  type PriceLensComparisonRequestOptions,
   type PriceLensReportActions,
   type PriceLensView
 } from "./ui/render.js";
+
+interface CachedReport {
+  result: ComparisonResult;
+  expiresAt: number;
+}
 
 export interface PriceLensLifecycleOptions {
   document: Document;
@@ -23,6 +30,9 @@ export interface PriceLensLifecycleOptions {
   ) => PriceLensView;
   mountUnsupported?: (document: Document, message: string) => void;
   debounceMs?: number;
+  reportCacheTtlMs?: number;
+  reportCacheMaxEntries?: number;
+  now?: () => number;
 }
 
 export interface PriceLensLifecycle {
@@ -38,6 +48,16 @@ export function createPriceLensLifecycle(
   const mount = options.mount ?? mountPriceLens;
   const mountUnsupported = options.mountUnsupported ?? mountUnsupportedPriceLens;
   const debounceMs = options.debounceMs ?? 250;
+  const reportCacheTtlMs = validateNonNegativeInteger(
+    options.reportCacheTtlMs ?? 5 * 60_000,
+    "reportCacheTtlMs"
+  );
+  const reportCacheMaxEntries = validatePositiveInteger(
+    options.reportCacheMaxEntries ?? 20,
+    "reportCacheMaxEntries"
+  );
+  const now = options.now ?? Date.now;
+  const reportCache = new Map<string, CachedReport>();
 
   let stopped = false;
   let timer: number | undefined;
@@ -99,15 +119,29 @@ export function createPriceLensLifecycle(
 
     let view!: PriceLensView;
     const requestComparison = async (
-      destination?: BuyerDestination
+      destination?: BuyerDestination,
+      requestOptions: PriceLensComparisonRequestOptions = {}
     ): Promise<void> => {
+      const forceRefresh = requestOptions.forceRefresh === true;
       if (
         stopped ||
         generation !== refreshGeneration ||
         requestInFlight ||
-        reportLoaded
+        (reportLoaded && !forceRefresh)
       ) {
         return;
+      }
+
+      const cacheKey = reportCacheKey(fingerprint, destination);
+      if (!forceRefresh) {
+        const cached = readCachedReport(cacheKey);
+        if (cached) {
+          reportLoaded = true;
+          view.renderComparison(cached);
+          return;
+        }
+      } else {
+        reportLoaded = false;
       }
 
       requestInFlight = true;
@@ -134,6 +168,7 @@ export function createPriceLensLifecycle(
         }
 
         reportLoaded = true;
+        writeCachedReport(cacheKey, response.result);
         view.renderComparison(response.result);
       } catch {
         if (stopped || generation !== refreshGeneration) return;
@@ -146,6 +181,40 @@ export function createPriceLensLifecycle(
     view = mount(options.document, listing, {
       onRequestComparison: requestComparison
     });
+  }
+
+  function readCachedReport(cacheKey: string): ComparisonResult | undefined {
+    const cached = reportCache.get(cacheKey);
+    if (!cached) return undefined;
+
+    if (cached.expiresAt <= now()) {
+      reportCache.delete(cacheKey);
+      return undefined;
+    }
+
+    // Refresh insertion order so the bounded cache behaves like a small LRU.
+    reportCache.delete(cacheKey);
+    reportCache.set(cacheKey, cached);
+    return cached.result;
+  }
+
+  function writeCachedReport(
+    cacheKey: string,
+    result: ComparisonResult
+  ): void {
+    if (reportCacheTtlMs === 0) return;
+
+    reportCache.delete(cacheKey);
+    reportCache.set(cacheKey, {
+      result,
+      expiresAt: now() + reportCacheTtlMs
+    });
+
+    while (reportCache.size > reportCacheMaxEntries) {
+      const oldestKey = reportCache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      reportCache.delete(oldestKey);
+    }
   }
 
   function scheduleRefresh(): void {
@@ -166,6 +235,7 @@ export function createPriceLensLifecycle(
     observer.disconnect();
     options.window.removeEventListener("popstate", navigationListener);
     options.window.removeEventListener("hashchange", navigationListener);
+    reportCache.clear();
     if (timer !== undefined) {
       options.window.clearTimeout(timer);
       timer = undefined;
@@ -207,4 +277,30 @@ export function listingFingerprint(listing: EcommerceListing): string {
       }
     }
   });
+}
+
+export function reportCacheKey(
+  fingerprint: string,
+  destination?: BuyerDestination
+): string {
+  const country = destination?.country.trim().toUpperCase() || "";
+  const postalCode = destination?.postalCode?.trim().toUpperCase() || "";
+  return JSON.stringify({
+    fingerprint,
+    destination: {country, postalCode}
+  });
+}
+
+function validateNonNegativeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+  return value;
+}
+
+function validatePositiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive safe integer.`);
+  }
+  return value;
 }
