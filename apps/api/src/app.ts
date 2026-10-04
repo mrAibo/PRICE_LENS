@@ -591,6 +591,7 @@ function isProductIdentity(value: unknown): value is ProductIdentity {
     isOptionalTradeIdentifier(value.gtin) &&
     isOptionalTradeIdentifier(value.ean) &&
     isOptionalTradeIdentifier(value.upc) &&
+    isOptionalEpid(value.epid) &&
     (value.variant === undefined || isProductVariant(value.variant))
   );
 }
@@ -607,6 +608,16 @@ function isProductVariant(value: unknown): value is ProductVariant {
     isOptionalString(value.modelQualifier, 256) &&
     (value.bundleIncluded === undefined ||
       typeof value.bundleIncluded === "boolean")
+  );
+}
+
+function isOptionalEpid(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (
+      typeof value === "string" &&
+      /^\d{1,32}$/.test(value)
+    )
   );
 }
 
