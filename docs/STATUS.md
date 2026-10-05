@@ -8,7 +8,7 @@ Primary integration branch: `main`
 
 Main baseline merge: `cbf2888aa3e321bab1261d7bed6d9d977a5a4421` (PR #1)
 
-Current implementation checkpoint: `a77e40058227d9be443d58fc0b3d58109cc0a0bb` (PR #90). New implementation branches should start from the current `main`.
+Current implementation checkpoint: `831fd2bf6da70681e850d8e08946edb63a22fdce` (PR #92). New implementation branches should start from the current `main`.
 
 ## Completed
 
@@ -401,13 +401,14 @@ Future categories must extend the calibration corpus before thresholds are chang
 - PR #88 — eBay Production approval packet (EPN software + Buy API/Growth Check) — merged into `main`
 - PR #89 — credential-backed eBay Sandbox corpus characterization for same-product search — merged into `main`
 - PR #90 — PriceLens companion site content (15 HTML pages) — merged into `main`
+- PR #92 — privacy-safe GitHub Pages publication pipeline with generated Impressum/Datenschutz — merged into `main`
 - PR #2 — API boundary branch — closed after equivalent/later work was incorporated into bootstrap
 
 ## Current engineering priorities
 
 1. Phase 1 / Issue #10 — complete for the current observed gate. Six reviewed real fixtures / 108 labelled fields cover used+paid shipping, refurbished+free shipping, selected multi-variant storage, direct `dt/dd` Brand/Model, weak identity/no invention, local-pickup/no-shipping, destination-dependent shipping unknown, and incomplete Product JSON-LD identity with safe DOM fallback.
 2. Issue #12 Sandbox credential/Browse-enrichment gate is complete and EPN account exists. Sandbox corpus characterization confirms only sparse test inventory, mostly new + fixed/free shipping, with no accepted exact-GTIN alternative pairs in the checked sample. Continue Issue #52 in Production after Software/Downloadable Tools approval, Buy API Production approval and Growth Check; keep Catalog fallbacks disabled until eBay grants/clarifies Catalog authorization.
-3. Issue #91 — PriceLens companion site content is merged and ready for publication. Before enabling GitHub Pages, add accurate operator/contact/legal details for the real public launch context; then use that genuine URL in provider/publisher applications.
+3. Issue #91 — PriceLens companion site content plus manual GitHub Pages publication pipeline are merged. Required operator/contact data is injected from GitHub Actions secrets into generated Impressum/Datenschutz pages and never needs to enter Git history. Remaining step: load the real public operator details, run the manual Pages workflow, verify the published URL/legal pages, then use that genuine URL in provider/publisher applications.
 4. Issue #13 — submit idealo iPN and Geizhals Publisher applications using the real PriceLens site once published; for Amazon, request explicit written permission before enabling Amazon in the browser extension.
 5. Issue #14 — live-validate the first approved real provider; Idealo/Geizhals remain documentation-gated.
 6. Add provider-specific persistent cache policy only after live rules are known; in-flight coalescing is already implemented.
