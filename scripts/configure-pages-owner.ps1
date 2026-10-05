@@ -131,4 +131,5 @@ if ($Upload) {
   }
 
   Write-Host "GitHub Actions operator secrets configured. No secret values were printed."
+  exit 0
 }
