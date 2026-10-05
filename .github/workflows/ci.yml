@@ -40,6 +40,20 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Validate Pages owner helper syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "scripts/configure-pages-owner.ps1"),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
       - name: Terraform format
         run: terraform fmt -check -diff -recursive infra
       - name: Terraform state-bootstrap init
