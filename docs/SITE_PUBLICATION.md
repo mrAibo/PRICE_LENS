@@ -34,7 +34,13 @@ Do not invent values to satisfy an onboarding form.
 
 ## Local private staging file
 
-On the authorized workstation, use a git-excluded file such as:
+On the authorized Windows workstation, the helper can create and open the git-excluded file without exposing values in chat:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/configure-pages-owner.ps1 -Init
+```
+
+It uses:
 
 ```text
 .tmp/pages-owner.local.env
@@ -54,7 +60,21 @@ PAGES_EDITORIAL_RESPONSIBLE_NAME=
 PAGES_EDITORIAL_RESPONSIBLE_ADDRESS=
 ```
 
-Keep this file out of Git.
+Keep this file out of Git. `.tmp/` is ignored repository-wide.
+
+To generate a local preview after filling the file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/configure-pages-owner.ps1 -Preview
+```
+
+To upload the values as GitHub Actions secrets without printing them:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/configure-pages-owner.ps1 -Upload
+```
+
+Blank optional fields are removed from repository secrets rather than replaced by fake values.
 
 ## Local validation
 
