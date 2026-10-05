@@ -1,0 +1,53 @@
+name: Publish PriceLens site
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build site with public operator details
+        env:
+          PAGES_OPERATOR_NAME: ${{ secrets.PAGES_OPERATOR_NAME }}
+          PAGES_OPERATOR_STREET: ${{ secrets.PAGES_OPERATOR_STREET }}
+          PAGES_OPERATOR_CITY: ${{ secrets.PAGES_OPERATOR_CITY }}
+          PAGES_OPERATOR_COUNTRY: ${{ secrets.PAGES_OPERATOR_COUNTRY }}
+          PAGES_PUBLIC_EMAIL: ${{ secrets.PAGES_PUBLIC_EMAIL }}
+          PAGES_PUBLIC_PHONE: ${{ secrets.PAGES_PUBLIC_PHONE }}
+          PAGES_VAT_ID: ${{ secrets.PAGES_VAT_ID }}
+          PAGES_EDITORIAL_RESPONSIBLE_NAME: ${{ secrets.PAGES_EDITORIAL_RESPONSIBLE_NAME }}
+          PAGES_EDITORIAL_RESPONSIBLE_ADDRESS: ${{ secrets.PAGES_EDITORIAL_RESPONSIBLE_ADDRESS }}
+        run: node scripts/build-pages-site.mjs
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .pages
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
